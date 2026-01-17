@@ -1,65 +1,148 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useSyncExternalStore } from "react";
+import { useAppStore } from "@/store";
+import { useSSE } from "@/hooks/useSSE";
+import { usePWA } from "@/hooks/usePWA";
+import { ConnectionForm } from "@/components/ConnectionForm";
+import { SessionList } from "@/components/SessionList";
+import { MessageList } from "@/components/MessageList";
+import { MessageInput } from "@/components/MessageInput";
+import { PermissionDialog } from "@/components/PermissionDialog";
+
+function NotificationPermission() {
+  const [permission, setPermission] = useState<NotificationPermission>(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      return Notification.permission;
+    }
+    return "default";
+  });
+
+  const requestPermission = async () => {
+    if ("Notification" in window) {
+      const result = await Notification.requestPermission();
+      setPermission(result);
+    }
+  };
+
+  if (permission !== "default") return null;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <button
+      onClick={requestPermission}
+      className="fixed bottom-20 left-4 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm text-zinc-300 border border-zinc-700 transition-colors z-30"
+    >
+      Enable Notifications
+    </button>
+  );
+}
+
+function InstallPrompt() {
+  const { isInstallable, install } = usePWA();
+
+  if (!isInstallable) return null;
+
+  return (
+    <button
+      onClick={install}
+      className="fixed bottom-4 left-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white transition-colors z-30"
+    >
+      Install App
+    </button>
+  );
+}
+
+function ChatView() {
+  const [showSidebar, setShowSidebar] = useState(false);
+  const { sessions, currentSessionId, status } = useAppStore();
+  
+  useSSE();
+
+  const currentSession = sessions.find((s) => s.id === currentSessionId);
+
+  return (
+    <div className="flex h-screen bg-zinc-950">
+      <div
+        className={`fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity ${
+          showSidebar ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setShowSidebar(false)}
+      />
+
+      <aside
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-72 bg-zinc-900 border-r border-zinc-800 transform transition-transform lg:transform-none ${
+          showSidebar ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
+        <SessionList onClose={() => setShowSidebar(false)} />
+      </aside>
+
+      <main className="flex-1 flex flex-col min-w-0">
+        <header className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowSidebar(true)}
+              className="lg:hidden p-2 text-zinc-400 hover:text-white"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <h1 className="text-lg font-semibold text-white truncate">
+              {currentSession?.title || "OpenCode Anywhere"}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                status.connected ? "bg-green-500" : "bg-red-500"
+              }`}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+            <span className="text-xs text-zinc-500">
+              {status.connected ? `v${status.serverVersion}` : "Disconnected"}
+            </span>
+          </div>
+        </header>
+
+        <MessageList />
+        <MessageInput />
       </main>
+
+      <PermissionDialog />
+      <NotificationPermission />
+      <InstallPrompt />
     </div>
   );
+}
+
+function ConnectView() {
+  return (
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold text-white mb-2">OpenCode Anywhere</h1>
+        <p className="text-zinc-400">Connect to your OpenCode server</p>
+      </div>
+      <ConnectionForm />
+    </div>
+  );
+}
+
+const emptySubscribe = () => () => {};
+const getServerSnapshot = () => false;
+const getClientSnapshot = () => true;
+
+export default function Home() {
+  const { status } = useAppStore();
+  const hydrated = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
+  usePWA();
+
+  if (!hydrated) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
+      </div>
+    );
+  }
+
+  return status.connected ? <ChatView /> : <ConnectView />;
 }
