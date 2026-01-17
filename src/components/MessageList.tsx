@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, memo } from "react";
 import { useAppStore } from "@/store";
-import type { SessionMessage, MessagePart } from "@/types";
+import type { SessionMessage, MessagePart, FinishReason } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
@@ -221,6 +221,72 @@ function ToolInvocation({ part }: { part: MessagePart }) {
   );
 }
 
+function formatDuration(startMs: number, endMs: number): string {
+  const diffSeconds = (endMs - startMs) / 1000;
+  if (diffSeconds < 1) {
+    return `${Math.round(diffSeconds * 1000)}ms`;
+  }
+  if (diffSeconds < 60) {
+    return `${diffSeconds.toFixed(1)}s`;
+  }
+  return `${(diffSeconds / 60).toFixed(1)}m`;
+}
+
+function getFinishStatusText(reason: FinishReason): string | null {
+  switch (reason) {
+    case "end_turn":
+      return null;
+    case "canceled":
+      return "canceled";
+    case "error":
+      return "error";
+    case "permission_denied":
+      return "permission denied";
+    case "max_tokens":
+      return "max tokens";
+    default:
+      return null;
+  }
+}
+
+function MessageFooter({ message }: { message: SessionMessage }) {
+  const finishPart = message.parts.find(p => p.type === "finish");
+  const { modelID, agent, time } = message.info;
+  
+  if (!finishPart?.finish && !modelID && !agent) {
+    return null;
+  }
+
+  const parts: string[] = [];
+  
+  if (agent) {
+    parts.push(agent);
+  }
+  
+  if (modelID) {
+    parts.push(modelID);
+  }
+  
+  if (finishPart?.finish) {
+    const statusText = getFinishStatusText(finishPart.finish.reason);
+    if (statusText) {
+      parts.push(statusText);
+    } else if (time?.created && finishPart.finish.time) {
+      parts.push(formatDuration(time.created, finishPart.finish.time));
+    }
+  }
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mt-2 pt-2 border-t border-zinc-700/50 text-xs text-zinc-500">
+      {parts.join(" · ")}
+    </div>
+  );
+}
+
 const MarkdownContent = memo(function MarkdownContent({ text }: { text: string }) {
   return (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
@@ -275,6 +341,8 @@ function MessageBubble({ message }: { message: SessionMessage }) {
         {toolParts.map((part, i) => (
           <ToolInvocation key={`tool-${part.id || i}`} part={part} />
         ))}
+
+        {!isUser && <MessageFooter message={message} />}
       </div>
     </div>
   );
