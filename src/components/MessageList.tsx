@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, memo } from "react";
 import { useAppStore } from "@/store";
-import type { SessionMessage, MessagePart, FinishReason } from "@/types";
+import type { SessionMessage, MessagePart } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
@@ -232,7 +232,7 @@ function formatDuration(startMs: number, endMs: number): string {
   return `${(diffSeconds / 60).toFixed(1)}m`;
 }
 
-function getFinishStatusText(reason: FinishReason): string | null {
+function getFinishStatusText(reason: string): string | null {
   switch (reason) {
     case "end_turn":
       return null;
@@ -250,10 +250,9 @@ function getFinishStatusText(reason: FinishReason): string | null {
 }
 
 function MessageFooter({ message }: { message: SessionMessage }) {
-  const finishPart = message.parts.find(p => p.type === "finish");
-  const { modelID, agent, time } = message.info;
+  const { modelID, agent, finish, time } = message.info;
   
-  if (!finishPart?.finish && !modelID && !agent) {
+  if (!finish && !modelID && !agent) {
     return null;
   }
 
@@ -267,12 +266,12 @@ function MessageFooter({ message }: { message: SessionMessage }) {
     parts.push(modelID);
   }
   
-  if (finishPart?.finish) {
-    const statusText = getFinishStatusText(finishPart.finish.reason);
+  if (finish) {
+    const statusText = getFinishStatusText(finish);
     if (statusText) {
       parts.push(statusText);
-    } else if (time?.created && finishPart.finish.time) {
-      parts.push(formatDuration(time.created, finishPart.finish.time));
+    } else if (time?.created && time?.completed) {
+      parts.push(formatDuration(time.created, time.completed));
     }
   }
 

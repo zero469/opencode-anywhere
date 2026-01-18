@@ -31,9 +31,11 @@ export interface MessageInfo {
   modelID?: string;
   providerID?: string;
   agent?: string;
+  finish?: string;
   time?: {
     created: number;
     updated?: number;
+    completed?: number;
   };
 }
 
@@ -42,20 +44,11 @@ export interface SessionMessage {
   parts: MessagePart[];
 }
 
-export type FinishReason = 
-  | "end_turn" 
-  | "max_tokens" 
-  | "tool_use" 
-  | "canceled" 
-  | "error" 
-  | "permission_denied" 
-  | "unknown";
-
 export interface MessagePart {
   id?: string;
   sessionID?: string;
   messageID?: string;
-  type: "text" | "tool" | "tool-invocation" | "tool-result" | "reasoning" | "file" | "step-start" | "step-finish" | "finish";
+  type: "text" | "tool" | "tool-invocation" | "tool-result" | "reasoning" | "file" | "step-start" | "step-finish";
   text?: string;
   tool?: string;
   toolName?: string;
@@ -70,10 +63,6 @@ export interface MessagePart {
       start?: number;
       end?: number;
     };
-  };
-  finish?: {
-    reason: FinishReason;
-    time: number;
   };
 }
 
