@@ -69,15 +69,111 @@ The relay server proxies requests to your OpenCode instance, enabling access fro
 
 ### Option B: Cloudflare Tunnel (Recommended)
 
+Secure access from anywhere with Cloudflare Access authentication.
+
+#### 1. Install and Login
+
 ```bash
 # Install cloudflared
 brew install cloudflared
 
-# Create tunnel to OpenCode
-cloudflared tunnel --url http://localhost:4096
+# Login to Cloudflare (requires a domain hosted on Cloudflare)
+cloudflared tunnel login
 ```
 
-This gives you a public HTTPS URL without exposing your network.
+#### 2. Create Tunnel
+
+```bash
+# Create a tunnel
+cloudflared tunnel create opencode-anywhere
+
+# Note the tunnel ID from output, e.g.: eaed4628-ce9c-4be8-b6e0-6afd9ecd43bb
+```
+
+#### 3. Configure Tunnel
+
+Create `~/.cloudflared/config.yml`:
+
+```yaml
+tunnel: <YOUR_TUNNEL_ID>
+credentials-file: /Users/<YOUR_USERNAME>/.cloudflared/<YOUR_TUNNEL_ID>.json
+
+ingress:
+  - hostname: anywhere.yourdomain.com
+    service: http://localhost:3000
+  - service: http_status:404
+```
+
+> **Note**: Only expose the Anywhere frontend (port 3000). The OpenCode API (port 4096) stays local - Anywhere's server-side proxies requests to it securely.
+
+#### 4. Add DNS Route
+
+```bash
+cloudflared tunnel route dns opencode-anywhere anywhere.yourdomain.com
+```
+
+#### 5. Setup Cloudflare Access (Authentication)
+
+1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/)
+2. Create a team (free plan works)
+3. **Settings** → **Authentication** → Add **GitHub** or **Google** login
+4. **Access** → **Applications** → Add application:
+   - Type: Self-hosted
+   - Domain: `anywhere.yourdomain.com`
+5. Add a policy to allow only your email/GitHub account
+
+#### 6. Start Tunnel
+
+```bash
+# Use http2 protocol if quic has issues
+cloudflared tunnel --protocol http2 run opencode-anywhere
+```
+
+#### 7. Auto-start on macOS
+
+Create `~/Library/LaunchAgents/com.cloudflare.cloudflared.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.cloudflare.cloudflared</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/cloudflared</string>
+        <string>tunnel</string>
+        <string>--protocol</string>
+        <string>http2</string>
+        <string>run</string>
+        <string>opencode-anywhere</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/cloudflared.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/cloudflared.log</string>
+</dict>
+</plist>
+```
+
+Load the service:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.cloudflare.cloudflared.plist
+```
+
+#### 8. Connect from Anywhere
+
+1. Open `https://anywhere.yourdomain.com`
+2. Login with GitHub/Google
+3. Server URL: `http://localhost:4096`
+
+Your OpenCode is now securely accessible from anywhere!
 
 ## Architecture
 
@@ -268,15 +364,111 @@ npm start
 
 ### 方案 B：Cloudflare Tunnel（推荐）
 
+通过 Cloudflare Access 认证实现安全的远程访问。
+
+#### 1. 安装并登录
+
 ```bash
 # 安装 cloudflared
 brew install cloudflared
 
-# 创建到 OpenCode 的隧道
-cloudflared tunnel --url http://localhost:4096
+# 登录 Cloudflare（需要有域名托管在 Cloudflare）
+cloudflared tunnel login
 ```
 
-这会给你一个公共 HTTPS URL，无需暴露你的网络。
+#### 2. 创建隧道
+
+```bash
+# 创建隧道
+cloudflared tunnel create opencode-anywhere
+
+# 记录输出中的隧道 ID，例如：eaed4628-ce9c-4be8-b6e0-6afd9ecd43bb
+```
+
+#### 3. 配置隧道
+
+创建 `~/.cloudflared/config.yml`：
+
+```yaml
+tunnel: <你的隧道ID>
+credentials-file: /Users/<你的用户名>/.cloudflared/<你的隧道ID>.json
+
+ingress:
+  - hostname: anywhere.yourdomain.com
+    service: http://localhost:3000
+  - service: http_status:404
+```
+
+> **注意**：只暴露 Anywhere 前端（端口 3000）。OpenCode API（端口 4096）保持本地访问 - Anywhere 的服务端会安全地代理请求。
+
+#### 4. 添加 DNS 路由
+
+```bash
+cloudflared tunnel route dns opencode-anywhere anywhere.yourdomain.com
+```
+
+#### 5. 设置 Cloudflare Access（身份认证）
+
+1. 访问 [Cloudflare Zero Trust](https://one.dash.cloudflare.com/)
+2. 创建团队（免费计划即可）
+3. **设置** → **身份验证** → 添加 **GitHub** 或 **Google** 登录
+4. **访问控制** → **应用程序** → 添加应用：
+   - 类型：自托管
+   - 域名：`anywhere.yourdomain.com`
+5. 添加策略，只允许你的邮箱/GitHub 账号访问
+
+#### 6. 启动隧道
+
+```bash
+# 如果 quic 协议有问题，使用 http2
+cloudflared tunnel --protocol http2 run opencode-anywhere
+```
+
+#### 7. macOS 开机自启
+
+创建 `~/Library/LaunchAgents/com.cloudflare.cloudflared.plist`：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.cloudflare.cloudflared</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/cloudflared</string>
+        <string>tunnel</string>
+        <string>--protocol</string>
+        <string>http2</string>
+        <string>run</string>
+        <string>opencode-anywhere</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/cloudflared.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/cloudflared.log</string>
+</dict>
+</plist>
+```
+
+加载服务：
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.cloudflare.cloudflared.plist
+```
+
+#### 8. 随时随地连接
+
+1. 打开 `https://anywhere.yourdomain.com`
+2. 使用 GitHub/Google 登录
+3. Server URL 填：`http://localhost:4096`
+
+现在你可以从任何地方安全访问你的 OpenCode 了！
 
 ## 架构
 
