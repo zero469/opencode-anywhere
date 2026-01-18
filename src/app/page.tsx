@@ -3,54 +3,11 @@
 import { useState, useSyncExternalStore } from "react";
 import { useAppStore } from "@/store";
 import { useSSE } from "@/hooks/useSSE";
-import { usePWA } from "@/hooks/usePWA";
 import { ConnectionForm } from "@/components/ConnectionForm";
 import { SessionList } from "@/components/SessionList";
 import { MessageList } from "@/components/MessageList";
 import { MessageInput } from "@/components/MessageInput";
 import { PermissionDialog } from "@/components/PermissionDialog";
-
-function NotificationPermission() {
-  const [permission, setPermission] = useState<NotificationPermission>(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      return Notification.permission;
-    }
-    return "default";
-  });
-
-  const requestPermission = async () => {
-    if ("Notification" in window) {
-      const result = await Notification.requestPermission();
-      setPermission(result);
-    }
-  };
-
-  if (permission !== "default") return null;
-
-  return (
-    <button
-      onClick={requestPermission}
-      className="fixed bottom-20 left-4 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm text-zinc-300 border border-zinc-700 transition-colors z-30"
-    >
-      Enable Notifications
-    </button>
-  );
-}
-
-function InstallPrompt() {
-  const { isInstallable, install } = usePWA();
-
-  if (!isInstallable) return null;
-
-  return (
-    <button
-      onClick={install}
-      className="fixed bottom-4 left-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm text-white transition-colors z-30"
-    >
-      Install App
-    </button>
-  );
-}
 
 function ChatView() {
   const [showSidebar, setShowSidebar] = useState(false);
@@ -109,8 +66,6 @@ function ChatView() {
       </main>
 
       <PermissionDialog />
-      <NotificationPermission />
-      <InstallPrompt />
     </div>
   );
 }
@@ -134,7 +89,6 @@ const getClientSnapshot = () => true;
 export default function Home() {
   const { status } = useAppStore();
   const hydrated = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
-  usePWA();
 
   if (!hydrated) {
     return (

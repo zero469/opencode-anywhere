@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/store";
+import { usePWA } from "@/hooks/usePWA";
 import type { Session } from "@/types";
 
 function formatTime(timestamp: number) {
@@ -54,6 +55,21 @@ function SessionItem({ session, isActive, onClick }: { session: Session; isActiv
 export function SessionList({ onClose }: { onClose?: () => void }) {
   const { sessions, currentSessionId, selectSession, createSession, refreshSessions, disconnect, isLoading } = useAppStore();
   const [isCreating, setIsCreating] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  const { isInstallable, install } = usePWA();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  const requestNotificationPermission = async () => {
+    if ("Notification" in window) {
+      const result = await Notification.requestPermission();
+      setNotificationPermission(result);
+    }
+  };
 
   const handleSelect = async (id: string) => {
     if (isLoading) return;
@@ -121,7 +137,34 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
         )}
       </div>
 
-      <div className="p-4 border-t border-zinc-800">
+      <div className="p-4 border-t border-zinc-800 space-y-2">
+        {isInstallable && (
+          <button
+            onClick={install}
+            className="w-full py-2 px-4 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Install App
+          </button>
+        )}
+        {notificationPermission === "default" && (
+          <button
+            onClick={requestNotificationPermission}
+            className="w-full py-2 px-4 text-zinc-400 hover:text-zinc-300 hover:bg-zinc-700/50 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            Enable Notifications
+          </button>
+        )}
+        {notificationPermission === "granted" && (
+          <div className="text-xs text-zinc-500 text-center py-1">
+            Notifications enabled
+          </div>
+        )}
         <button
           onClick={disconnect}
           className="w-full py-2 px-4 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-sm"
