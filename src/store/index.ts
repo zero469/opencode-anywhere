@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart } from "@/types";
+import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection } from "@/types";
 import * as opencode from "@/lib/opencode";
 
 interface AppState {
@@ -12,6 +12,11 @@ interface AppState {
   pendingPermissions: PermissionRequest[];
   isLoading: boolean;
   isSending: boolean;
+  
+  providers: ProvidersResponse | null;
+  agents: Agent[];
+  selectedModel: ModelSelection | null;
+  selectedAgent: string | null;
 
   setConfig: (config: ConnectionConfig) => Promise<void>;
   disconnect: () => void;
@@ -22,6 +27,10 @@ interface AppState {
   respondPermission: (permissionId: string, allow: boolean) => Promise<void>;
   abortSession: () => Promise<void>;
   handleSSEEvent: (event: SSEEvent) => void;
+  
+  fetchProvidersAndAgents: () => Promise<void>;
+  setSelectedModel: (model: ModelSelection | null) => void;
+  setSelectedAgent: (agent: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -35,6 +44,11 @@ export const useAppStore = create<AppState>()(
       pendingPermissions: [],
       isLoading: false,
       isSending: false,
+      
+      providers: null,
+      agents: [],
+      selectedModel: null,
+      selectedAgent: null,
 
       setConfig: async (config) => {
         set({ isLoading: true });
@@ -44,6 +58,7 @@ export const useAppStore = create<AppState>()(
 
         if (status.connected) {
           await get().refreshSessions();
+          await get().fetchProvidersAndAgents();
         }
       },
 
@@ -55,6 +70,10 @@ export const useAppStore = create<AppState>()(
           currentSessionId: null,
           messages: [],
           pendingPermissions: [],
+          providers: null,
+          agents: [],
+          selectedModel: null,
+          selectedAgent: null,
         });
       },
 
@@ -84,12 +103,15 @@ export const useAppStore = create<AppState>()(
       },
 
       sendMessage: async (text) => {
-        const { currentSessionId } = get();
+        const { currentSessionId, selectedModel, selectedAgent } = get();
         if (!currentSessionId || !text.trim()) return;
 
         set({ isSending: true });
         try {
-          await opencode.sendMessageAsync(currentSessionId, text);
+          await opencode.sendMessageAsync(currentSessionId, text, {
+            model: selectedModel || undefined,
+            agent: selectedAgent || undefined,
+          });
         } catch (error) {
           console.error("Failed to send message:", error);
         } finally {
@@ -133,6 +155,40 @@ export const useAppStore = create<AppState>()(
           console.error("Failed to abort session:", error);
         }
       },
+      
+      fetchProvidersAndAgents: async () => {
+        const [providers, agents] = await Promise.all([
+          opencode.getProviders(),
+          opencode.getAgents(),
+        ]);
+        
+        const visibleAgents = agents.filter(a => !a.hidden && a.mode === "primary");
+        set({ providers, agents: visibleAgents });
+        
+        if (providers && !get().selectedModel) {
+          const connectedProvider = providers.all.find(p => providers.connected.includes(p.id));
+          if (connectedProvider) {
+            const defaultModelId = providers.default[connectedProvider.id];
+            const model = connectedProvider.models[defaultModelId];
+            if (model) {
+              set({
+                selectedModel: {
+                  providerID: connectedProvider.id,
+                  modelID: model.id,
+                },
+              });
+            }
+          }
+        }
+        
+        if (visibleAgents.length > 0 && !get().selectedAgent) {
+          const buildAgent = visibleAgents.find(a => a.name === "build");
+          set({ selectedAgent: buildAgent?.name || visibleAgents[0].name });
+        }
+      },
+      
+      setSelectedModel: (model) => set({ selectedModel: model }),
+      setSelectedAgent: (agent) => set({ selectedAgent: agent }),
 
       handleSSEEvent: (event) => {
         const { currentSessionId, messages, pendingPermissions, sessions } = get();
@@ -240,7 +296,11 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "opencode-anywhere",
-      partialize: (state) => ({ config: state.config }),
+      partialize: (state) => ({ 
+        config: state.config,
+        selectedModel: state.selectedModel,
+        selectedAgent: state.selectedAgent,
+      }),
     }
   )
 );

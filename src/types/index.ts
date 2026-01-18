@@ -80,3 +80,39 @@ export interface SSEEvent {
   type: string;
   properties: Record<string, unknown>;
 }
+
+export interface Model {
+  id: string;
+  name: string;
+  attachment?: boolean;
+  reasoning?: boolean;
+  temperature?: boolean;
+}
+
+export interface Provider {
+  id: string;
+  name: string;
+  models: Record<string, Model>;
+}
+
+export interface ProvidersResponse {
+  all: Provider[];
+  default: Record<string, string>;
+  connected: string[];
+}
+
+export interface Agent {
+  name: string;
+  description?: string;
+  mode?: "primary" | "subagent";
+  hidden?: boolean;
+  model?: {
+    modelID: string;
+    providerID: string;
+  };
+}
+
+export interface ModelSelection {
+  providerID: string;
+  modelID: string;
+}

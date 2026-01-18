@@ -1,4 +1,4 @@
-import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent } from "@/types";
+import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent, ProvidersResponse, Agent, ModelSelection } from "@/types";
 import type { Session } from "@/types";
 
 export type { Session };
@@ -57,6 +57,32 @@ export async function checkConnection(): Promise<ConnectionStatus> {
   }
 }
 
+export async function getProviders(): Promise<ProvidersResponse | null> {
+  try {
+    const response = await fetch("/api/opencode/provider", {
+      headers: getHeaders(),
+    });
+    const data = await response.json();
+    if (data.error) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function getAgents(): Promise<Agent[]> {
+  try {
+    const response = await fetch("/api/opencode/agent", {
+      headers: getHeaders(),
+    });
+    const data = await response.json();
+    if (data.error) return [];
+    return data;
+  } catch {
+    return [];
+  }
+}
+
 export async function getSessions(): Promise<Session[]> {
   const response = await fetch("/api/opencode/sessions", {
     headers: getHeaders(),
@@ -80,15 +106,27 @@ export async function getSessionMessages(sessionId: string): Promise<SessionMess
 export async function sendMessageAsync(
   sessionId: string,
   text: string,
-  model?: { providerID: string; modelID: string }
+  options?: {
+    model?: ModelSelection;
+    agent?: string;
+  }
 ): Promise<boolean> {
+  const body: Record<string, unknown> = {
+    parts: [{ type: "text", text }],
+  };
+  
+  if (options?.model) {
+    body.model = options.model;
+  }
+  
+  if (options?.agent) {
+    body.agent = options.agent;
+  }
+
   const response = await fetch(`/api/opencode/sessions/${sessionId}/messages`, {
     method: "POST",
     headers: getHeaders(),
-    body: JSON.stringify({
-      model,
-      parts: [{ type: "text", text }],
-    }),
+    body: JSON.stringify(body),
   });
   
   return response.ok;
