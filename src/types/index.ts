@@ -23,6 +23,16 @@ export interface Session {
   share?: { url: string };
 }
 
+export interface TokenUsage {
+  input: number;
+  output: number;
+  reasoning: number;
+  cache: {
+    read: number;
+    write: number;
+  };
+}
+
 export interface MessageInfo {
   id: string;
   sessionID: string;
@@ -32,6 +42,8 @@ export interface MessageInfo {
   providerID?: string;
   agent?: string;
   finish?: string;
+  cost?: number;
+  tokens?: TokenUsage;
   time?: {
     created: number;
     updated?: number;
