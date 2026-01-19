@@ -232,6 +232,32 @@ function formatDuration(startMs: number, endMs: number): string {
   return `${(diffSeconds / 60).toFixed(1)}m`;
 }
 
+function formatMessageTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+  
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  
+  if (isToday) {
+    return timeStr;
+  } else if (isYesterday) {
+    return `Yesterday ${timeStr}`;
+  } else {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    }) + ` ${timeStr}`;
+  }
+}
+
 function getFinishStatusText(reason: string): string | null {
   switch (reason) {
     case "end_turn":
@@ -296,6 +322,7 @@ const MarkdownContent = memo(function MarkdownContent({ text }: { text: string }
 
 const MessageBubble = memo(function MessageBubble({ message }: { message: SessionMessage }) {
   const isUser = message.info.role === "user";
+  const createdTime = message.info.time?.created;
   
   const textParts = message.parts.filter(p => p.type === "text" && p.text);
   const toolParts = message.parts.filter(p => p.type === "tool");
@@ -308,7 +335,12 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
   }
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
+    <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} mb-4`}>
+      {createdTime && (
+        <div className="text-xs text-zinc-500 mb-1 px-2">
+          {formatMessageTime(createdTime)}
+        </div>
+      )}
       <div
         className={`max-w-[90%] lg:max-w-[80%] rounded-2xl px-4 py-3 ${
           isUser
@@ -349,15 +381,34 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
 
 export function MessageList() {
   const { messages, isLoading } = useAppStore();
+  const currentSessionId = useAppStore((state) => state.currentSessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevSessionIdRef = useRef<string | null>(null);
+  const prevMessageCountRef = useRef(0);
 
   useEffect(() => {
-    // Use setTimeout to ensure DOM is fully rendered before scrolling
-    const timer = setTimeout(() => {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [messages]);
+    if (messages.length === 0) return;
+    
+    const isNewSession = prevSessionIdRef.current !== currentSessionId;
+    const hasNewMessages = messages.length > prevMessageCountRef.current;
+    
+    prevSessionIdRef.current = currentSessionId;
+    prevMessageCountRef.current = messages.length;
+
+    if (isNewSession) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          bottomRef.current?.scrollIntoView({ behavior: "instant" });
+        });
+      });
+    } else if (hasNewMessages) {
+      const timer = setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, currentSessionId]);
 
   if (isLoading) {
     return (
@@ -376,7 +427,7 @@ export function MessageList() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+    <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4">
       {messages.map((msg) => (
         <MessageBubble key={msg.info.id} message={msg} />
       ))}

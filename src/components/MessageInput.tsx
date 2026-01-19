@@ -1,39 +1,50 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useAppStore } from "@/store";
 import { ModelAgentSelector } from "./ModelAgentSelector";
 
 export function MessageInput() {
-  const { sendMessage, isSending, currentSessionId, abortSession } = useAppStore();
+  const sendMessage = useAppStore((state) => state.sendMessage);
+  const isSending = useAppStore((state) => state.isSending);
+  const currentSessionId = useAppStore((state) => state.currentSessionId);
+  const abortSession = useAppStore((state) => state.abortSession);
+  
   const [text, setText] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
+  const adjustHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = "auto";
-      const newHeight = Math.min(textarea.scrollHeight, 200);
-      textarea.style.height = `${newHeight}px`;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
     }
-  }, [text]);
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+    requestAnimationFrame(adjustHeight);
+  }, [adjustHeight]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim() || isSending) return;
+    const trimmed = text.trim();
+    if (!trimmed || isSending) return;
     
-    const message = text;
     setText("");
-    await sendMessage(message);
-  };
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+    }
+    await sendMessage(trimmed);
+  }, [text, isSending, sendMessage]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey && !isComposing) {
       e.preventDefault();
       handleSubmit(e);
     }
-  };
+  }, [isComposing, handleSubmit]);
 
   if (!currentSessionId) {
     return (
@@ -53,11 +64,11 @@ export function MessageInput() {
           <textarea
             ref={textareaRef}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleChange}
             onKeyDown={handleKeyDown}
             onCompositionStart={() => setIsComposing(true)}
             onCompositionEnd={() => setIsComposing(false)}
-            placeholder="Type a message... (Shift+Enter for new line)"
+            placeholder="Message..."
             rows={1}
             className="flex-1 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[42px] max-h-[200px] overflow-y-auto"
             disabled={isSending}

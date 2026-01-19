@@ -82,4 +82,17 @@ export const relay = {
     }
     return response.json();
   },
+
+  async deleteDevice(token: string, deviceId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/devices/${deviceId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to delete device');
+    }
+  },
 };

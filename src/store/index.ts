@@ -31,6 +31,7 @@ interface AppState {
   setConfig: (config: ConnectionConfig) => Promise<void>;
   disconnect: () => void;
   refreshSessions: () => Promise<void>;
+  preloadRecentSessions: (sessions: Session[]) => void;
   selectSession: (id: string) => Promise<void>;
   clearCurrentSession: () => void;
   sendMessage: (text: string) => Promise<void>;
@@ -48,6 +49,7 @@ interface AppState {
   logout: () => void;
   fetchDevices: () => Promise<void>;
   selectDevice: (device: Device) => Promise<void>;
+  deleteDevice: (deviceId: number) => Promise<void>;
   deselectDevice: () => void;
   clearAuthError: () => void;
 }
@@ -189,6 +191,23 @@ export const useAppStore = create<AppState>()(
           messages: [],
         });
       },
+
+      deleteDevice: async (deviceId) => {
+        const { relayToken, devices, selectedDevice } = get();
+        if (!relayToken) return;
+        
+        try {
+          await relay.deleteDevice(relayToken, deviceId);
+          set({ devices: devices.filter(d => d.id !== deviceId) });
+          
+          if (selectedDevice?.id === deviceId) {
+            get().deselectDevice();
+          }
+        } catch (error) {
+          console.error("Failed to delete device:", error);
+          throw error;
+        }
+      },
       
       clearAuthError: () => set({ authError: null }),
 
@@ -201,9 +220,23 @@ export const useAppStore = create<AppState>()(
             return timeB - timeA;
           });
           set({ sessions: sortedSessions });
+          
+          get().preloadRecentSessions(sortedSessions.slice(0, 5));
         } catch (error) {
           console.error("Failed to fetch sessions:", error);
         }
+      },
+
+      preloadRecentSessions: (sessions) => {
+        sessions.forEach((session) => {
+          if (!messageCache.has(session.id)) {
+            opencode.getSessionMessages(session.id)
+              .then((messages) => {
+                messageCache.set(session.id, messages);
+              })
+              .catch(() => {});
+          }
+        });
       },
 
       selectSession: async (id) => {
@@ -366,8 +399,6 @@ export const useAppStore = create<AppState>()(
 
       handleSSEEvent: (event) => {
         const { currentSessionId, messages, pendingPermissions, sessions, isLoading, isSending } = get();
-        
-        console.log("[SSE Event]", event.type, event.properties);
 
         switch (event.type) {
           case "session.updated": {
@@ -386,7 +417,6 @@ export const useAppStore = create<AppState>()(
                   const newUpdated = currentSession.time?.updated || 0;
                   
                   if (newUpdated > lastUpdated) {
-                    console.log("[SSE] Session updated, refreshing messages", { lastUpdated, newUpdated });
                     sessionLastUpdated.set(currentSessionId, newUpdated);
                     opencode.getSessionMessages(currentSessionId).then((newMessages) => {
                       if (get().currentSessionId === currentSessionId) {

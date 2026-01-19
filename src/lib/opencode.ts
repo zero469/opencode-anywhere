@@ -10,12 +10,14 @@ function isNative(): boolean {
   return Capacitor.isNativePlatform();
 }
 
-async function nativeFetch(url: string, options?: { method?: string; headers?: Record<string, string>; body?: string }) {
+async function nativeFetch(url: string, options?: { method?: string; headers?: Record<string, string>; body?: string; timeout?: number }) {
   const response = await CapacitorHttp.request({
     url,
     method: options?.method || 'GET',
     headers: options?.headers,
     data: options?.body ? JSON.parse(options.body) : undefined,
+    connectTimeout: options?.timeout || 60000,
+    readTimeout: options?.timeout || 300000, // 5 minutes for large responses
   });
   return {
     ok: response.status >= 200 && response.status < 300,
@@ -24,7 +26,7 @@ async function nativeFetch(url: string, options?: { method?: string; headers?: R
   };
 }
 
-async function http(url: string, options?: { method?: string; headers?: Record<string, string>; body?: string }) {
+async function http(url: string, options?: { method?: string; headers?: Record<string, string>; body?: string; timeout?: number }) {
   if (isNative()) {
     return nativeFetch(url, options);
   }
@@ -98,15 +100,12 @@ export async function checkConnection(): Promise<ConnectionStatus> {
 
   try {
     const url = isNative() ? `${getBaseUrl()}/global/health` : "/api/opencode/health";
-    console.log("[OpenCode] checkConnection:", { url, isNative: isNative(), baseUrl: getBaseUrl() });
     
     const response = isNative() 
       ? await nativeFetch(url, { headers: getHeaders() })
       : await fetch(url, { headers: getHeaders(), mode: 'same-origin' });
     
-    console.log("[OpenCode] response status:", response.status);
     const data = await response.json();
-    console.log("[OpenCode] response data:", data);
     
     if (data.error) {
       return { connected: false, error: data.error };
@@ -159,15 +158,11 @@ export async function getSessions(): Promise<Session[]> {
 }
 
 export async function getSessionMessages(sessionId: string): Promise<SessionMessage[]> {
-  const startTime = Date.now();
   const url = isNative() 
     ? `${getBaseUrl()}/session/${sessionId}/message` 
     : `/api/opencode/sessions/${sessionId}/messages`;
-  console.log("[OpenCode] getSessionMessages start:", sessionId);
-  const response = await http(url, { headers: getHeaders() });
-  console.log("[OpenCode] getSessionMessages response:", Date.now() - startTime, "ms");
+  const response = await http(url, { headers: getHeaders(), timeout: 300000 });
   const data = await response.json();
-  console.log("[OpenCode] getSessionMessages parsed:", Date.now() - startTime, "ms, count:", Array.isArray(data) ? data.length : 0);
   
   if (data.error) throw new Error(data.error);
   return data || [];
@@ -320,7 +315,6 @@ export function subscribeToEvents(
     };
 
     eventSource.onopen = () => {
-      console.log("[SSE] Connected");
     };
 
     eventSource.onerror = () => {
