@@ -10,6 +10,7 @@ import { SessionList } from "@/components/SessionList";
 import { MessageList } from "@/components/MessageList";
 import { MessageInput } from "@/components/MessageInput";
 import { PermissionDialog } from "@/components/PermissionDialog";
+import { TodoCard } from "@/components/TodoCard";
 import { requestNotificationPermission } from "@/lib/notifications";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
@@ -88,6 +89,7 @@ function ChatView() {
         
         {currentSessionId ? (
           <>
+            <TodoCard />
             <MessageList keyboardHeight={keyboardHeight} />
             <MessageInput />
           </>

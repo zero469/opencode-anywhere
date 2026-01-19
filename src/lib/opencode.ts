@@ -1,4 +1,4 @@
-import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent, ProvidersResponse, Agent, ModelSelection } from "@/types";
+import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent, ProvidersResponse, Agent, ModelSelection, TodoItem } from "@/types";
 import type { Session } from "@/types";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 
@@ -61,6 +61,7 @@ function getApiUrl(path: string): string {
     .replace(/^\/session\/([^/]+)\/prompt_async$/, "/api/opencode/sessions/$1/messages")
     .replace(/^\/session\/([^/]+)\/abort$/, "/api/opencode/sessions/$1/abort")
     .replace(/^\/session\/([^/]+)\/permissions\/([^/]+)$/, "/api/opencode/sessions/$1/permissions/$2")
+    .replace(/^\/session\/([^/]+)\/todo$/, "/api/opencode/sessions/$1/todo")
     .replace(/^\/session\/([^/]+)$/, "/api/opencode/sessions/$1");
   return proxyPath;
 }
@@ -298,6 +299,17 @@ export async function renameSession(sessionId: string, title: string): Promise<S
   const data = await response.json();
   if (data.error) throw new Error(data.error);
   return data;
+}
+
+export async function getSessionTodos(sessionId: string): Promise<TodoItem[]> {
+  const url = isNative()
+    ? `${getBaseUrl()}/session/${sessionId}/todo`
+    : `/api/opencode/sessions/${sessionId}/todo`;
+  const response = await http(url, { headers: getHeaders() });
+  const data = await response.json();
+  
+  if (data.error) return [];
+  return Array.isArray(data) ? data : [];
 }
 
 export function subscribeToEvents(

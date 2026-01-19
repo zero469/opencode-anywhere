@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection } from "@/types";
+import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem } from "@/types";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
 import { notifyReadyForInput } from "@/lib/notifications";
@@ -59,6 +59,7 @@ interface AppState {
   agents: Agent[];
   selectedModel: ModelSelection | null;
   selectedAgent: string | null;
+  todos: TodoItem[];
 
   relayToken: string | null;
   user: User | null;
@@ -87,6 +88,7 @@ interface AppState {
   fetchProvidersAndAgents: () => Promise<void>;
   setSelectedModel: (model: ModelSelection | null) => void;
   setSelectedAgent: (agent: string | null) => void;
+  fetchTodos: (sessionId?: string) => Promise<void>;
 
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
@@ -116,6 +118,7 @@ export const useAppStore = create<AppState>()(
       agents: [],
       selectedModel: null,
       selectedAgent: null,
+      todos: [],
 
       // New state initial values
       relayToken: null,
@@ -149,6 +152,7 @@ export const useAppStore = create<AppState>()(
           agents: [],
           selectedModel: null,
           selectedAgent: null,
+          todos: [],
         });
       },
       
@@ -309,6 +313,7 @@ export const useAppStore = create<AppState>()(
         if (shouldUseCache) {
           const hasMore = sessionHasMoreMessages.get(id) || false;
           set({ currentSessionId: id, messages: cached, isLoading: false, hasMoreMessages: hasMore });
+          get().fetchTodos(id);
           return;
         }
         
@@ -329,6 +334,7 @@ export const useAppStore = create<AppState>()(
           
           if (get().currentSessionId === id) {
             set({ messages, isLoading: false, hasMoreMessages: hasMore });
+            get().fetchTodos(id);
           }
         } catch (error) {
           console.error("Failed to fetch messages:", error);
@@ -339,7 +345,7 @@ export const useAppStore = create<AppState>()(
       },
 
       clearCurrentSession: () => {
-        set({ currentSessionId: null, messages: [], hasMoreMessages: false });
+        set({ currentSessionId: null, messages: [], hasMoreMessages: false, todos: [] });
       },
 
       loadMoreMessages: async () => {
@@ -449,7 +455,13 @@ export const useAppStore = create<AppState>()(
           });
           
           const pollForResponse = async (attempts = 0) => {
-            if (attempts > 60 || !sendingSessions.has(sessionId)) return;
+            if (attempts > 60 || !sendingSessions.has(sessionId)) {
+              sendingSessions.delete(sessionId);
+              if (get().sendingSessionId === sessionId) {
+                set({ sendingSessionId: null });
+              }
+              return;
+            }
             
             try {
               const currentMessages = get().messages;
@@ -474,6 +486,9 @@ export const useAppStore = create<AppState>()(
               messageCache.set(sessionId, mergedMessages);
               if (get().currentSessionId === sessionId) {
                 set({ messages: mergedMessages });
+                if (attempts % 5 === 0) {
+                  get().fetchTodos(sessionId);
+                }
               }
               
               const lastMsg = mergedMessages[mergedMessages.length - 1];
@@ -628,6 +643,20 @@ export const useAppStore = create<AppState>()(
       
       setSelectedModel: (model) => set({ selectedModel: model }),
       setSelectedAgent: (agent) => set({ selectedAgent: agent }),
+      
+      fetchTodos: async (sessionId) => {
+        const id = sessionId || get().currentSessionId;
+        if (!id) return;
+        
+        try {
+          const todos = await opencode.getSessionTodos(id);
+          if (get().currentSessionId === id) {
+            set({ todos });
+          }
+        } catch (error) {
+          console.error("Failed to fetch todos:", error);
+        }
+      },
 
       handleSSEEvent: (event) => {
         const { currentSessionId, messages, pendingPermissions, sessions, isLoading, sendingSessionId } = get();
@@ -771,6 +800,14 @@ export const useAppStore = create<AppState>()(
             const sessionData = event.properties.info as Session | undefined;
             if (sessionData?.id && !sessions.find(s => s.id === sessionData.id)) {
               set({ sessions: [sessionData, ...sessions] });
+            }
+            break;
+          }
+
+          case "todo.updated": {
+            const todoSessionId = event.properties.sessionID as string | undefined;
+            if (todoSessionId === currentSessionId) {
+              get().fetchTodos(todoSessionId);
             }
             break;
           }
