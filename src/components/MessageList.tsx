@@ -382,6 +382,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
 export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number }) {
   const messages = useAppStore((state) => state.messages);
   const isLoading = useAppStore((state) => state.isLoading);
+  const sessionLoadingStep = useAppStore((state) => state.sessionLoadingStep);
   const hasMoreMessages = useAppStore((state) => state.hasMoreMessages);
   const isLoadingMore = useAppStore((state) => state.isLoadingMore);
   const loadMoreMessages = useAppStore((state) => state.loadMoreMessages);
@@ -456,10 +457,19 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
     return () => observer.disconnect();
   }, [hasMoreMessages, isLoadingMore, loadMoreMessages]);
 
+  const SESSION_LOADING_STEP_LABELS: Record<string, string> = {
+    idle: "",
+    loading_messages: "Loading messages...",
+    loading_todos: "Loading todos...",
+    ready: "",
+  };
+
   if (isLoading) {
+    const stepLabel = SESSION_LOADING_STEP_LABELS[sessionLoadingStep] || "Loading...";
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex flex-col items-center justify-center gap-3">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
+        {stepLabel && <span className="text-sm text-zinc-400">{stepLabel}</span>}
       </div>
     );
   }

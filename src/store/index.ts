@@ -44,11 +44,13 @@ function scheduleNotification(sessionId: string, sessionTitle?: string) {
 }
 
 type ConnectionStep = "idle" | "connecting" | "authenticating" | "loading_sessions" | "ready";
+type SessionLoadingStep = "idle" | "loading_messages" | "loading_todos" | "ready";
 
 interface AppState {
   config: ConnectionConfig | null;
   status: ConnectionStatus;
   connectionStep: ConnectionStep;
+  sessionLoadingStep: SessionLoadingStep;
   sessions: Session[];
   currentSessionId: string | null;
   messages: SessionMessage[];
@@ -70,7 +72,7 @@ interface AppState {
   selectedDevice: Device | null;
   authError: string | null;
   pinnedSessionIds: string[];
-  cachedSessionsByDevice: Record<number, Session[]>;
+  cachedSessionsByDevice: Record<number, { sessions: Session[]; pinnedIds: string[] }>;
 
   setConfig: (config: ConnectionConfig) => Promise<void>;
   disconnect: () => void;
@@ -111,6 +113,7 @@ export const useAppStore = create<AppState>()(
       config: null,
       status: { connected: false },
       connectionStep: "idle",
+      sessionLoadingStep: "idle",
       sessions: [],
       currentSessionId: null,
       messages: [],
@@ -236,7 +239,7 @@ export const useAppStore = create<AppState>()(
       },
 
       selectDevice: async (device) => {
-        const { relayToken, config, status, cachedSessionsByDevice } = get();
+        const { relayToken, config, status, cachedSessionsByDevice, pinnedSessionIds } = get();
         if (!relayToken) return;
         
         if (status.connected && config) {
@@ -244,11 +247,15 @@ export const useAppStore = create<AppState>()(
           return;
         }
         
-        const cachedSessions = cachedSessionsByDevice[device.id] || [];
+        const cached = cachedSessionsByDevice[device.id];
+        const cachedSessions = cached?.sessions || [];
+        const cachedPinnedIds = cached?.pinnedIds || [];
+        
         set({ 
           selectedDevice: device, 
           isLoading: true,
           sessions: cachedSessions,
+          pinnedSessionIds: cachedPinnedIds,
           connectionStep: "connecting",
         });
         
@@ -262,12 +269,12 @@ export const useAppStore = create<AppState>()(
           };
           await get().setConfig(newConfig);
           
-          const { sessions, selectedDevice: currentDevice } = get();
+          const { sessions, pinnedSessionIds: currentPinnedIds, selectedDevice: currentDevice } = get();
           if (currentDevice?.id === device.id && sessions.length > 0) {
             set({ 
               cachedSessionsByDevice: {
                 ...get().cachedSessionsByDevice,
-                [device.id]: sessions
+                [device.id]: { sessions, pinnedIds: currentPinnedIds }
               }
             });
           }
@@ -352,7 +359,7 @@ export const useAppStore = create<AppState>()(
         
         if (shouldUseCache) {
           const hasMore = sessionHasMoreMessages.get(id) || false;
-          set({ currentSessionId: id, messages: cached, isLoading: false, hasMoreMessages: hasMore });
+          set({ currentSessionId: id, messages: cached, isLoading: false, hasMoreMessages: hasMore, sessionLoadingStep: "ready" });
           get().fetchTodos(id);
           return;
         }
@@ -361,7 +368,7 @@ export const useAppStore = create<AppState>()(
         sessionHasMoreMessages.delete(id);
         sessionLoadedCount.delete(id);
         
-        set({ currentSessionId: id, isLoading: true, hasMoreMessages: false });
+        set({ currentSessionId: id, isLoading: true, hasMoreMessages: false, sessionLoadingStep: "loading_messages" });
         try {
           const { messages, hasMore } = await opencode.getSessionMessages(id, { 
             limit: MESSAGE_PAGE_SIZE
@@ -373,19 +380,22 @@ export const useAppStore = create<AppState>()(
           sessionLastUpdated.set(id, sessionUpdatedTime);
           
           if (get().currentSessionId === id) {
-            set({ messages, isLoading: false, hasMoreMessages: hasMore });
-            get().fetchTodos(id);
+            set({ messages, isLoading: false, hasMoreMessages: hasMore, sessionLoadingStep: "loading_todos" });
+            await get().fetchTodos(id);
+            if (get().currentSessionId === id) {
+              set({ sessionLoadingStep: "ready" });
+            }
           }
         } catch (error) {
           console.error("Failed to fetch messages:", error);
           if (get().currentSessionId === id) {
-            set({ isLoading: false });
+            set({ isLoading: false, sessionLoadingStep: "idle" });
           }
         }
       },
 
       clearCurrentSession: () => {
-        set({ currentSessionId: null, messages: [], hasMoreMessages: false, todos: [] });
+        set({ currentSessionId: null, messages: [], hasMoreMessages: false, todos: [], sessionLoadingStep: "idle" });
       },
 
       loadMoreMessages: async () => {
@@ -616,12 +626,21 @@ export const useAppStore = create<AppState>()(
       },
 
       togglePinSession: (sessionId) => {
-        const { pinnedSessionIds } = get();
+        const { pinnedSessionIds, selectedDevice, sessions, cachedSessionsByDevice } = get();
         const isPinned = pinnedSessionIds.includes(sessionId);
-        if (isPinned) {
-          set({ pinnedSessionIds: pinnedSessionIds.filter(id => id !== sessionId) });
-        } else {
-          set({ pinnedSessionIds: [...pinnedSessionIds, sessionId] });
+        const newPinnedIds = isPinned 
+          ? pinnedSessionIds.filter(id => id !== sessionId)
+          : [...pinnedSessionIds, sessionId];
+        
+        set({ pinnedSessionIds: newPinnedIds });
+        
+        if (selectedDevice && sessions.length > 0) {
+          set({
+            cachedSessionsByDevice: {
+              ...cachedSessionsByDevice,
+              [selectedDevice.id]: { sessions, pinnedIds: newPinnedIds }
+            }
+          });
         }
       },
 
