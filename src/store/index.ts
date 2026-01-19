@@ -12,6 +12,36 @@ const sessionLastUpdated = new Map<string, number>();
 const sendingSessions = new Set<string>();
 const sessionHasMoreMessages = new Map<string, boolean>();
 const sessionLoadedCount = new Map<string, number>();
+const notificationDebounceTimers = new Map<string, NodeJS.Timeout>();
+
+const NOTIFICATION_DEBOUNCE_MS = 2500;
+
+function hasRunningToolInvocations(messages: SessionMessage[]): boolean {
+  for (const msg of messages) {
+    for (const part of msg.parts) {
+      const isToolInvocation = part.type === "tool-invocation";
+      const isActive = part.state?.status === "running" || part.state?.status === "pending";
+      if (isToolInvocation && isActive) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function scheduleNotification(sessionId: string, sessionTitle?: string) {
+  const existingTimer = notificationDebounceTimers.get(sessionId);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+  
+  const timer = setTimeout(() => {
+    notificationDebounceTimers.delete(sessionId);
+    notifyReadyForInput(sessionTitle);
+  }, NOTIFICATION_DEBOUNCE_MS);
+  
+  notificationDebounceTimers.set(sessionId, timer);
+}
 
 interface AppState {
   config: ConnectionConfig | null;
@@ -443,8 +473,9 @@ export const useAppStore = create<AppState>()(
               
               const lastMsg = mergedMessages[mergedMessages.length - 1];
               const isAssistantDone = lastMsg?.info.role === "assistant" && lastMsg?.info.finish;
+              const hasActiveTools = hasRunningToolInvocations(mergedMessages);
               
-              if (!isAssistantDone) {
+              if (!isAssistantDone || hasActiveTools) {
                 setTimeout(() => pollForResponse(attempts + 1), 1000);
               } else {
                 sendingSessions.delete(sessionId);
@@ -452,7 +483,7 @@ export const useAppStore = create<AppState>()(
                   set({ sendingSessionId: null });
                 }
                 const session = get().sessions.find(s => s.id === sessionId);
-                notifyReadyForInput(session?.title);
+                scheduleNotification(sessionId, session?.title);
               }
             } catch (e) {
               console.error("[Poll] Error:", e);

@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { ModelAgentSelector } from "./ModelAgentSelector";
+
+const isMobileDevice = () => {
+  if (typeof window === "undefined") return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+};
 
 export function MessageInput() {
   const sendMessage = useAppStore((state) => state.sendMessage);
@@ -14,7 +19,12 @@ export function MessageInput() {
   
   const [text, setText] = useState("");
   const [isComposing, setIsComposing] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setIsMobile(isMobileDevice());
+  }, []);
 
   const adjustHeight = useCallback(() => {
     const textarea = textareaRef.current;
@@ -42,11 +52,12 @@ export function MessageInput() {
   }, [text, isSending, sendMessage]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (isMobile) return;
     if (e.key === "Enter" && !e.shiftKey && !isComposing) {
       e.preventDefault();
       handleSubmit(e);
     }
-  }, [isComposing, handleSubmit]);
+  }, [isMobile, isComposing, handleSubmit]);
 
   if (!currentSessionId) {
     return (
