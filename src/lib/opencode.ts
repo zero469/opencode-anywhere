@@ -1,22 +1,83 @@
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent, ProvidersResponse, Agent, ModelSelection } from "@/types";
 import type { Session } from "@/types";
+import { Capacitor, CapacitorHttp } from "@capacitor/core";
 
 export type { Session };
 
 let currentConfig: ConnectionConfig | null = null;
+
+function isNative(): boolean {
+  return Capacitor.isNativePlatform();
+}
+
+async function nativeFetch(url: string, options?: { method?: string; headers?: Record<string, string>; body?: string }) {
+  const response = await CapacitorHttp.request({
+    url,
+    method: options?.method || 'GET',
+    headers: options?.headers,
+    data: options?.body ? JSON.parse(options.body) : undefined,
+  });
+  return {
+    ok: response.status >= 200 && response.status < 300,
+    status: response.status,
+    json: async () => response.data,
+  };
+}
+
+async function http(url: string, options?: { method?: string; headers?: Record<string, string>; body?: string }) {
+  if (isNative()) {
+    return nativeFetch(url, options);
+  }
+  const response = await fetch(url, {
+    method: options?.method,
+    headers: options?.headers,
+    body: options?.body,
+    mode: 'same-origin',
+  });
+  return {
+    ok: response.ok,
+    status: response.status,
+    json: () => response.json(),
+  };
+}
+
+function getBaseUrl(): string {
+  if (!currentConfig?.baseUrl) return "";
+  return currentConfig.baseUrl;
+}
+
+function getApiUrl(path: string): string {
+  if (isNative()) {
+    return `${getBaseUrl()}${path}`;
+  }
+  const proxyPath = path
+    .replace("/global/health", "/api/opencode/health")
+    .replace("/provider", "/api/opencode/provider")
+    .replace("/agent", "/api/opencode/agent")
+    .replace(/^\/session$/, "/api/opencode/sessions")
+    .replace(/^\/session\/([^/]+)\/message$/, "/api/opencode/sessions/$1/messages")
+    .replace(/^\/session\/([^/]+)\/prompt_async$/, "/api/opencode/sessions/$1/messages")
+    .replace(/^\/session\/([^/]+)\/abort$/, "/api/opencode/sessions/$1/abort")
+    .replace(/^\/session\/([^/]+)\/permissions\/([^/]+)$/, "/api/opencode/sessions/$1/permissions/$2");
+  return proxyPath;
+}
 
 function getHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
   
-  if (currentConfig?.baseUrl) {
+  if (!isNative() && currentConfig?.baseUrl) {
     headers["x-opencode-url"] = currentConfig.baseUrl;
   }
   
   if (currentConfig?.username && currentConfig?.password) {
     const credentials = btoa(`${currentConfig.username}:${currentConfig.password}`);
-    headers["x-opencode-auth"] = `Basic ${credentials}`;
+    if (isNative()) {
+      headers["Authorization"] = `Basic ${credentials}`;
+    } else {
+      headers["x-opencode-auth"] = `Basic ${credentials}`;
+    }
   }
   
   return headers;
@@ -36,10 +97,16 @@ export async function checkConnection(): Promise<ConnectionStatus> {
   }
 
   try {
-    const response = await fetch("/api/opencode/health", {
-      headers: getHeaders(),
-    });
+    const url = isNative() ? `${getBaseUrl()}/global/health` : "/api/opencode/health";
+    console.log("[OpenCode] checkConnection:", { url, isNative: isNative(), baseUrl: getBaseUrl() });
+    
+    const response = isNative() 
+      ? await nativeFetch(url, { headers: getHeaders() })
+      : await fetch(url, { headers: getHeaders(), mode: 'same-origin' });
+    
+    console.log("[OpenCode] response status:", response.status);
     const data = await response.json();
+    console.log("[OpenCode] response data:", data);
     
     if (data.error) {
       return { connected: false, error: data.error };
@@ -50,6 +117,7 @@ export async function checkConnection(): Promise<ConnectionStatus> {
       serverVersion: data.version,
     };
   } catch (error) {
+    console.error("[OpenCode] checkConnection error:", error);
     return {
       connected: false,
       error: error instanceof Error ? error.message : "Connection failed",
@@ -59,9 +127,8 @@ export async function checkConnection(): Promise<ConnectionStatus> {
 
 export async function getProviders(): Promise<ProvidersResponse | null> {
   try {
-    const response = await fetch("/api/opencode/provider", {
-      headers: getHeaders(),
-    });
+    const url = isNative() ? `${getBaseUrl()}/provider` : "/api/opencode/provider";
+    const response = await http(url, { headers: getHeaders() });
     const data = await response.json();
     if (data.error) return null;
     return data;
@@ -72,9 +139,8 @@ export async function getProviders(): Promise<ProvidersResponse | null> {
 
 export async function getAgents(): Promise<Agent[]> {
   try {
-    const response = await fetch("/api/opencode/agent", {
-      headers: getHeaders(),
-    });
+    const url = isNative() ? `${getBaseUrl()}/agent` : "/api/opencode/agent";
+    const response = await http(url, { headers: getHeaders() });
     const data = await response.json();
     if (data.error) return [];
     return data;
@@ -84,9 +150,8 @@ export async function getAgents(): Promise<Agent[]> {
 }
 
 export async function getSessions(): Promise<Session[]> {
-  const response = await fetch("/api/opencode/sessions", {
-    headers: getHeaders(),
-  });
+  const url = isNative() ? `${getBaseUrl()}/session` : "/api/opencode/sessions";
+  const response = await http(url, { headers: getHeaders() });
   const data = await response.json();
   
   if (data.error) throw new Error(data.error);
@@ -94,10 +159,15 @@ export async function getSessions(): Promise<Session[]> {
 }
 
 export async function getSessionMessages(sessionId: string): Promise<SessionMessage[]> {
-  const response = await fetch(`/api/opencode/sessions/${sessionId}/messages`, {
-    headers: getHeaders(),
-  });
+  const startTime = Date.now();
+  const url = isNative() 
+    ? `${getBaseUrl()}/session/${sessionId}/message` 
+    : `/api/opencode/sessions/${sessionId}/messages`;
+  console.log("[OpenCode] getSessionMessages start:", sessionId);
+  const response = await http(url, { headers: getHeaders() });
+  console.log("[OpenCode] getSessionMessages response:", Date.now() - startTime, "ms");
   const data = await response.json();
+  console.log("[OpenCode] getSessionMessages parsed:", Date.now() - startTime, "ms, count:", Array.isArray(data) ? data.length : 0);
   
   if (data.error) throw new Error(data.error);
   return data || [];
@@ -123,7 +193,10 @@ export async function sendMessageAsync(
     body.agent = options.agent;
   }
 
-  const response = await fetch(`/api/opencode/sessions/${sessionId}/messages`, {
+  const url = isNative()
+    ? `${getBaseUrl()}/session/${sessionId}/prompt_async`
+    : `/api/opencode/sessions/${sessionId}/messages`;
+  const response = await http(url, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(body),
@@ -137,20 +210,23 @@ export async function respondToPermission(
   permissionId: string,
   allow: boolean
 ): Promise<boolean> {
-  const response = await fetch(
-    `/api/opencode/sessions/${sessionId}/permissions/${permissionId}`,
-    {
-      method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify({ response: allow ? "allow" : "deny" }),
-    }
-  );
+  const url = isNative()
+    ? `${getBaseUrl()}/session/${sessionId}/permissions/${permissionId}`
+    : `/api/opencode/sessions/${sessionId}/permissions/${permissionId}`;
+  const response = await http(url, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ response: allow ? "allow" : "deny" }),
+  });
   
   return response.ok;
 }
 
 export async function abortSession(sessionId: string): Promise<boolean> {
-  const response = await fetch(`/api/opencode/sessions/${sessionId}/abort`, {
+  const url = isNative()
+    ? `${getBaseUrl()}/session/${sessionId}/abort`
+    : `/api/opencode/sessions/${sessionId}/abort`;
+  const response = await http(url, {
     method: "POST",
     headers: getHeaders(),
   });
@@ -159,7 +235,8 @@ export async function abortSession(sessionId: string): Promise<boolean> {
 }
 
 export async function createSession(title?: string): Promise<Session | null> {
-  const response = await fetch("/api/opencode/sessions", {
+  const url = isNative() ? `${getBaseUrl()}/session` : "/api/opencode/sessions";
+  const response = await http(url, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ title }),
@@ -174,19 +251,57 @@ export function subscribeToEvents(
   config: ConnectionConfig,
   onEvent?: (event: SSEEvent) => void
 ): { close: () => void } {
+  let isClosing = false;
+
+  if (isNative()) {
+    let pollTimeout: NodeJS.Timeout | null = null;
+    let lastMessageCount = 0;
+
+    const poll = async () => {
+      if (isClosing) return;
+      
+      try {
+        const response = await nativeFetch(`${config.baseUrl}/session`, {
+          headers: getHeaders(),
+        });
+        
+        if (response.ok) {
+          onEvent?.({ type: "session.updated", properties: {} });
+        }
+      } catch (e) {
+        console.error("[Polling] Error:", e);
+      }
+      
+      if (!isClosing) {
+        pollTimeout = setTimeout(poll, 3000);
+      }
+    };
+
+    poll();
+
+    return {
+      close: () => {
+        isClosing = true;
+        if (pollTimeout) {
+          clearTimeout(pollTimeout);
+        }
+      },
+    };
+  }
+
   let eventSource: EventSource | null = null;
   let reconnectTimeout: NodeJS.Timeout | null = null;
-  let isClosing = false;
 
   const connect = () => {
     if (isClosing) return;
     
-    const url = new URL("/api/opencode/events", window.location.origin);
+    const proxyUrl = new URL("/api/opencode/events", window.location.origin);
     if (config.baseUrl) {
-      url.searchParams.set("baseUrl", config.baseUrl);
+      proxyUrl.searchParams.set("baseUrl", config.baseUrl);
     }
+    const url = proxyUrl.toString();
     
-    eventSource = new EventSource(url.toString());
+    eventSource = new EventSource(url);
 
     eventSource.onmessage = (event) => {
       try {

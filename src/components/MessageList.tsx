@@ -294,7 +294,7 @@ const MarkdownContent = memo(function MarkdownContent({ text }: { text: string }
   );
 });
 
-function MessageBubble({ message }: { message: SessionMessage }) {
+const MessageBubble = memo(function MessageBubble({ message }: { message: SessionMessage }) {
   const isUser = message.info.role === "user";
   
   const textParts = message.parts.filter(p => p.type === "text" && p.text);
@@ -345,7 +345,7 @@ function MessageBubble({ message }: { message: SessionMessage }) {
       </div>
     </div>
   );
-}
+});
 
 export function MessageList() {
   const { messages, isLoading } = useAppStore();
@@ -376,7 +376,7 @@ export function MessageList() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
       {messages.map((msg) => (
         <MessageBubble key={msg.info.id} message={msg} />
       ))}

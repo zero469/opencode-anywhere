@@ -2,6 +2,10 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection } from "@/types";
 import * as opencode from "@/lib/opencode";
+import { relay, Device, User, FrpcConfig } from "@/lib/relay";
+
+const messageCache = new Map<string, SessionMessage[]>();
+const sessionLastUpdated = new Map<string, number>();
 
 interface AppState {
   config: ConnectionConfig | null;
@@ -18,10 +22,17 @@ interface AppState {
   selectedModel: ModelSelection | null;
   selectedAgent: string | null;
 
+  relayToken: string | null;
+  user: User | null;
+  devices: Device[];
+  selectedDevice: Device | null;
+  authError: string | null;
+
   setConfig: (config: ConnectionConfig) => Promise<void>;
   disconnect: () => void;
   refreshSessions: () => Promise<void>;
   selectSession: (id: string) => Promise<void>;
+  clearCurrentSession: () => void;
   sendMessage: (text: string) => Promise<void>;
   createSession: (title?: string) => Promise<void>;
   respondPermission: (permissionId: string, allow: boolean) => Promise<void>;
@@ -31,6 +42,14 @@ interface AppState {
   fetchProvidersAndAgents: () => Promise<void>;
   setSelectedModel: (model: ModelSelection | null) => void;
   setSelectedAgent: (agent: string | null) => void;
+
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  fetchDevices: () => Promise<void>;
+  selectDevice: (device: Device) => Promise<void>;
+  deselectDevice: () => void;
+  clearAuthError: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -49,6 +68,13 @@ export const useAppStore = create<AppState>()(
       agents: [],
       selectedModel: null,
       selectedAgent: null,
+
+      // New state initial values
+      relayToken: null,
+      user: null,
+      devices: [],
+      selectedDevice: null,
+      authError: null,
 
       setConfig: async (config) => {
         set({ isLoading: true });
@@ -76,6 +102,95 @@ export const useAppStore = create<AppState>()(
           selectedAgent: null,
         });
       },
+      
+      // New actions implementation
+      login: async (email, password) => {
+        set({ isLoading: true, authError: null });
+        try {
+          const { token, user } = await relay.login(email, password);
+          set({ relayToken: token, user, isLoading: false });
+          await get().fetchDevices();
+        } catch (error: any) {
+          set({ isLoading: false, authError: error.message });
+          console.error("Login failed:", error);
+        }
+      },
+
+      register: async (email, password) => {
+        set({ isLoading: true, authError: null });
+        try {
+          await relay.register(email, password);
+          // Auto-login after successful registration
+          await get().login(email, password);
+        } catch (error: any) {
+          set({ isLoading: false, authError: error.message });
+          console.error("Registration failed:", error);
+        }
+      },
+
+      logout: () => {
+        set({
+          relayToken: null,
+          user: null,
+          devices: [],
+          selectedDevice: null,
+          config: null,
+          status: { connected: false },
+          sessions: [],
+          currentSessionId: null,
+          messages: [],
+          authError: null,
+        });
+      },
+
+      fetchDevices: async () => {
+        const { relayToken } = get();
+        if (!relayToken) return;
+        set({ isLoading: true });
+        try {
+          const devices = await relay.getDevices(relayToken);
+          set({ devices, isLoading: false });
+        } catch (error: any) {
+          console.error("Failed to fetch devices:", error);
+          // If token is invalid, log out
+          if (error.message.toLowerCase().includes('unauthorized')) {
+             get().logout();
+          }
+          set({ isLoading: false });
+        }
+      },
+
+      selectDevice: async (device) => {
+        const { relayToken } = get();
+        if (!relayToken) return;
+        
+        set({ selectedDevice: device, isLoading: true });
+        try {
+          const frpcConfig = await relay.getFrpcConfig(relayToken, device.id);
+          const config: ConnectionConfig = {
+            baseUrl: `http://${frpcConfig.subdomain}.${frpcConfig.domain}`,
+            username: frpcConfig.auth_user,
+            password: frpcConfig.auth_password,
+          };
+          await get().setConfig(config);
+        } catch (error) {
+          console.error("Failed to get frpc config:", error);
+          set({ isLoading: false });
+        }
+      },
+
+      deselectDevice: () => {
+        set({ 
+          selectedDevice: null, 
+          config: null,
+          status: { connected: false },
+          sessions: [],
+          currentSessionId: null,
+          messages: [],
+        });
+      },
+      
+      clearAuthError: () => set({ authError: null }),
 
       refreshSessions: async () => {
         try {
@@ -92,29 +207,88 @@ export const useAppStore = create<AppState>()(
       },
 
       selectSession: async (id) => {
-        set({ currentSessionId: id, isLoading: true, messages: [] });
+        if (get().isLoading && get().currentSessionId === id) {
+          return;
+        }
+        
+        const session = get().sessions.find(s => s.id === id);
+        if (session?.time?.updated) {
+          sessionLastUpdated.set(id, session.time.updated);
+        }
+        
+        const cached = messageCache.get(id);
+        if (cached) {
+          set({ currentSessionId: id, messages: cached, isLoading: false });
+          return;
+        }
+        
+        set({ currentSessionId: id, isLoading: true });
         try {
           const messages = await opencode.getSessionMessages(id);
-          set({ messages, isLoading: false });
+          messageCache.set(id, messages);
+          if (get().currentSessionId === id) {
+            set({ messages, isLoading: false });
+          }
         } catch (error) {
           console.error("Failed to fetch messages:", error);
-          set({ isLoading: false });
+          if (get().currentSessionId === id) {
+            set({ isLoading: false });
+          }
         }
       },
 
+      clearCurrentSession: () => {
+        set({ currentSessionId: null, messages: [] });
+      },
+
       sendMessage: async (text) => {
-        const { currentSessionId, selectedModel, selectedAgent } = get();
+        const { currentSessionId, selectedModel, selectedAgent, messages } = get();
         if (!currentSessionId || !text.trim()) return;
 
-        set({ isSending: true });
+        const userMessage: SessionMessage = {
+          info: {
+            id: `temp_${Date.now()}`,
+            sessionID: currentSessionId,
+            role: "user",
+            time: { created: Date.now() },
+          },
+          parts: [{ type: "text", text, id: `prt_temp_${Date.now()}` }],
+        };
+        set({ messages: [...messages, userMessage], isSending: true });
+
         try {
           await opencode.sendMessageAsync(currentSessionId, text, {
             model: selectedModel || undefined,
             agent: selectedAgent || undefined,
           });
+          
+          const pollForResponse = async (attempts = 0) => {
+            if (attempts > 60 || get().currentSessionId !== currentSessionId) return;
+            
+            try {
+              const newMessages = await opencode.getSessionMessages(currentSessionId);
+              if (get().currentSessionId === currentSessionId) {
+                set({ messages: newMessages });
+                messageCache.set(currentSessionId, newMessages);
+                
+                const lastMsg = newMessages[newMessages.length - 1];
+                const isAssistantDone = lastMsg?.info.role === "assistant" && lastMsg?.info.finish;
+                
+                if (!isAssistantDone) {
+                  setTimeout(() => pollForResponse(attempts + 1), 1000);
+                } else {
+                  set({ isSending: false });
+                }
+              }
+            } catch (e) {
+              console.error("[Poll] Error:", e);
+              setTimeout(() => pollForResponse(attempts + 1), 2000);
+            }
+          };
+          
+          pollForResponse();
         } catch (error) {
           console.error("Failed to send message:", error);
-        } finally {
           set({ isSending: false });
         }
       },
@@ -191,11 +365,42 @@ export const useAppStore = create<AppState>()(
       setSelectedAgent: (agent) => set({ selectedAgent: agent }),
 
       handleSSEEvent: (event) => {
-        const { currentSessionId, messages, pendingPermissions, sessions } = get();
+        const { currentSessionId, messages, pendingPermissions, sessions, isLoading, isSending } = get();
         
         console.log("[SSE Event]", event.type, event.properties);
 
         switch (event.type) {
+          case "session.updated": {
+            const sessionData = event.properties.info as Session | undefined;
+            if (sessionData?.id) {
+              const newSessions = sessions.map((s) =>
+                s.id === sessionData.id ? { ...s, ...sessionData } : s
+              );
+              set({ sessions: newSessions });
+            } else {
+              get().refreshSessions().then(() => {
+                const updatedSessions = get().sessions;
+                const currentSession = updatedSessions.find(s => s.id === currentSessionId);
+                if (currentSession && currentSessionId && !isLoading && !isSending) {
+                  const lastUpdated = sessionLastUpdated.get(currentSessionId) || 0;
+                  const newUpdated = currentSession.time?.updated || 0;
+                  
+                  if (newUpdated > lastUpdated) {
+                    console.log("[SSE] Session updated, refreshing messages", { lastUpdated, newUpdated });
+                    sessionLastUpdated.set(currentSessionId, newUpdated);
+                    opencode.getSessionMessages(currentSessionId).then((newMessages) => {
+                      if (get().currentSessionId === currentSessionId) {
+                        set({ messages: newMessages });
+                        messageCache.set(currentSessionId, newMessages);
+                      }
+                    }).catch(console.error);
+                  }
+                }
+              });
+            }
+            break;
+          }
+
           case "message.created":
           case "message.updated": {
             const info = event.properties.info as MessageInfo | undefined;
@@ -203,17 +408,19 @@ export const useAppStore = create<AppState>()(
             
             if (sessionId === currentSessionId && info) {
               const existingIndex = messages.findIndex((m) => m.info.id === info.id);
+              let newMessages: SessionMessage[];
               if (existingIndex >= 0) {
-                const newMessages = [...messages];
+                newMessages = [...messages];
                 const existingMsg = newMessages[existingIndex];
                 newMessages[existingIndex] = {
                   info,
                   parts: existingMsg.parts,
                 };
-                set({ messages: newMessages });
               } else {
-                set({ messages: [...messages, { info, parts: [] }] });
+                newMessages = [...messages, { info, parts: [] }];
               }
+              set({ messages: newMessages });
+              messageCache.set(currentSessionId, newMessages);
             }
             break;
           }
@@ -251,6 +458,7 @@ export const useAppStore = create<AppState>()(
                 });
               }
               set({ messages: newMessages });
+              messageCache.set(currentSessionId, newMessages);
             }
             break;
           }
@@ -270,17 +478,6 @@ export const useAppStore = create<AppState>()(
             break;
           }
 
-          case "session.updated": {
-            const sessionData = event.properties.info as Session | undefined;
-            if (sessionData?.id) {
-              const newSessions = sessions.map((s) =>
-                s.id === sessionData.id ? { ...s, ...sessionData } : s
-              );
-              set({ sessions: newSessions });
-            }
-            break;
-          }
-
           case "session.created": {
             const sessionData = event.properties.info as Session | undefined;
             if (sessionData?.id && !sessions.find(s => s.id === sessionData.id)) {
@@ -295,9 +492,12 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: "opencode-anywhere",
+      name: "opencode-anywhere-v4",
       partialize: (state) => ({ 
-        config: state.config,
+        relayToken: state.relayToken,
+        user: state.user,
+        devices: state.devices,
+        selectedDevice: state.selectedDevice,
         selectedModel: state.selectedModel,
         selectedAgent: state.selectedAgent,
       }),
