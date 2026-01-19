@@ -88,7 +88,7 @@ function ChatView() {
         
         {currentSessionId ? (
           <>
-            <MessageList />
+            <MessageList keyboardHeight={keyboardHeight} />
             <MessageInput />
           </>
         ) : (

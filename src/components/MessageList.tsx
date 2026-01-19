@@ -379,7 +379,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
   );
 });
 
-export function MessageList() {
+export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number }) {
   const messages = useAppStore((state) => state.messages);
   const isLoading = useAppStore((state) => state.isLoading);
   const hasMoreMessages = useAppStore((state) => state.hasMoreMessages);
@@ -393,6 +393,12 @@ export function MessageList() {
   const lastMessageIdRef = useRef<string | null>(null);
   const firstMessageIdRef = useRef<string | null>(null);
   const prevScrollHeightRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (keyboardHeight > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+    }
+  }, [keyboardHeight]);
 
   useEffect(() => {
     const container = containerRef.current;
