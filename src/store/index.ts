@@ -65,6 +65,7 @@ interface AppState {
   devices: Device[];
   selectedDevice: Device | null;
   authError: string | null;
+  pinnedSessionIds: string[];
 
   setConfig: (config: ConnectionConfig) => Promise<void>;
   disconnect: () => void;
@@ -76,6 +77,9 @@ interface AppState {
   clearCurrentSession: () => void;
   sendMessage: (text: string) => Promise<void>;
   createSession: (title?: string) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<boolean>;
+  renameSession: (sessionId: string, title: string) => Promise<boolean>;
+  togglePinSession: (sessionId: string) => void;
   respondPermission: (permissionId: string, allow: boolean) => Promise<void>;
   abortSession: () => Promise<void>;
   handleSSEEvent: (event: SSEEvent) => void;
@@ -119,6 +123,7 @@ export const useAppStore = create<AppState>()(
       devices: [],
       selectedDevice: null,
       authError: null,
+      pinnedSessionIds: [],
 
       setConfig: async (config) => {
         set({ isLoading: true });
@@ -513,6 +518,58 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      deleteSession: async (sessionId) => {
+        try {
+          const success = await opencode.deleteSession(sessionId);
+          if (success) {
+            const { sessions, currentSessionId } = get();
+            const newSessions = sessions.filter(s => s.id !== sessionId);
+            set({ sessions: newSessions });
+            
+            messageCache.delete(sessionId);
+            sessionLastUpdated.delete(sessionId);
+            sessionHasMoreMessages.delete(sessionId);
+            sessionLoadedCount.delete(sessionId);
+            
+            if (currentSessionId === sessionId) {
+              set({ currentSessionId: null, messages: [], hasMoreMessages: false });
+            }
+          }
+          return success;
+        } catch (error) {
+          console.error("Failed to delete session:", error);
+          return false;
+        }
+      },
+
+      renameSession: async (sessionId, title) => {
+        try {
+          const updated = await opencode.renameSession(sessionId, title);
+          if (updated) {
+            const { sessions } = get();
+            const newSessions = sessions.map(s => 
+              s.id === sessionId ? { ...s, title } : s
+            );
+            set({ sessions: newSessions });
+            return true;
+          }
+          return false;
+        } catch (error) {
+          console.error("Failed to rename session:", error);
+          return false;
+        }
+      },
+
+      togglePinSession: (sessionId) => {
+        const { pinnedSessionIds } = get();
+        const isPinned = pinnedSessionIds.includes(sessionId);
+        if (isPinned) {
+          set({ pinnedSessionIds: pinnedSessionIds.filter(id => id !== sessionId) });
+        } else {
+          set({ pinnedSessionIds: [...pinnedSessionIds, sessionId] });
+        }
+      },
+
       respondPermission: async (permissionId, allow) => {
         const { currentSessionId, pendingPermissions } = get();
         if (!currentSessionId) return;
@@ -732,6 +789,7 @@ export const useAppStore = create<AppState>()(
         selectedDevice: state.selectedDevice,
         selectedModel: state.selectedModel,
         selectedAgent: state.selectedAgent,
+        pinnedSessionIds: state.pinnedSessionIds,
       }),
     }
   )

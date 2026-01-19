@@ -60,7 +60,8 @@ function getApiUrl(path: string): string {
     .replace(/^\/session\/([^/]+)\/message$/, "/api/opencode/sessions/$1/messages")
     .replace(/^\/session\/([^/]+)\/prompt_async$/, "/api/opencode/sessions/$1/messages")
     .replace(/^\/session\/([^/]+)\/abort$/, "/api/opencode/sessions/$1/abort")
-    .replace(/^\/session\/([^/]+)\/permissions\/([^/]+)$/, "/api/opencode/sessions/$1/permissions/$2");
+    .replace(/^\/session\/([^/]+)\/permissions\/([^/]+)$/, "/api/opencode/sessions/$1/permissions/$2")
+    .replace(/^\/session\/([^/]+)$/, "/api/opencode/sessions/$1");
   return proxyPath;
 }
 
@@ -266,6 +267,34 @@ export async function createSession(title?: string): Promise<Session | null> {
     body: JSON.stringify({ title }),
   });
   
+  const data = await response.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+export async function deleteSession(sessionId: string): Promise<boolean> {
+  const url = isNative()
+    ? `${getBaseUrl()}/session/${sessionId}`
+    : `/api/opencode/sessions/${sessionId}`;
+  const response = await http(url, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+  
+  return response.ok;
+}
+
+export async function renameSession(sessionId: string, title: string): Promise<Session | null> {
+  const url = isNative()
+    ? `${getBaseUrl()}/session/${sessionId}`
+    : `/api/opencode/sessions/${sessionId}`;
+  const response = await http(url, {
+    method: "PATCH",
+    headers: getHeaders(),
+    body: JSON.stringify({ title }),
+  });
+  
+  if (!response.ok) return null;
   const data = await response.json();
   if (data.error) throw new Error(data.error);
   return data;
