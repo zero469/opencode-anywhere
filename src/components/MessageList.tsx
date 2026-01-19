@@ -380,7 +380,11 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
 });
 
 export function MessageList() {
-  const { messages, isLoading, hasMoreMessages, isLoadingMore, loadMoreMessages } = useAppStore();
+  const messages = useAppStore((state) => state.messages);
+  const isLoading = useAppStore((state) => state.isLoading);
+  const hasMoreMessages = useAppStore((state) => state.hasMoreMessages);
+  const isLoadingMore = useAppStore((state) => state.isLoadingMore);
+  const loadMoreMessages = useAppStore((state) => state.loadMoreMessages);
   const currentSessionId = useAppStore((state) => state.currentSessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

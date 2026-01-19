@@ -3,6 +3,7 @@
 import { useSyncExternalStore, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { useSSE } from "@/hooks/useSSE";
+import { useKeyboard } from "@/hooks/useKeyboard";
 import { AuthForm } from "@/components/AuthForm";
 import { DeviceList } from "@/components/DeviceList";
 import { SessionList } from "@/components/SessionList";
@@ -18,6 +19,7 @@ function ChatView() {
   const sessions = useAppStore((state) => state.sessions);
   const status = useAppStore((state) => state.status);
   const selectedDevice = useAppStore((state) => state.selectedDevice);
+  const keyboardHeight = useKeyboard();
 
   useSSE();
   
@@ -50,7 +52,13 @@ function ChatView() {
   };
 
   return (
-    <div className="flex h-screen bg-zinc-950 overflow-hidden" style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
+    <div 
+      className="flex h-screen bg-zinc-950 overflow-hidden" 
+      style={{ 
+        paddingTop: 'var(--safe-area-top)', 
+        paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : 'var(--safe-area-bottom)' 
+      }}
+    >
       <div className="fixed top-0 left-0 right-0 bg-zinc-900 z-50" style={{ height: 'var(--safe-area-top)' }} />
       
       <aside className="hidden lg:flex lg:flex-col w-72 bg-zinc-900 border-r border-zinc-800" style={{ paddingTop: 'var(--safe-area-top)' }}>
