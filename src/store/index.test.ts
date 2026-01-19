@@ -130,7 +130,7 @@ describe('useAppStore', () => {
   describe('selectSession', () => {
     it('sets current session and fetches messages', async () => {
       const messages = [{ info: { id: 'm1', sessionID: 's1', role: 'user' as const }, parts: [] }]
-      mockOpencode.getSessionMessages.mockResolvedValue(messages)
+      mockOpencode.getSessionMessages.mockResolvedValue({ messages, hasMore: false, total: 1 })
 
       await useAppStore.getState().selectSession('s1')
 
@@ -178,12 +178,121 @@ describe('useAppStore', () => {
     it('creates session and selects it', async () => {
       mockOpencode.createSession.mockResolvedValue({ id: 'new-session', title: 'Test' })
       mockOpencode.getSessions.mockResolvedValue([{ id: 'new-session', title: 'Test' }])
-      mockOpencode.getSessionMessages.mockResolvedValue([])
+      mockOpencode.getSessionMessages.mockResolvedValue({ messages: [], hasMore: false, total: 0 })
 
       await useAppStore.getState().createSession('Test')
 
       expect(mockOpencode.createSession).toHaveBeenCalledWith('Test')
       expect(useAppStore.getState().currentSessionId).toBe('new-session')
+    })
+  })
+
+  describe('refreshCurrentSession', () => {
+    it('fetches messages and updates state', async () => {
+      const messages = [
+        { info: { id: 'm1', sessionID: 's1', role: 'user' as const, time: { created: 1000 } }, parts: [] },
+        { info: { id: 'm2', sessionID: 's1', role: 'assistant' as const, finish: true, time: { created: 2000 } }, parts: [] },
+      ]
+      mockOpencode.getSessionMessages.mockResolvedValue({ messages, hasMore: false })
+      useAppStore.setState({ currentSessionId: 's1', messages: [] })
+
+      await useAppStore.getState().refreshCurrentSession()
+
+      expect(mockOpencode.getSessionMessages).toHaveBeenCalledWith('s1', { limit: 30 })
+      expect(useAppStore.getState().messages).toEqual(messages)
+    })
+
+    it('clears sendingSessionId when assistant finishes', async () => {
+      const messages = [
+        { info: { id: 'm1', sessionID: 's1', role: 'user' as const, time: { created: 1000 } }, parts: [] },
+        { info: { id: 'm2', sessionID: 's1', role: 'assistant' as const, finish: true, time: { created: 2000 } }, parts: [] },
+      ]
+      mockOpencode.getSessionMessages.mockResolvedValue({ messages, hasMore: false })
+      useAppStore.setState({ currentSessionId: 's1', sendingSessionId: 's1', messages: [] })
+
+      await useAppStore.getState().refreshCurrentSession()
+
+      expect(useAppStore.getState().sendingSessionId).toBeNull()
+    })
+
+    it('does not clear sendingSessionId when assistant not finished', async () => {
+      const messages = [
+        { info: { id: 'm1', sessionID: 's1', role: 'user' as const, time: { created: 1000 } }, parts: [] },
+        { info: { id: 'm2', sessionID: 's1', role: 'assistant' as const, time: { created: 2000 } }, parts: [] },
+      ]
+      mockOpencode.getSessionMessages.mockResolvedValue({ messages, hasMore: false })
+      useAppStore.setState({ currentSessionId: 's1', sendingSessionId: 's1', messages: [] })
+
+      await useAppStore.getState().refreshCurrentSession()
+
+      expect(useAppStore.getState().sendingSessionId).toBe('s1')
+    })
+
+    it('does nothing when no current session', async () => {
+      useAppStore.setState({ currentSessionId: null })
+
+      await useAppStore.getState().refreshCurrentSession()
+
+      expect(mockOpencode.getSessionMessages).not.toHaveBeenCalled()
+    })
+
+    it('discards result if session changed during fetch', async () => {
+      const messages = [{ info: { id: 'm1', sessionID: 's1', role: 'user' as const }, parts: [] }]
+      mockOpencode.getSessionMessages.mockImplementation(async () => {
+        useAppStore.setState({ currentSessionId: 's2' })
+        return { messages, hasMore: false }
+      })
+      useAppStore.setState({ currentSessionId: 's1', messages: [] })
+
+      await useAppStore.getState().refreshCurrentSession()
+
+      expect(useAppStore.getState().messages).toEqual([])
+    })
+
+    it('merges new messages with existing and sorts by time', async () => {
+      const existingMessages = [
+        { info: { id: 'm1', sessionID: 's1', role: 'user' as const, time: { created: 1000 } }, parts: [] },
+        { info: { id: 'm2', sessionID: 's1', role: 'assistant' as const, time: { created: 2000 } }, parts: [] },
+      ]
+      const apiMessages = [
+        { info: { id: 'm3', sessionID: 's1', role: 'user' as const, time: { created: 3000 } }, parts: [] },
+        { info: { id: 'm4', sessionID: 's1', role: 'assistant' as const, finish: true, time: { created: 4000 } }, parts: [] },
+      ]
+      mockOpencode.getSessionMessages.mockResolvedValue({ messages: apiMessages, hasMore: false })
+      useAppStore.setState({ currentSessionId: 's1', messages: existingMessages })
+
+      await useAppStore.getState().refreshCurrentSession()
+
+      const result = useAppStore.getState().messages
+      expect(result).toHaveLength(4)
+      expect(result[0].info.id).toBe('m1')
+      expect(result[1].info.id).toBe('m2')
+      expect(result[2].info.id).toBe('m3')
+      expect(result[3].info.id).toBe('m4')
+    })
+
+    it('removes temp messages when real messages arrive', async () => {
+      const existingMessages = [
+        { info: { id: 'm1', sessionID: 's1', role: 'user' as const, time: { created: 1000 } }, parts: [{ type: 'text' as const, text: 'old' }] },
+        { info: { id: 'temp_123', sessionID: 's1', role: 'user' as const, time: { created: 3000 } }, parts: [{ type: 'text' as const, text: 'my message' }] },
+      ]
+      const apiMessages = [
+        { info: { id: 'm1', sessionID: 's1', role: 'user' as const, time: { created: 1000 } }, parts: [{ type: 'text' as const, text: 'updated' }] },
+        { info: { id: 'm2', sessionID: 's1', role: 'user' as const, time: { created: 3000 } }, parts: [{ type: 'text' as const, text: 'my message' }] },
+        { info: { id: 'm3', sessionID: 's1', role: 'assistant' as const, finish: true, time: { created: 4000 } }, parts: [{ type: 'text' as const, text: 'response' }] },
+      ]
+      mockOpencode.getSessionMessages.mockResolvedValue({ messages: apiMessages, hasMore: false })
+      useAppStore.setState({ currentSessionId: 's1', messages: existingMessages })
+
+      await useAppStore.getState().refreshCurrentSession()
+
+      const result = useAppStore.getState().messages
+      expect(result).toHaveLength(3)
+      expect(result[0].info.id).toBe('m1')
+      expect(result[0].parts[0].text).toBe('updated')
+      expect(result[1].info.id).toBe('m2')
+      expect(result[2].info.id).toBe('m3')
+      expect(result.find(m => m.info.id.startsWith('temp_'))).toBeUndefined()
     })
   })
 

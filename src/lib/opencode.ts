@@ -160,12 +160,11 @@ export async function getSessions(): Promise<Session[]> {
 export interface PaginatedMessages {
   messages: SessionMessage[];
   hasMore: boolean;
-  total: number;
 }
 
 export async function getSessionMessages(
   sessionId: string, 
-  options?: { limit?: number; offset?: number }
+  options?: { limit?: number; offset?: number; order?: 'asc' | 'desc' }
 ): Promise<PaginatedMessages> {
   const params = new URLSearchParams();
   if (options?.limit !== undefined) {
@@ -173,6 +172,9 @@ export async function getSessionMessages(
   }
   if (options?.offset !== undefined) {
     params.set('offset', options.offset.toString());
+  }
+  if (options?.order) {
+    params.set('order', options.order);
   }
   
   const queryString = params.toString();
@@ -192,7 +194,6 @@ export async function getSessionMessages(
   return {
     messages,
     hasMore,
-    total: messages.length,
   };
 }
 

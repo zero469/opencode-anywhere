@@ -188,7 +188,8 @@ describe('opencode client', () => {
 
       const result = await getSessionMessages('session-1')
 
-      expect(result).toEqual(messages)
+      expect(result.messages).toEqual(messages)
+      expect(result.hasMore).toBe(false)
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/opencode/sessions/session-1/messages',
         expect.any(Object)
@@ -202,7 +203,8 @@ describe('opencode client', () => {
 
       const result = await getSessionMessages('session-1')
 
-      expect(result).toEqual([])
+      expect(result.messages).toEqual([])
+      expect(result.hasMore).toBe(false)
     })
   })
 

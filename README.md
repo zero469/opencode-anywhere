@@ -1,21 +1,48 @@
 # OpenCode Anywhere
 
-A mobile-friendly PWA client for [OpenCode](https://github.com/sst/opencode) - control your AI coding assistant from anywhere.
+A mobile-friendly client for [OpenCode](https://github.com/sst/opencode) - control your AI coding assistant from anywhere.
 
 Similar to Happy Coder for Claude Code, but for OpenCode.
+
+**Now available as a native iOS app!**
 
 [中文文档](#中文文档)
 
 ## Features
 
+- **Native iOS App**: Full native experience with Capacitor - smoother scrolling, better performance
 - **PWA Support**: Install on iOS/Android home screen for native-like experience
 - **Real-time Updates**: SSE-based live streaming of assistant responses
 - **Session Management**: Create, switch, and manage multiple coding sessions
+- **On-demand Pagination**: Load messages incrementally for large sessions (2000+ messages)
 - **Permission Handling**: Approve/deny tool executions remotely
-- **Push Notifications**: Get notified when assistant needs your attention
+- **Push Notifications**: Get notified when assistant needs your attention (native iOS notifications)
 - **Dark Mode**: Easy on the eyes, optimized for mobile
+- **Relay Server Integration**: Secure remote access via opencode-relay-server
 
 ## Quick Start
+
+### Option 1: Native iOS App (Recommended)
+
+1. Clone the repo and install dependencies:
+```bash
+git clone https://github.com/anthropics/opencode-anywhere.git
+cd opencode-anywhere
+npm install
+```
+
+2. Build and sync with iOS:
+```bash
+npm run build:native
+```
+
+3. Open in Xcode and run:
+```bash
+npx cap open ios
+# Press Cmd+R in Xcode to build and run on your device
+```
+
+### Option 2: PWA (Web Browser)
 
 ### 1. Start OpenCode Server
 
@@ -179,17 +206,18 @@ Your OpenCode is now securely accessible from anywhere!
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Mobile PWA    │────▶│  Next.js API    │────▶│ OpenCode Server │
-│   (Browser)     │◀────│    Routes       │◀────│   (Port 4096)   │
+│  iOS Native App │────▶│  Relay Server   │────▶│ OpenCode Server │
+│  or Mobile PWA  │◀────│  (Optional)     │◀────│   (Port 4096)   │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
         │                       │
-        │ SSE Events            │ Proxy
+        │ SSE Events            │ Proxy + Auth
         ▼                       ▼
-   Real-time UI          /api/opencode/*
+   Real-time UI          HTTPS with frp
 ```
 
+- **iOS App**: Native Capacitor app with WKWebView for optimal performance
 - **PWA Client**: React UI with Zustand state management
-- **API Routes**: Proxy layer (SDK has Node.js dependencies)
+- **Relay Server**: Optional proxy for secure remote access (see [opencode-relay-server](https://github.com/anthropics/opencode-relay-server))
 - **SSE**: Server-Sent Events for real-time updates
 
 ## Project Structure
@@ -206,27 +234,31 @@ src/
 ├── components/
 │   ├── ConnectionForm.tsx # Server URL input
 │   ├── SessionList.tsx    # Session sidebar
-│   ├── MessageList.tsx    # Chat messages
+│   ├── MessageList.tsx    # Chat messages with infinite scroll
 │   ├── MessageInput.tsx   # Message composer
 │   └── PermissionDialog.tsx # Permission modal
 ├── hooks/
 │   ├── useSSE.ts          # Real-time event subscription
 │   └── usePWA.ts          # Install prompt handling
 ├── lib/
-│   └── opencode.ts        # HTTP client for OpenCode API
+│   ├── opencode.ts        # HTTP client for OpenCode API
+│   ├── notifications.ts   # iOS native notifications
+│   └── relay.ts           # Relay server client
 ├── store/
 │   └── index.ts           # Zustand store (persisted)
 └── types/
     └── index.ts           # TypeScript definitions
 
+ios/                       # Capacitor iOS project
+├── App/
+│   ├── App.xcodeproj      # Xcode project
+│   └── App/public/        # Built web assets
+└── ...
+
 public/
 ├── manifest.json          # PWA manifest
 ├── sw.js                  # Service worker
 └── icon.svg               # App icon
-
-server/                    # Optional relay server
-├── index.js               # Express proxy
-└── .env.example           # Configuration
 ```
 
 ## Development
@@ -235,15 +267,40 @@ server/                    # Optional relay server
 # Install dependencies
 npm install
 
-# Run development server
+# Run development server (web)
 npm run dev
 
 # Build for production
 npm run build
 
-# Start production server
-npm start
+# Build for iOS
+npm run build:native
+
+# Open iOS project in Xcode
+npx cap open ios
+
+# Run tests
+npm test
 ```
+
+## iOS Development
+
+The native iOS app uses Capacitor to wrap the web app in a native shell.
+
+```bash
+# Build web assets and sync to iOS
+npm run build:native
+
+# Open in Xcode
+npx cap open ios
+
+# Build and run (Cmd+R in Xcode)
+```
+
+### Requirements
+- Xcode 15+
+- iOS 15+ device or simulator
+- Apple Developer account (for device testing)
 
 ## PWA Installation
 
@@ -297,20 +354,47 @@ Built for use with [OpenCode](https://github.com/sst/opencode) by SST.
 
 # 中文文档
 
-一个适配移动端的 PWA 客户端，用于 [OpenCode](https://github.com/sst/opencode) —— 随时随地控制你的 AI 编程助手。
+一个适配移动端的客户端，用于 [OpenCode](https://github.com/sst/opencode) —— 随时随地控制你的 AI 编程助手。
 
 类似于 Claude Code 的 Happy Coder，但专为 OpenCode 打造。
 
+**现已推出原生 iOS 应用！**
+
 ## 功能特性
 
+- **原生 iOS 应用**：基于 Capacitor 的完整原生体验 - 更流畅的滚动，更好的性能
 - **PWA 支持**：可安装到 iOS/Android 主屏幕，获得原生应用般的体验
 - **实时更新**：基于 SSE 的助手响应实时流式传输
 - **会话管理**：创建、切换和管理多个编程会话
+- **按需分页**：大型会话（2000+ 消息）增量加载消息
 - **权限处理**：远程批准/拒绝工具执行请求
-- **推送通知**：当助手需要你关注时收到通知
+- **推送通知**：当助手需要你关注时收到通知（原生 iOS 通知）
 - **深色模式**：护眼设计，针对移动端优化
+- **中继服务器集成**：通过 opencode-relay-server 实现安全远程访问
 
 ## 快速开始
+
+### 方案 1：原生 iOS 应用（推荐）
+
+1. 克隆仓库并安装依赖：
+```bash
+git clone https://github.com/anthropics/opencode-anywhere.git
+cd opencode-anywhere
+npm install
+```
+
+2. 构建并同步到 iOS：
+```bash
+npm run build:native
+```
+
+3. 在 Xcode 中打开并运行：
+```bash
+npx cap open ios
+# 在 Xcode 中按 Cmd+R 构建并运行到设备
+```
+
+### 方案 2：PWA（网页浏览器）
 
 ### 1. 启动 OpenCode 服务器
 
@@ -474,17 +558,18 @@ launchctl load ~/Library/LaunchAgents/com.cloudflare.cloudflared.plist
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   移动端 PWA    │────▶│  Next.js API    │────▶│ OpenCode 服务器 │
-│   (浏览器)      │◀────│    路由层       │◀────│   (端口 4096)   │
+│  iOS 原生应用   │────▶│   中继服务器    │────▶│ OpenCode 服务器 │
+│  或移动端 PWA   │◀────│   (可选)        │◀────│   (端口 4096)   │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
         │                       │
-        │ SSE 事件              │ 代理
+        │ SSE 事件              │ 代理 + 认证
         ▼                       ▼
-    实时界面            /api/opencode/*
+    实时界面              HTTPS + frp
 ```
 
+- **iOS 应用**：基于 Capacitor 的原生应用，使用 WKWebView 实现最佳性能
 - **PWA 客户端**：使用 Zustand 状态管理的 React 界面
-- **API 路由**：代理层（SDK 有 Node.js 依赖）
+- **中继服务器**：可选的安全远程访问代理（见 [opencode-relay-server](https://github.com/anthropics/opencode-relay-server)）
 - **SSE**：用于实时更新的服务器发送事件
 
 ## 项目结构
@@ -501,27 +586,31 @@ src/
 ├── components/
 │   ├── ConnectionForm.tsx # 服务器 URL 输入
 │   ├── SessionList.tsx    # 会话侧边栏
-│   ├── MessageList.tsx    # 聊天消息
+│   ├── MessageList.tsx    # 聊天消息（支持无限滚动）
 │   ├── MessageInput.tsx   # 消息编辑器
 │   └── PermissionDialog.tsx # 权限弹窗
 ├── hooks/
 │   ├── useSSE.ts          # 实时事件订阅
 │   └── usePWA.ts          # 安装提示处理
 ├── lib/
-│   └── opencode.ts        # OpenCode API HTTP 客户端
+│   ├── opencode.ts        # OpenCode API HTTP 客户端
+│   ├── notifications.ts   # iOS 原生通知
+│   └── relay.ts           # 中继服务器客户端
 ├── store/
 │   └── index.ts           # Zustand store（持久化）
 └── types/
     └── index.ts           # TypeScript 类型定义
 
+ios/                       # Capacitor iOS 项目
+├── App/
+│   ├── App.xcodeproj      # Xcode 项目
+│   └── App/public/        # 构建后的 web 资源
+└── ...
+
 public/
 ├── manifest.json          # PWA 清单
 ├── sw.js                  # Service Worker
 └── icon.svg               # 应用图标
-
-server/                    # 可选的中继服务器
-├── index.js               # Express 代理
-└── .env.example           # 配置文件
 ```
 
 ## 开发
@@ -530,15 +619,40 @@ server/                    # 可选的中继服务器
 # 安装依赖
 npm install
 
-# 运行开发服务器
+# 运行开发服务器（网页）
 npm run dev
 
 # 生产构建
 npm run build
 
-# 启动生产服务器
-npm start
+# 构建 iOS
+npm run build:native
+
+# 在 Xcode 中打开 iOS 项目
+npx cap open ios
+
+# 运行测试
+npm test
 ```
+
+## iOS 开发
+
+原生 iOS 应用使用 Capacitor 将 web 应用包装在原生外壳中。
+
+```bash
+# 构建 web 资源并同步到 iOS
+npm run build:native
+
+# 在 Xcode 中打开
+npx cap open ios
+
+# 构建并运行（在 Xcode 中按 Cmd+R）
+```
+
+### 要求
+- Xcode 15+
+- iOS 15+ 设备或模拟器
+- Apple 开发者账号（设备测试需要）
 
 ## PWA 安装
 

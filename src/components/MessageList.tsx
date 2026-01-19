@@ -384,22 +384,27 @@ export function MessageList() {
   const currentSessionId = useAppStore((state) => state.currentSessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const topSentinelRef = useRef<HTMLDivElement>(null);
   const prevSessionIdRef = useRef<string | null>(null);
-  const prevMessageCountRef = useRef(0);
   const lastMessageIdRef = useRef<string | null>(null);
+  const firstMessageIdRef = useRef<string | null>(null);
+  const prevScrollHeightRef = useRef<number>(0);
 
   useEffect(() => {
-    if (messages.length === 0) return;
+    const container = containerRef.current;
+    if (!container || messages.length === 0) return;
     
     const isNewSession = prevSessionIdRef.current !== currentSessionId;
     const currentLastMessageId = messages[messages.length - 1]?.info.id;
+    const currentFirstMessageId = messages[0]?.info.id;
     const hasNewMessageAtBottom = currentLastMessageId !== lastMessageIdRef.current;
+    const hasOlderMessagesLoaded = currentFirstMessageId !== firstMessageIdRef.current && !isNewSession;
     
-    prevSessionIdRef.current = currentSessionId;
-    prevMessageCountRef.current = messages.length;
-    lastMessageIdRef.current = currentLastMessageId;
-
-    if (isNewSession) {
+    if (hasOlderMessagesLoaded && prevScrollHeightRef.current > 0) {
+      const newScrollHeight = container.scrollHeight;
+      const scrollDiff = newScrollHeight - prevScrollHeightRef.current;
+      container.scrollTop = scrollDiff;
+    } else if (isNewSession) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           bottomRef.current?.scrollIntoView({ behavior: "instant" });
@@ -409,9 +414,37 @@ export function MessageList() {
       const timer = setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);
+      prevSessionIdRef.current = currentSessionId;
+      lastMessageIdRef.current = currentLastMessageId;
+      firstMessageIdRef.current = currentFirstMessageId;
       return () => clearTimeout(timer);
     }
+    
+    prevSessionIdRef.current = currentSessionId;
+    lastMessageIdRef.current = currentLastMessageId;
+    firstMessageIdRef.current = currentFirstMessageId;
+    prevScrollHeightRef.current = container.scrollHeight;
   }, [messages, currentSessionId]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const sentinel = topSentinelRef.current;
+    if (!container || !sentinel) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasMoreMessages && !isLoadingMore) {
+          prevScrollHeightRef.current = container.scrollHeight;
+          loadMoreMessages();
+        }
+      },
+      { root: container, threshold: 0.1 }
+    );
+    
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreMessages, isLoadingMore, loadMoreMessages]);
 
   if (isLoading) {
     return (
@@ -431,24 +464,17 @@ export function MessageList() {
 
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4">
-      {hasMoreMessages && (
+      <div ref={topSentinelRef} className="h-1" />
+      
+      {isLoadingMore && (
         <div className="flex justify-center mb-4">
-          <button
-            onClick={loadMoreMessages}
-            disabled={isLoadingMore}
-            className="px-4 py-2 text-sm text-zinc-400 bg-zinc-800 hover:bg-zinc-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoadingMore ? (
-              <span className="flex items-center gap-2">
-                <span className="animate-spin h-4 w-4 border-2 border-zinc-500 border-t-zinc-200 rounded-full" />
-                Loading...
-              </span>
-            ) : (
-              "Load earlier messages"
-            )}
-          </button>
+          <span className="flex items-center gap-2 text-sm text-zinc-400">
+            <span className="animate-spin h-4 w-4 border-2 border-zinc-500 border-t-zinc-200 rounded-full" />
+            Loading earlier messages...
+          </span>
         </div>
       )}
+      
       {messages.map((msg) => (
         <MessageBubble key={msg.info.id} message={msg} />
       ))}

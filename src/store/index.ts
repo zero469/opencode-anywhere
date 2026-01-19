@@ -3,13 +3,15 @@ import { persist } from "zustand/middleware";
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection } from "@/types";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
+import { notifyReadyForInput } from "@/lib/notifications";
 
-const INITIAL_MESSAGE_LIMIT = 30;
+const MESSAGE_PAGE_SIZE = 30;
 
 const messageCache = new Map<string, SessionMessage[]>();
 const sessionLastUpdated = new Map<string, number>();
 const sendingSessions = new Set<string>();
 const sessionHasMoreMessages = new Map<string, boolean>();
+const sessionLoadedCount = new Map<string, number>();
 
 interface AppState {
   config: ConnectionConfig | null;
@@ -39,6 +41,7 @@ interface AppState {
   refreshSessions: () => Promise<void>;
   preloadRecentSessions: (sessions: Session[]) => void;
   selectSession: (id: string) => Promise<void>;
+  refreshCurrentSession: () => Promise<void>;
   loadMoreMessages: () => Promise<void>;
   clearCurrentSession: () => void;
   sendMessage: (text: string) => Promise<void>;
@@ -243,9 +246,12 @@ export const useAppStore = create<AppState>()(
           for (const session of sessions) {
             if (!messageCache.has(session.id)) {
               try {
-                const { messages, hasMore } = await opencode.getSessionMessages(session.id, { limit: INITIAL_MESSAGE_LIMIT });
+                const { messages, hasMore } = await opencode.getSessionMessages(session.id, { 
+                  limit: MESSAGE_PAGE_SIZE
+                });
                 messageCache.set(session.id, messages);
                 sessionHasMoreMessages.set(session.id, hasMore);
+                sessionLoadedCount.set(session.id, messages.length);
               } catch {}
             }
           }
@@ -259,34 +265,35 @@ export const useAppStore = create<AppState>()(
         }
         
         const session = get().sessions.find(s => s.id === id);
-        if (session?.time?.updated) {
-          sessionLastUpdated.set(id, session.time.updated);
-        }
+        const sessionUpdatedTime = session?.time?.updated || 0;
+        const cacheUpdatedTime = sessionLastUpdated.get(id) || 0;
         
         const cached = messageCache.get(id);
-        if (cached) {
+        const shouldUseCache = cached && cacheUpdatedTime >= sessionUpdatedTime;
+        
+        if (shouldUseCache) {
           const hasMore = sessionHasMoreMessages.get(id) || false;
           set({ currentSessionId: id, messages: cached, isLoading: false, hasMoreMessages: hasMore });
           return;
         }
         
+        messageCache.delete(id);
+        sessionHasMoreMessages.delete(id);
+        sessionLoadedCount.delete(id);
+        
         set({ currentSessionId: id, isLoading: true, hasMoreMessages: false });
         try {
-          const { messages, hasMore } = await opencode.getSessionMessages(id, { limit: INITIAL_MESSAGE_LIMIT });
+          const { messages, hasMore } = await opencode.getSessionMessages(id, { 
+            limit: MESSAGE_PAGE_SIZE
+          });
+          
           messageCache.set(id, messages);
           sessionHasMoreMessages.set(id, hasMore);
+          sessionLoadedCount.set(id, messages.length);
+          sessionLastUpdated.set(id, sessionUpdatedTime);
+          
           if (get().currentSessionId === id) {
             set({ messages, isLoading: false, hasMoreMessages: hasMore });
-          }
-          
-          if (hasMore) {
-            opencode.getSessionMessages(id).then(({ messages: allMessages }) => {
-              messageCache.set(id, allMessages);
-              sessionHasMoreMessages.set(id, false);
-              if (get().currentSessionId === id) {
-                set({ messages: allMessages, hasMoreMessages: false });
-              }
-            }).catch(() => {});
           }
         } catch (error) {
           console.error("Failed to fetch messages:", error);
@@ -301,21 +308,85 @@ export const useAppStore = create<AppState>()(
       },
 
       loadMoreMessages: async () => {
-        const { currentSessionId, isLoadingMore, hasMoreMessages } = get();
+        const { currentSessionId, isLoadingMore, hasMoreMessages, messages } = get();
         if (!currentSessionId || isLoadingMore || !hasMoreMessages) return;
+        
+        const currentOffset = sessionLoadedCount.get(currentSessionId) || messages.length;
         
         set({ isLoadingMore: true });
         try {
-          const { messages: allMessages } = await opencode.getSessionMessages(currentSessionId);
+          const { messages: olderMessages, hasMore } = await opencode.getSessionMessages(currentSessionId, {
+            limit: MESSAGE_PAGE_SIZE,
+            offset: currentOffset
+          });
           
-          if (get().currentSessionId === currentSessionId) {
-            messageCache.set(currentSessionId, allMessages);
-            sessionHasMoreMessages.set(currentSessionId, false);
-            set({ messages: allMessages, hasMoreMessages: false, isLoadingMore: false });
+          if (get().currentSessionId !== currentSessionId) return;
+          
+          const messageMap = new Map(messages.map(m => [m.info.id, m]));
+          for (const msg of olderMessages) {
+            if (!messageMap.has(msg.info.id)) {
+              messageMap.set(msg.info.id, msg);
+            }
           }
+          
+          const newMessages = Array.from(messageMap.values()).sort((a, b) => {
+            const timeA = a.info.time?.created || 0;
+            const timeB = b.info.time?.created || 0;
+            return timeA - timeB;
+          });
+          
+          messageCache.set(currentSessionId, newMessages);
+          sessionHasMoreMessages.set(currentSessionId, hasMore);
+          sessionLoadedCount.set(currentSessionId, currentOffset + olderMessages.length);
+          
+          set({ messages: newMessages, hasMoreMessages: hasMore, isLoadingMore: false });
         } catch (error) {
           console.error("Failed to load more messages:", error);
           set({ isLoadingMore: false });
+        }
+      },
+
+      refreshCurrentSession: async () => {
+        const { currentSessionId, messages: currentMessages } = get();
+        if (!currentSessionId) return;
+        
+        const sessionIdAtStart = currentSessionId;
+        
+        try {
+          const { messages: latestMessages } = await opencode.getSessionMessages(sessionIdAtStart, {
+            limit: MESSAGE_PAGE_SIZE
+          });
+          
+          if (get().currentSessionId !== sessionIdAtStart) {
+            return;
+          }
+          
+          const existingNonTemp = currentMessages.filter(m => !m.info.id.startsWith('temp_'));
+          const messageMap = new Map(existingNonTemp.map(m => [m.info.id, m]));
+          for (const msg of latestMessages) {
+            messageMap.set(msg.info.id, msg);
+          }
+          
+          const mergedMessages = Array.from(messageMap.values()).sort((a, b) => {
+            const timeA = a.info.time?.created || 0;
+            const timeB = b.info.time?.created || 0;
+            return timeA - timeB;
+          });
+          
+          messageCache.set(sessionIdAtStart, mergedMessages);
+          set({ messages: mergedMessages });
+          
+          const lastMsg = mergedMessages[mergedMessages.length - 1];
+          const isAssistantDone = lastMsg?.info.role === "assistant" && lastMsg?.info.finish;
+          
+          if (isAssistantDone) {
+            sendingSessions.delete(sessionIdAtStart);
+            if (get().sendingSessionId === sessionIdAtStart) {
+              set({ sendingSessionId: null });
+            }
+          }
+        } catch (error) {
+          console.error("[refreshCurrentSession] Failed:", error);
         }
       },
 
@@ -346,14 +417,31 @@ export const useAppStore = create<AppState>()(
             if (attempts > 60 || !sendingSessions.has(sessionId)) return;
             
             try {
-              const { messages: newMessages } = await opencode.getSessionMessages(sessionId);
-              messageCache.set(sessionId, newMessages);
-              sessionHasMoreMessages.set(sessionId, false);
-              if (get().currentSessionId === sessionId) {
-                set({ messages: newMessages, hasMoreMessages: false });
+              const currentMessages = get().messages;
+              
+              const { messages: latestMessages } = await opencode.getSessionMessages(sessionId, {
+                limit: MESSAGE_PAGE_SIZE
+              });
+              
+              const existingNonTemp = currentMessages.filter(m => !m.info.id.startsWith('temp_'));
+              
+              const messageMap = new Map(existingNonTemp.map(m => [m.info.id, m]));
+              for (const msg of latestMessages) {
+                messageMap.set(msg.info.id, msg);
               }
               
-              const lastMsg = newMessages[newMessages.length - 1];
+              const mergedMessages = Array.from(messageMap.values()).sort((a, b) => {
+                const timeA = a.info.time?.created || 0;
+                const timeB = b.info.time?.created || 0;
+                return timeA - timeB;
+              });
+              
+              messageCache.set(sessionId, mergedMessages);
+              if (get().currentSessionId === sessionId) {
+                set({ messages: mergedMessages });
+              }
+              
+              const lastMsg = mergedMessages[mergedMessages.length - 1];
               const isAssistantDone = lastMsg?.info.role === "assistant" && lastMsg?.info.finish;
               
               if (!isAssistantDone) {
@@ -363,6 +451,8 @@ export const useAppStore = create<AppState>()(
                 if (get().sendingSessionId === sessionId) {
                   set({ sendingSessionId: null });
                 }
+                const session = get().sessions.find(s => s.id === sessionId);
+                notifyReadyForInput(session?.title);
               }
             } catch (e) {
               console.error("[Poll] Error:", e);
@@ -464,23 +554,48 @@ export const useAppStore = create<AppState>()(
               set({ sessions: newSessions });
             } else {
               get().refreshSessions().then(() => {
-                const updatedSessions = get().sessions;
-                const currentSession = updatedSessions.find(s => s.id === currentSessionId);
-                const isCurrentSessionSending = sendingSessionId === currentSessionId;
-                if (currentSession && currentSessionId && !isLoading && !isCurrentSessionSending) {
-                  const lastUpdated = sessionLastUpdated.get(currentSessionId) || 0;
-                  const newUpdated = currentSession.time?.updated || 0;
+                const state = get();
+                const sessionId = state.currentSessionId;
+                if (!sessionId || state.isLoading) return;
+                
+                const currentSession = state.sessions.find(s => s.id === sessionId);
+                if (!currentSession) return;
+                
+                const lastUpdated = sessionLastUpdated.get(sessionId) || 0;
+                const newUpdated = currentSession.time?.updated || 0;
+                
+                if (newUpdated > lastUpdated) {
+                  sessionLastUpdated.set(sessionId, newUpdated);
                   
-                  if (newUpdated > lastUpdated) {
-                    sessionLastUpdated.set(currentSessionId, newUpdated);
-                    opencode.getSessionMessages(currentSessionId).then(({ messages: newMessages }) => {
-                      if (get().currentSessionId === currentSessionId) {
-                        set({ messages: newMessages, hasMoreMessages: false });
-                        messageCache.set(currentSessionId, newMessages);
-                        sessionHasMoreMessages.set(currentSessionId, false);
+                  opencode.getSessionMessages(sessionId, { limit: MESSAGE_PAGE_SIZE }).then(({ messages: latestMessages }) => {
+                    if (get().currentSessionId !== sessionId) return;
+                    
+                    const currentMessages = get().messages;
+                    const existingNonTemp = currentMessages.filter(m => !m.info.id.startsWith('temp_'));
+                    
+                    const messageMap = new Map(existingNonTemp.map(m => [m.info.id, m]));
+                    for (const msg of latestMessages) {
+                      messageMap.set(msg.info.id, msg);
+                    }
+                    
+                    const mergedMessages = Array.from(messageMap.values()).sort((a, b) => {
+                      const timeA = a.info.time?.created || 0;
+                      const timeB = b.info.time?.created || 0;
+                      return timeA - timeB;
+                    });
+                    
+                    set({ messages: mergedMessages });
+                    messageCache.set(sessionId, mergedMessages);
+                    
+                    const lastMsg = mergedMessages[mergedMessages.length - 1];
+                    const isAssistantDone = lastMsg?.info.role === "assistant" && lastMsg?.info.finish;
+                    if (isAssistantDone && sendingSessions.has(sessionId)) {
+                      sendingSessions.delete(sessionId);
+                      if (get().sendingSessionId === sessionId) {
+                        set({ sendingSessionId: null });
                       }
-                    }).catch(console.error);
-                  }
+                    }
+                  }).catch(console.error);
                 }
               });
             }

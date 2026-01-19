@@ -9,23 +9,42 @@ import { SessionList } from "@/components/SessionList";
 import { MessageList } from "@/components/MessageList";
 import { MessageInput } from "@/components/MessageInput";
 import { PermissionDialog } from "@/components/PermissionDialog";
+import { requestNotificationPermission } from "@/lib/notifications";
+import { App } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 
 function ChatView() {
-  const { currentSessionId, deselectDevice, clearCurrentSession } = useAppStore();
+  const { currentSessionId, deselectDevice, clearCurrentSession, refreshCurrentSession } = useAppStore();
   const sessions = useAppStore((state) => state.sessions);
   const status = useAppStore((state) => state.status);
   const selectedDevice = useAppStore((state) => state.selectedDevice);
 
   useSSE();
+  
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    
+    const listener = App.addListener("appStateChange", ({ isActive }) => {
+      if (isActive) {
+        const state = useAppStore.getState();
+        if (state.currentSessionId) {
+          console.log("[appStateChange] Refreshing session:", state.currentSessionId);
+          state.refreshCurrentSession();
+        }
+      }
+    });
+    
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, []);
 
   const currentSession = sessions.find((s) => s.id === currentSessionId);
 
   const handleBack = () => {
     if (currentSessionId) {
-      // If in a session, go back to session list
       clearCurrentSession();
     } else {
-      // If in session list, go back to device list
       deselectDevice();
     }
   };
@@ -108,6 +127,12 @@ export default function Home() {
   const selectDevice = useAppStore((state) => state.selectDevice);
 
   const hydrated = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
+
+  useEffect(() => {
+    if (hydrated) {
+      requestNotificationPermission();
+    }
+  }, [hydrated]);
 
   useEffect(() => {
     if (hydrated && relayToken) {
