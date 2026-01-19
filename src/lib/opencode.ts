@@ -157,15 +157,43 @@ export async function getSessions(): Promise<Session[]> {
   return data;
 }
 
-export async function getSessionMessages(sessionId: string): Promise<SessionMessage[]> {
-  const url = isNative() 
+export interface PaginatedMessages {
+  messages: SessionMessage[];
+  hasMore: boolean;
+  total: number;
+}
+
+export async function getSessionMessages(
+  sessionId: string, 
+  options?: { limit?: number; offset?: number }
+): Promise<PaginatedMessages> {
+  const params = new URLSearchParams();
+  if (options?.limit !== undefined) {
+    params.set('limit', options.limit.toString());
+  }
+  if (options?.offset !== undefined) {
+    params.set('offset', options.offset.toString());
+  }
+  
+  const queryString = params.toString();
+  const baseUrlPath = isNative() 
     ? `${getBaseUrl()}/session/${sessionId}/message` 
     : `/api/opencode/sessions/${sessionId}/messages`;
+  const url = queryString ? `${baseUrlPath}?${queryString}` : baseUrlPath;
+  
   const response = await http(url, { headers: getHeaders(), timeout: 300000 });
   const data = await response.json();
   
   if (data.error) throw new Error(data.error);
-  return data || [];
+  
+  const messages = data || [];
+  const hasMore = options?.limit !== undefined && messages.length >= options.limit;
+  
+  return {
+    messages,
+    hasMore,
+    total: messages.length,
+  };
 }
 
 export async function sendMessageAsync(

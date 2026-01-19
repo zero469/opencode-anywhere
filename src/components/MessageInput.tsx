@@ -6,9 +6,11 @@ import { ModelAgentSelector } from "./ModelAgentSelector";
 
 export function MessageInput() {
   const sendMessage = useAppStore((state) => state.sendMessage);
-  const isSending = useAppStore((state) => state.isSending);
   const currentSessionId = useAppStore((state) => state.currentSessionId);
+  const sendingSessionId = useAppStore((state) => state.sendingSessionId);
   const abortSession = useAppStore((state) => state.abortSession);
+  
+  const isSending = sendingSessionId === currentSessionId;
   
   const [text, setText] = useState("");
   const [isComposing, setIsComposing] = useState(false);

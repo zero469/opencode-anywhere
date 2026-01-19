@@ -4,8 +4,12 @@ import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequ
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
 
+const INITIAL_MESSAGE_LIMIT = undefined;
+
 const messageCache = new Map<string, SessionMessage[]>();
 const sessionLastUpdated = new Map<string, number>();
+const sendingSessions = new Set<string>();
+const sessionHasMoreMessages = new Map<string, boolean>();
 
 interface AppState {
   config: ConnectionConfig | null;
@@ -15,7 +19,9 @@ interface AppState {
   messages: SessionMessage[];
   pendingPermissions: PermissionRequest[];
   isLoading: boolean;
-  isSending: boolean;
+  sendingSessionId: string | null;
+  hasMoreMessages: boolean;
+  isLoadingMore: boolean;
   
   providers: ProvidersResponse | null;
   agents: Agent[];
@@ -33,6 +39,7 @@ interface AppState {
   refreshSessions: () => Promise<void>;
   preloadRecentSessions: (sessions: Session[]) => void;
   selectSession: (id: string) => Promise<void>;
+  loadMoreMessages: () => Promise<void>;
   clearCurrentSession: () => void;
   sendMessage: (text: string) => Promise<void>;
   createSession: (title?: string) => Promise<void>;
@@ -64,7 +71,9 @@ export const useAppStore = create<AppState>()(
       messages: [],
       pendingPermissions: [],
       isLoading: false,
-      isSending: false,
+      sendingSessionId: null,
+      hasMoreMessages: false,
+      isLoadingMore: false,
       
       providers: null,
       agents: [],
@@ -170,7 +179,7 @@ export const useAppStore = create<AppState>()(
         try {
           const frpcConfig = await relay.getFrpcConfig(relayToken, device.id);
           const config: ConnectionConfig = {
-            baseUrl: `http://${frpcConfig.subdomain}.${frpcConfig.domain}`,
+            baseUrl: `https://${frpcConfig.subdomain}.${frpcConfig.domain}`,
             username: frpcConfig.auth_user,
             password: frpcConfig.auth_password,
           };
@@ -230,9 +239,10 @@ export const useAppStore = create<AppState>()(
       preloadRecentSessions: (sessions) => {
         sessions.forEach((session) => {
           if (!messageCache.has(session.id)) {
-            opencode.getSessionMessages(session.id)
-              .then((messages) => {
+            opencode.getSessionMessages(session.id, { limit: INITIAL_MESSAGE_LIMIT })
+              .then(({ messages, hasMore }) => {
                 messageCache.set(session.id, messages);
+                sessionHasMoreMessages.set(session.id, hasMore);
               })
               .catch(() => {});
           }
@@ -251,16 +261,18 @@ export const useAppStore = create<AppState>()(
         
         const cached = messageCache.get(id);
         if (cached) {
-          set({ currentSessionId: id, messages: cached, isLoading: false });
+          const hasMore = sessionHasMoreMessages.get(id) || false;
+          set({ currentSessionId: id, messages: cached, isLoading: false, hasMoreMessages: hasMore });
           return;
         }
         
-        set({ currentSessionId: id, isLoading: true });
+        set({ currentSessionId: id, isLoading: true, hasMoreMessages: false });
         try {
-          const messages = await opencode.getSessionMessages(id);
+          const { messages, hasMore } = await opencode.getSessionMessages(id, { limit: INITIAL_MESSAGE_LIMIT });
           messageCache.set(id, messages);
+          sessionHasMoreMessages.set(id, hasMore);
           if (get().currentSessionId === id) {
-            set({ messages, isLoading: false });
+            set({ messages, isLoading: false, hasMoreMessages: hasMore });
           }
         } catch (error) {
           console.error("Failed to fetch messages:", error);
@@ -271,7 +283,26 @@ export const useAppStore = create<AppState>()(
       },
 
       clearCurrentSession: () => {
-        set({ currentSessionId: null, messages: [] });
+        set({ currentSessionId: null, messages: [], hasMoreMessages: false });
+      },
+
+      loadMoreMessages: async () => {
+        const { currentSessionId, isLoadingMore, hasMoreMessages } = get();
+        if (!currentSessionId || isLoadingMore || !hasMoreMessages) return;
+        
+        set({ isLoadingMore: true });
+        try {
+          const { messages: allMessages } = await opencode.getSessionMessages(currentSessionId);
+          
+          if (get().currentSessionId === currentSessionId) {
+            messageCache.set(currentSessionId, allMessages);
+            sessionHasMoreMessages.set(currentSessionId, false);
+            set({ messages: allMessages, hasMoreMessages: false, isLoadingMore: false });
+          }
+        } catch (error) {
+          console.error("Failed to load more messages:", error);
+          set({ isLoadingMore: false });
+        }
       },
 
       sendMessage: async (text) => {
@@ -287,30 +318,36 @@ export const useAppStore = create<AppState>()(
           },
           parts: [{ type: "text", text, id: `prt_temp_${Date.now()}` }],
         };
-        set({ messages: [...messages, userMessage], isSending: true });
+        sendingSessions.add(currentSessionId);
+        set({ messages: [...messages, userMessage], sendingSessionId: currentSessionId });
 
+        const sessionId = currentSessionId;
         try {
-          await opencode.sendMessageAsync(currentSessionId, text, {
+          await opencode.sendMessageAsync(sessionId, text, {
             model: selectedModel || undefined,
             agent: selectedAgent || undefined,
           });
           
           const pollForResponse = async (attempts = 0) => {
-            if (attempts > 60 || get().currentSessionId !== currentSessionId) return;
+            if (attempts > 60 || !sendingSessions.has(sessionId)) return;
             
             try {
-              const newMessages = await opencode.getSessionMessages(currentSessionId);
-              if (get().currentSessionId === currentSessionId) {
-                set({ messages: newMessages });
-                messageCache.set(currentSessionId, newMessages);
-                
-                const lastMsg = newMessages[newMessages.length - 1];
-                const isAssistantDone = lastMsg?.info.role === "assistant" && lastMsg?.info.finish;
-                
-                if (!isAssistantDone) {
-                  setTimeout(() => pollForResponse(attempts + 1), 1000);
-                } else {
-                  set({ isSending: false });
+              const { messages: newMessages } = await opencode.getSessionMessages(sessionId);
+              messageCache.set(sessionId, newMessages);
+              sessionHasMoreMessages.set(sessionId, false);
+              if (get().currentSessionId === sessionId) {
+                set({ messages: newMessages, hasMoreMessages: false });
+              }
+              
+              const lastMsg = newMessages[newMessages.length - 1];
+              const isAssistantDone = lastMsg?.info.role === "assistant" && lastMsg?.info.finish;
+              
+              if (!isAssistantDone) {
+                setTimeout(() => pollForResponse(attempts + 1), 1000);
+              } else {
+                sendingSessions.delete(sessionId);
+                if (get().sendingSessionId === sessionId) {
+                  set({ sendingSessionId: null });
                 }
               }
             } catch (e) {
@@ -322,7 +359,10 @@ export const useAppStore = create<AppState>()(
           pollForResponse();
         } catch (error) {
           console.error("Failed to send message:", error);
-          set({ isSending: false });
+          sendingSessions.delete(sessionId);
+          if (get().sendingSessionId === sessionId) {
+            set({ sendingSessionId: null });
+          }
         }
       },
 
@@ -398,7 +438,7 @@ export const useAppStore = create<AppState>()(
       setSelectedAgent: (agent) => set({ selectedAgent: agent }),
 
       handleSSEEvent: (event) => {
-        const { currentSessionId, messages, pendingPermissions, sessions, isLoading, isSending } = get();
+        const { currentSessionId, messages, pendingPermissions, sessions, isLoading, sendingSessionId } = get();
 
         switch (event.type) {
           case "session.updated": {
@@ -412,16 +452,18 @@ export const useAppStore = create<AppState>()(
               get().refreshSessions().then(() => {
                 const updatedSessions = get().sessions;
                 const currentSession = updatedSessions.find(s => s.id === currentSessionId);
-                if (currentSession && currentSessionId && !isLoading && !isSending) {
+                const isCurrentSessionSending = sendingSessionId === currentSessionId;
+                if (currentSession && currentSessionId && !isLoading && !isCurrentSessionSending) {
                   const lastUpdated = sessionLastUpdated.get(currentSessionId) || 0;
                   const newUpdated = currentSession.time?.updated || 0;
                   
                   if (newUpdated > lastUpdated) {
                     sessionLastUpdated.set(currentSessionId, newUpdated);
-                    opencode.getSessionMessages(currentSessionId).then((newMessages) => {
+                    opencode.getSessionMessages(currentSessionId).then(({ messages: newMessages }) => {
                       if (get().currentSessionId === currentSessionId) {
-                        set({ messages: newMessages });
+                        set({ messages: newMessages, hasMoreMessages: false });
                         messageCache.set(currentSessionId, newMessages);
+                        sessionHasMoreMessages.set(currentSessionId, false);
                       }
                     }).catch(console.error);
                   }

@@ -380,7 +380,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
 });
 
 export function MessageList() {
-  const { messages, isLoading } = useAppStore();
+  const { messages, isLoading, hasMoreMessages, isLoadingMore, loadMoreMessages } = useAppStore();
   const currentSessionId = useAppStore((state) => state.currentSessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -428,6 +428,24 @@ export function MessageList() {
 
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+      {hasMoreMessages && (
+        <div className="flex justify-center mb-4">
+          <button
+            onClick={loadMoreMessages}
+            disabled={isLoadingMore}
+            className="px-4 py-2 text-sm text-zinc-400 bg-zinc-800 hover:bg-zinc-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoadingMore ? (
+              <span className="flex items-center gap-2">
+                <span className="animate-spin h-4 w-4 border-2 border-zinc-500 border-t-zinc-200 rounded-full" />
+                Loading...
+              </span>
+            ) : (
+              "Load earlier messages"
+            )}
+          </button>
+        </div>
+      )}
       {messages.map((msg) => (
         <MessageBubble key={msg.info.id} message={msg} />
       ))}
