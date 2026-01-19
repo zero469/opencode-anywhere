@@ -4,6 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useAppStore } from "@/store";
 import { Device } from "@/lib/relay";
 
+const SETUP_COMMAND = "curl -sSL https://opencode-relay-server.fly.dev/install.sh -o /tmp/setup.sh && bash /tmp/setup.sh";
+
 function timeAgo(dateString: string): string {
   const date = new Date(dateString);
   const now = new Date();
@@ -25,6 +27,82 @@ function timeAgo(dateString: string): string {
   if (interval > 1) return Math.floor(interval) + " minutes ago";
   
   return Math.floor(seconds) + " seconds ago";
+}
+
+function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
+  const [isExpanded, setIsExpanded] = useState(!collapsed);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(SETUP_COMMAND);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (collapsed && !isExpanded) {
+    return (
+      <button
+        onClick={() => setIsExpanded(true)}
+        className="w-full text-center py-3 text-sm text-zinc-400 hover:text-zinc-200 flex items-center justify-center gap-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+        Add new device
+      </button>
+    );
+  }
+
+  return (
+    <div className={collapsed ? "bg-zinc-900 rounded-lg p-4" : "text-center mt-8"}>
+      {collapsed && (
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-sm font-medium">Add New Device</span>
+          <button onClick={() => setIsExpanded(false)} className="text-zinc-500 hover:text-zinc-300">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+      
+      {!collapsed && (
+        <>
+          <div className="w-16 h-16 mx-auto mb-4 bg-zinc-800 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold mb-2">No Devices Yet</h2>
+        </>
+      )}
+      
+      <p className="text-sm text-zinc-400 mb-4">
+        Run this command on your computer:
+      </p>
+      
+      <div className="bg-zinc-800 rounded-lg p-3 relative group">
+        <code className="text-xs text-green-400 break-all block pr-8">
+          {SETUP_COMMAND}
+        </code>
+        <button
+          onClick={handleCopy}
+          className="absolute top-2 right-2 p-1.5 rounded bg-zinc-700 hover:bg-zinc-600 transition-colors"
+          title="Copy to clipboard"
+        >
+          {copied ? (
+            <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          )}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function DeviceItem({ device, onSelect, onDelete }: { 
@@ -166,13 +244,7 @@ export function DeviceList() {
         {isLoading && devices.length === 0 && <p className="text-zinc-400">Loading devices...</p>}
         
         {!isLoading && devices.length === 0 && (
-          <div className="text-center text-zinc-400 mt-20">
-            <p className="mb-2">No devices found for your account.</p>
-            <p className="text-sm">
-              You can register a new device by running the OpenCode server
-              with your API token.
-            </p>
-          </div>
+          <SetupGuide />
         )}
 
         {devices.length > 0 && (
@@ -186,6 +258,7 @@ export function DeviceList() {
                 onDelete={() => deleteDevice(device.id)}
               />
             ))}
+            <SetupGuide collapsed />
           </div>
         )}
       </main>
