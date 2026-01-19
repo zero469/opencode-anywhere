@@ -172,18 +172,23 @@ export const useAppStore = create<AppState>()(
       },
 
       selectDevice: async (device) => {
-        const { relayToken } = get();
+        const { relayToken, config, status } = get();
         if (!relayToken) return;
+        
+        if (status.connected && config) {
+          set({ selectedDevice: device });
+          return;
+        }
         
         set({ selectedDevice: device, isLoading: true });
         try {
           const frpcConfig = await relay.getFrpcConfig(relayToken, device.id);
-          const config: ConnectionConfig = {
+          const newConfig: ConnectionConfig = {
             baseUrl: `https://${frpcConfig.subdomain}.${frpcConfig.domain}`,
             username: frpcConfig.auth_user,
             password: frpcConfig.auth_password,
           };
-          await get().setConfig(config);
+          await get().setConfig(newConfig);
         } catch (error) {
           console.error("Failed to get frpc config:", error);
           set({ isLoading: false });
@@ -193,9 +198,6 @@ export const useAppStore = create<AppState>()(
       deselectDevice: () => {
         set({ 
           selectedDevice: null, 
-          config: null,
-          status: { connected: false },
-          sessions: [],
           currentSessionId: null,
           messages: [],
         });
@@ -241,9 +243,9 @@ export const useAppStore = create<AppState>()(
           for (const session of sessions) {
             if (!messageCache.has(session.id)) {
               try {
-                const { messages } = await opencode.getSessionMessages(session.id);
+                const { messages, hasMore } = await opencode.getSessionMessages(session.id, { limit: INITIAL_MESSAGE_LIMIT });
                 messageCache.set(session.id, messages);
-                sessionHasMoreMessages.set(session.id, false);
+                sessionHasMoreMessages.set(session.id, hasMore);
               } catch {}
             }
           }
