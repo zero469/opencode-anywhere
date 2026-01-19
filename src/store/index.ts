@@ -43,9 +43,12 @@ function scheduleNotification(sessionId: string, sessionTitle?: string) {
   notificationDebounceTimers.set(sessionId, timer);
 }
 
+type ConnectionStep = "idle" | "connecting" | "authenticating" | "loading_sessions" | "ready";
+
 interface AppState {
   config: ConnectionConfig | null;
   status: ConnectionStatus;
+  connectionStep: ConnectionStep;
   sessions: Session[];
   currentSessionId: string | null;
   messages: SessionMessage[];
@@ -67,6 +70,7 @@ interface AppState {
   selectedDevice: Device | null;
   authError: string | null;
   pinnedSessionIds: string[];
+  cachedSessionsByDevice: Record<number, Session[]>;
 
   setConfig: (config: ConnectionConfig) => Promise<void>;
   disconnect: () => void;
@@ -106,6 +110,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       config: null,
       status: { connected: false },
+      connectionStep: "idle",
       sessions: [],
       currentSessionId: null,
       messages: [],
@@ -121,23 +126,29 @@ export const useAppStore = create<AppState>()(
       selectedAgent: null,
       todos: [],
 
-      // New state initial values
       relayToken: null,
       user: null,
       devices: [],
       selectedDevice: null,
       authError: null,
       pinnedSessionIds: [],
+      cachedSessionsByDevice: {},
 
       setConfig: async (config) => {
-        set({ isLoading: true });
+        set({ isLoading: true, connectionStep: "connecting" });
         opencode.initClient(config);
+        
+        set({ connectionStep: "authenticating" });
         const status = await opencode.checkConnection();
-        set({ config, status, isLoading: false });
+        set({ config, status });
 
         if (status.connected) {
+          set({ connectionStep: "loading_sessions" });
           await get().refreshSessions();
           await get().fetchProvidersAndAgents();
+          set({ connectionStep: "ready", isLoading: false });
+        } else {
+          set({ connectionStep: "idle", isLoading: false });
         }
       },
 
@@ -145,6 +156,7 @@ export const useAppStore = create<AppState>()(
         set({
           config: null,
           status: { connected: false },
+          connectionStep: "idle",
           sessions: [],
           currentSessionId: null,
           messages: [],
@@ -224,7 +236,7 @@ export const useAppStore = create<AppState>()(
       },
 
       selectDevice: async (device) => {
-        const { relayToken, config, status } = get();
+        const { relayToken, config, status, cachedSessionsByDevice } = get();
         if (!relayToken) return;
         
         if (status.connected && config) {
@@ -232,8 +244,16 @@ export const useAppStore = create<AppState>()(
           return;
         }
         
-        set({ selectedDevice: device, isLoading: true });
+        const cachedSessions = cachedSessionsByDevice[device.id] || [];
+        set({ 
+          selectedDevice: device, 
+          isLoading: true,
+          sessions: cachedSessions,
+          connectionStep: "connecting",
+        });
+        
         try {
+          set({ connectionStep: "authenticating" });
           const frpcConfig = await relay.getFrpcConfig(relayToken, device.id);
           const newConfig: ConnectionConfig = {
             baseUrl: `https://${frpcConfig.subdomain}.${frpcConfig.domain}`,
@@ -241,9 +261,19 @@ export const useAppStore = create<AppState>()(
             password: frpcConfig.auth_password,
           };
           await get().setConfig(newConfig);
+          
+          const { sessions, selectedDevice: currentDevice } = get();
+          if (currentDevice?.id === device.id && sessions.length > 0) {
+            set({ 
+              cachedSessionsByDevice: {
+                ...get().cachedSessionsByDevice,
+                [device.id]: sessions
+              }
+            });
+          }
         } catch (error) {
           console.error("Failed to get frpc config:", error);
-          set({ isLoading: false });
+          set({ isLoading: false, connectionStep: "idle" });
         }
       },
 
@@ -828,7 +858,7 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: "opencode-anywhere-v4",
+      name: "opencode-anywhere-v5",
       partialize: (state) => ({ 
         relayToken: state.relayToken,
         user: state.user,
@@ -837,6 +867,7 @@ export const useAppStore = create<AppState>()(
         selectedModel: state.selectedModel,
         selectedAgent: state.selectedAgent,
         pinnedSessionIds: state.pinnedSessionIds,
+        cachedSessionsByDevice: state.cachedSessionsByDevice,
       }),
     }
   )

@@ -110,22 +110,73 @@ const emptySubscribe = () => () => {};
 const getServerSnapshot = () => false;
 const getClientSnapshot = () => true;
 
+const CONNECTION_STEP_LABELS: Record<string, string> = {
+  idle: "Idle",
+  connecting: "Connecting to server...",
+  authenticating: "Authenticating...",
+  loading_sessions: "Loading sessions...",
+  ready: "Connected",
+};
+
 function ConnectingView() {
   const selectedDevice = useAppStore((state) => state.selectedDevice);
   const deselectDevice = useAppStore((state) => state.deselectDevice);
+  const connectionStep = useAppStore((state) => state.connectionStep);
+  const sessions = useAppStore((state) => state.sessions);
+  const selectSession = useAppStore((state) => state.selectSession);
+  
+  const stepLabel = CONNECTION_STEP_LABELS[connectionStep] || "Connecting...";
+  const hasCachedSessions = sessions.length > 0;
+  
   return (
-     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4" />
-        <p className="text-lg">Connecting to {selectedDevice?.name}...</p>
-        <p className="text-sm text-zinc-400 mb-6">{selectedDevice?.subdomain}</p>
-        <button 
-          onClick={deselectDevice}
-          className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-md text-sm"
-        >
-          Cancel
-        </button>
-     </div>
-  )
+    <div className="min-h-screen bg-zinc-950 flex flex-col text-white" style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
+      <div className="fixed top-0 left-0 right-0 bg-zinc-950 z-50" style={{ height: 'var(--safe-area-top)' }} />
+      
+      <header className="flex items-center justify-between p-4 border-b border-zinc-800 shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={deselectDevice} className="p-2 text-zinc-400 hover:text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <div>
+            <h1 className="text-lg font-semibold">{selectedDevice?.name}</h1>
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-blue-500" />
+              <span className="text-xs text-zinc-400">{stepLabel}</span>
+            </div>
+          </div>
+        </div>
+      </header>
+      
+      <main className="flex-grow overflow-y-auto p-4">
+        {hasCachedSessions ? (
+          <div className="space-y-2">
+            <p className="text-xs text-zinc-500 mb-3">Recent sessions (cached)</p>
+            {sessions.slice(0, 10).map((session) => (
+              <button
+                key={session.id}
+                onClick={() => selectSession(session.id)}
+                className="w-full text-left p-3 bg-zinc-900 hover:bg-zinc-800 rounded-lg border border-zinc-800"
+              >
+                <span className="text-sm font-medium truncate block">
+                  {session.title || "Untitled Session"}
+                </span>
+                {session.directory && (
+                  <span className="text-xs text-zinc-500 truncate block mt-1">
+                    {session.directory.split('/').pop()}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4" />
+            <p className="text-zinc-400">{stepLabel}</p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
 }
 
 export default function Home() {
