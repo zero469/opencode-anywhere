@@ -27,17 +27,31 @@ export interface User {
 }
 
 export const relay = {
-  async register(email: string, password: string): Promise<User> {
+  async sendVerification(email: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/send-verification`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to send verification code');
+    }
+  },
+
+  async register(email: string, password: string, code: string): Promise<User> {
     const response = await fetch(`${API_BASE_URL}/api/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, code }),
     });
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || 'Registration failed');
+      throw new Error(errorData.error || 'Registration failed');
     }
     return response.json();
   },

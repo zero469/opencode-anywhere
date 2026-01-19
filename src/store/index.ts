@@ -90,8 +90,9 @@ interface AppState {
   setSelectedAgent: (agent: string | null) => void;
   fetchTodos: (sessionId?: string) => Promise<void>;
 
+  sendVerification: (email: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, code: string) => Promise<void>;
   logout: () => void;
   fetchDevices: () => Promise<void>;
   selectDevice: (device: Device) => Promise<void>;
@@ -156,7 +157,17 @@ export const useAppStore = create<AppState>()(
         });
       },
       
-      // New actions implementation
+      sendVerification: async (email) => {
+        set({ isLoading: true, authError: null });
+        try {
+          await relay.sendVerification(email);
+          set({ isLoading: false });
+        } catch (error: any) {
+          set({ isLoading: false, authError: error.message });
+          throw error;
+        }
+      },
+
       login: async (email, password) => {
         set({ isLoading: true, authError: null });
         try {
@@ -169,11 +180,10 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      register: async (email, password) => {
+      register: async (email, password, code) => {
         set({ isLoading: true, authError: null });
         try {
-          await relay.register(email, password);
-          // Auto-login after successful registration
+          await relay.register(email, password, code);
           await get().login(email, password);
         } catch (error: any) {
           set({ isLoading: false, authError: error.message });

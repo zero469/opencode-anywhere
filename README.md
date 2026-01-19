@@ -82,17 +82,38 @@ Enter your OpenCode server URL (e.g., `http://192.168.1.100:4096`) and connect.
 
 For access outside your local network, use the included relay server:
 
-### Option A: Relay Server
+### Option A: Relay Server (Recommended for Remote Access)
+
+The relay server ([opencode-relay-server](https://github.com/zero469/opencode-relay-server)) provides secure remote access to your OpenCode instances with user authentication and device management.
+
+#### 1. Register Account (iOS App)
+
+Open the iOS app and register with email verification:
+1. Enter your email address
+2. Click "Send Code" - you'll receive a 6-digit verification code
+3. Enter the code and set your password
+
+#### 2. Setup Client on Your Computer
+
+Run the setup script on each computer you want to access remotely:
 
 ```bash
-cd server
-npm install
-cp .env.example .env
-# Edit .env with your OpenCode server details
-npm start
+curl -sSL https://opencode-relay-server.fly.dev/install.sh -o /tmp/setup.sh && bash /tmp/setup.sh
 ```
 
-The relay server proxies requests to your OpenCode instance, enabling access from anywhere.
+The script will:
+- Install frpc (FRP client)
+- Log in with your account
+- Register the device
+- Configure auto-start
+
+#### 3. Connect from iOS App
+
+1. Open the app and log in
+2. Your devices will appear in the device list
+3. Tap a device to connect to its OpenCode instance
+
+Each device gets a unique subdomain (e.g., `device-abc123.liuyao16.dpdns.org`) with HTTP Basic Auth for security.
 
 ### Option B: Cloudflare Tunnel (Recommended)
 
@@ -434,17 +455,38 @@ npm run dev
 
 如需在本地网络外访问，可使用内置的中继服务器：
 
-### 方案 A：中继服务器
+### 方案 A：中继服务器（推荐用于远程访问）
+
+中继服务器（[opencode-relay-server](https://github.com/zero469/opencode-relay-server)）提供安全的远程访问，支持用户认证和设备管理。
+
+#### 1. 注册账号（iOS 应用）
+
+在 iOS 应用中通过邮箱验证注册：
+1. 输入邮箱地址
+2. 点击"发送验证码" - 你会收到一个 6 位数验证码
+3. 输入验证码并设置密码
+
+#### 2. 在电脑上设置客户端
+
+在每台需要远程访问的电脑上运行安装脚本：
 
 ```bash
-cd server
-npm install
-cp .env.example .env
-# 编辑 .env 填入你的 OpenCode 服务器信息
-npm start
+curl -sSL https://opencode-relay-server.fly.dev/install.sh -o /tmp/setup.sh && bash /tmp/setup.sh
 ```
 
-中继服务器会代理请求到你的 OpenCode 实例，实现随处访问。
+脚本会：
+- 安装 frpc（FRP 客户端）
+- 使用你的账号登录
+- 注册设备
+- 配置开机自启
+
+#### 3. 从 iOS 应用连接
+
+1. 打开应用并登录
+2. 你的设备会出现在设备列表中
+3. 点击设备即可连接到其 OpenCode 实例
+
+每个设备都有唯一的子域名（如 `device-abc123.liuyao16.dpdns.org`），并使用 HTTP Basic Auth 保护安全。
 
 ### 方案 B：Cloudflare Tunnel（推荐）
 
