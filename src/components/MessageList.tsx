@@ -386,15 +386,18 @@ export function MessageList() {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevSessionIdRef = useRef<string | null>(null);
   const prevMessageCountRef = useRef(0);
+  const lastMessageIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (messages.length === 0) return;
     
     const isNewSession = prevSessionIdRef.current !== currentSessionId;
-    const hasNewMessages = messages.length > prevMessageCountRef.current;
+    const currentLastMessageId = messages[messages.length - 1]?.info.id;
+    const hasNewMessageAtBottom = currentLastMessageId !== lastMessageIdRef.current;
     
     prevSessionIdRef.current = currentSessionId;
     prevMessageCountRef.current = messages.length;
+    lastMessageIdRef.current = currentLastMessageId;
 
     if (isNewSession) {
       requestAnimationFrame(() => {
@@ -402,7 +405,7 @@ export function MessageList() {
           bottomRef.current?.scrollIntoView({ behavior: "instant" });
         });
       });
-    } else if (hasNewMessages) {
+    } else if (hasNewMessageAtBottom) {
       const timer = setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
       }, 100);

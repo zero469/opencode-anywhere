@@ -4,7 +4,7 @@ import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequ
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
 
-const INITIAL_MESSAGE_LIMIT = undefined;
+const INITIAL_MESSAGE_LIMIT = 30;
 
 const messageCache = new Map<string, SessionMessage[]>();
 const sessionLastUpdated = new Map<string, number>();
@@ -237,16 +237,18 @@ export const useAppStore = create<AppState>()(
       },
 
       preloadRecentSessions: (sessions) => {
-        sessions.forEach((session) => {
-          if (!messageCache.has(session.id)) {
-            opencode.getSessionMessages(session.id, { limit: INITIAL_MESSAGE_LIMIT })
-              .then(({ messages, hasMore }) => {
+        const loadSequentially = async () => {
+          for (const session of sessions) {
+            if (!messageCache.has(session.id)) {
+              try {
+                const { messages } = await opencode.getSessionMessages(session.id);
                 messageCache.set(session.id, messages);
-                sessionHasMoreMessages.set(session.id, hasMore);
-              })
-              .catch(() => {});
+                sessionHasMoreMessages.set(session.id, false);
+              } catch {}
+            }
           }
-        });
+        };
+        loadSequentially();
       },
 
       selectSession: async (id) => {
@@ -273,6 +275,16 @@ export const useAppStore = create<AppState>()(
           sessionHasMoreMessages.set(id, hasMore);
           if (get().currentSessionId === id) {
             set({ messages, isLoading: false, hasMoreMessages: hasMore });
+          }
+          
+          if (hasMore) {
+            opencode.getSessionMessages(id).then(({ messages: allMessages }) => {
+              messageCache.set(id, allMessages);
+              sessionHasMoreMessages.set(id, false);
+              if (get().currentSessionId === id) {
+                set({ messages: allMessages, hasMoreMessages: false });
+              }
+            }).catch(() => {});
           }
         } catch (error) {
           console.error("Failed to fetch messages:", error);

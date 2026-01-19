@@ -186,7 +186,7 @@ export async function getSessionMessages(
   
   if (data.error) throw new Error(data.error);
   
-  const messages = data || [];
+  const messages = Array.isArray(data) ? data : [];
   const hasMore = options?.limit !== undefined && messages.length >= options.limit;
   
   return {
