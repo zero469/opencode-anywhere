@@ -105,6 +105,103 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
   );
 }
 
+const APP_VERSION = "1.0.0";
+const GITHUB_URL = "https://github.com/zero469/opencode-anywhere";
+
+function SettingsDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { user, logout } = useAppStore();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(SETUP_COMMAND);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleLogout = () => {
+    onClose();
+    logout();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50" />
+      <div 
+        className="absolute bottom-0 left-0 right-0 bg-zinc-900 rounded-t-2xl max-h-[80vh] overflow-y-auto"
+        style={{ paddingBottom: 'var(--safe-area-bottom)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-center pt-3 pb-2">
+          <div className="w-10 h-1 bg-zinc-700 rounded-full" />
+        </div>
+        
+        <div className="p-4 space-y-6">
+          <div>
+            <h3 className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Account</h3>
+            <div className="bg-zinc-800 rounded-lg p-3">
+              <p className="text-sm text-white">{user?.email}</p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Add New Device</h3>
+            <p className="text-xs text-zinc-400 mb-2">Run this command on your computer:</p>
+            <div className="bg-zinc-800 rounded-lg p-3 relative">
+              <code className="text-xs text-green-400 break-all block pr-8">
+                {SETUP_COMMAND}
+              </code>
+              <button
+                onClick={handleCopy}
+                className="absolute top-2 right-2 p-1.5 rounded bg-zinc-700 hover:bg-zinc-600 transition-colors"
+              >
+                {copied ? (
+                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xs text-zinc-500 uppercase tracking-wider mb-2">About</h3>
+            <div className="bg-zinc-800 rounded-lg divide-y divide-zinc-700">
+              <div className="flex justify-between items-center p-3">
+                <span className="text-sm text-zinc-400">Version</span>
+                <span className="text-sm text-white">{APP_VERSION}</span>
+              </div>
+              <a 
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex justify-between items-center p-3"
+              >
+                <span className="text-sm text-zinc-400">GitHub</span>
+                <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          <button
+            onClick={handleLogout}
+            className="w-full py-3 bg-red-600 hover:bg-red-500 rounded-lg text-white font-medium transition-colors"
+          >
+            Log Out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DeviceItem({ device, onSelect, onDelete }: { 
   device: Device; 
   onSelect: () => void; 
@@ -200,24 +297,20 @@ export function DeviceList() {
     fetchDevices,
     selectDevice,
     deleteDevice,
-    logout,
     isLoading,
   } = useAppStore();
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     fetchDevices();
   }, [fetchDevices]);
-
-  const handleLogout = () => {
-    logout();
-  };
 
   return (
     <div className="flex flex-col h-full bg-zinc-950 text-white" style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
       <div className="fixed top-0 left-0 right-0 bg-zinc-950 z-50" style={{ height: 'var(--safe-area-top)' }} />
       <header className="flex items-center justify-between p-4 border-b border-zinc-800 shrink-0">
         <div className="flex flex-col">
-          <h1 className="text-xl font-bold">Select a Device</h1>
+          <h1 className="text-xl font-bold">Devices</h1>
           {user && <span className="text-sm text-zinc-400">{user.email}</span>}
         </div>
         <div className="flex items-center gap-2">
@@ -232,10 +325,14 @@ export function DeviceList() {
             </svg>
           </button>
           <button
-            onClick={handleLogout}
-            className="px-3 py-1 text-sm bg-zinc-800 hover:bg-zinc-700 rounded-md"
+            onClick={() => setShowSettings(true)}
+            className="p-2 rounded-md transition-colors text-zinc-400 hover:text-white hover:bg-zinc-800"
+            title="Settings"
           >
-            Logout
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
           </button>
         </div>
       </header>
@@ -258,10 +355,11 @@ export function DeviceList() {
                 onDelete={() => deleteDevice(device.id)}
               />
             ))}
-            <SetupGuide collapsed />
           </div>
         )}
       </main>
+
+      <SettingsDrawer isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 }
