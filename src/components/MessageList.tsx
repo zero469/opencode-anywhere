@@ -60,7 +60,7 @@ const markdownComponents: Components = {
     
     if (isInline) {
       return (
-        <code className="bg-zinc-700/50 px-1.5 py-0.5 rounded text-sm text-pink-400" {...props}>
+        <code className="bg-zinc-700/50 px-1.5 py-0.5 rounded text-sm text-pink-400 break-all" {...props}>
           {children}
         </code>
       );
@@ -342,7 +342,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
         </div>
       )}
       <div
-        className={`max-w-[90%] lg:max-w-[80%] rounded-2xl px-4 py-3 ${
+        className={`max-w-[90%] lg:max-w-[80%] rounded-2xl px-4 py-3 overflow-hidden break-words ${
           isUser
             ? "bg-blue-600 text-white"
             : "bg-zinc-800 text-zinc-100"
