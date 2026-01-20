@@ -255,6 +255,8 @@ export const useAppStore = create<AppState>()(
         
         currentDeviceId = device.id;
         
+        opencode.initClient({ baseUrl: '', username: '', password: '' });
+        
         const cached = cachedSessionsByDevice[device.id];
         const cachedSessions = cached?.sessions || [];
         const cachedPinnedIds = cached?.pinnedIds || [];
@@ -352,8 +354,20 @@ export const useAppStore = create<AppState>()(
       },
 
       refreshSessions: async () => {
+        const deviceIdAtStart = currentDeviceId;
+        
+        const config = opencode.getConfig();
+        if (!config?.baseUrl) {
+          return;
+        }
+        
         try {
           const sessions = await opencode.getSessions();
+          
+          if (currentDeviceId !== deviceIdAtStart) {
+            return;
+          }
+          
           const sortedSessions = [...sessions].sort((a, b) => {
             const timeA = a.time?.updated || a.time?.created || 0;
             const timeB = b.time?.updated || b.time?.created || 0;
@@ -364,6 +378,9 @@ export const useAppStore = create<AppState>()(
           get().preloadRecentSessions(sortedSessions.slice(0, 5));
         } catch (error) {
           console.error("Failed to fetch sessions:", error);
+          if (currentDeviceId !== deviceIdAtStart) {
+            return;
+          }
           const { selectedDevice, devices } = get();
           if (selectedDevice) {
             const updatedDevices = devices.map(d => 
@@ -950,7 +967,7 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: "opencode-anywhere-v5",
+      name: "opencode-anywhere-v6",
       partialize: (state) => ({ 
         relayToken: state.relayToken,
         user: state.user,
@@ -958,7 +975,6 @@ export const useAppStore = create<AppState>()(
         selectedDevice: state.selectedDevice,
         selectedModel: state.selectedModel,
         selectedAgent: state.selectedAgent,
-        pinnedSessionIds: state.pinnedSessionIds,
         cachedSessionsByDevice: state.cachedSessionsByDevice,
       }),
     }

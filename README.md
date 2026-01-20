@@ -241,6 +241,32 @@ Your OpenCode is now securely accessible from anywhere!
 - **Relay Server**: Optional proxy for secure remote access (see [opencode-relay-server](https://github.com/anthropics/opencode-relay-server))
 - **SSE**: Server-Sent Events for real-time updates
 
+## Architecture Notes
+
+### Multi-Device Session Management
+
+When switching between devices, the app faces a race condition challenge:
+- HTTP requests to the old device may still be in-flight
+- These requests could return and overwrite the new device's cached data
+
+**Solution**: 
+1. Immediately clear the API client config when switching devices
+2. Check for valid config before making API calls
+3. Track `currentDeviceId` and discard stale responses
+
+### Cache Strategy
+
+- Sessions are cached per-device in `cachedSessionsByDevice[deviceId]`
+- Message cache uses composite keys: `${deviceId}:${sessionId}`
+- Pinned session IDs are stored per-device, not globally
+
+### Offline Handling
+
+- When API calls fail, device is marked offline in state
+- Cached sessions remain visible but disabled
+- Device list polls every 15 seconds to detect reconnection
+- "Tap to reconnect" banner allows manual retry
+
 ## Project Structure
 
 ```
@@ -613,6 +639,32 @@ launchctl load ~/Library/LaunchAgents/com.cloudflare.cloudflared.plist
 - **PWA 客户端**：使用 Zustand 状态管理的 React 界面
 - **中继服务器**：可选的安全远程访问代理（见 [opencode-relay-server](https://github.com/anthropics/opencode-relay-server)）
 - **SSE**：用于实时更新的服务器发送事件
+
+## 架构说明
+
+### 多设备会话管理
+
+切换设备时，应用会面临竞态条件的挑战：
+- 发往旧设备的 HTTP 请求可能仍在进行中
+- 这些请求返回时可能会覆盖新设备的缓存数据
+
+**解决方案**：
+1. 切换设备时立即清空 API 客户端配置
+2. 发起 API 调用前检查配置是否有效
+3. 跟踪 `currentDeviceId` 并丢弃过期的响应
+
+### 缓存策略
+
+- 会话按设备缓存在 `cachedSessionsByDevice[deviceId]` 中
+- 消息缓存使用组合键：`${deviceId}:${sessionId}`
+- 置顶会话 ID 按设备存储，而非全局存储
+
+### 离线处理
+
+- API 调用失败时，设备在状态中被标记为离线
+- 缓存的会话保持可见但禁用交互
+- 设备列表每 15 秒轮询一次以检测重连
+- "点击重连"横幅允许手动重试
 
 ## 项目结构
 
