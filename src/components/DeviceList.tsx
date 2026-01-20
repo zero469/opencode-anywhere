@@ -387,6 +387,12 @@ export function DeviceList() {
 
   useEffect(() => {
     fetchDevices();
+    
+    const interval = setInterval(() => {
+      fetchDevices();
+    }, 15000);
+    
+    return () => clearInterval(interval);
   }, [fetchDevices]);
 
   return (

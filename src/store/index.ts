@@ -111,6 +111,7 @@ interface AppState {
   deleteDevice: (deviceId: number) => Promise<void>;
   deselectDevice: () => void;
   clearAuthError: () => void;
+  checkDeviceAndReconnect: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>()(
@@ -321,6 +322,35 @@ export const useAppStore = create<AppState>()(
       
       clearAuthError: () => set({ authError: null }),
 
+      checkDeviceAndReconnect: async () => {
+        const { relayToken, selectedDevice } = get();
+        if (!relayToken || !selectedDevice) return;
+        
+        set({ connectionStep: "connecting" });
+        
+        try {
+          const devices = await relay.getDevices(relayToken);
+          set({ devices });
+          
+          const updatedDevice = devices.find(d => d.id === selectedDevice.id);
+          if (!updatedDevice) {
+            set({ connectionStep: "idle" });
+            return;
+          }
+          
+          set({ selectedDevice: updatedDevice });
+          
+          if (updatedDevice.online) {
+            await get().selectDevice(updatedDevice);
+          } else {
+            set({ connectionStep: "idle" });
+          }
+        } catch (error) {
+          console.error("Failed to check device status:", error);
+          set({ connectionStep: "idle" });
+        }
+      },
+
       refreshSessions: async () => {
         try {
           const sessions = await opencode.getSessions();
@@ -334,6 +364,19 @@ export const useAppStore = create<AppState>()(
           get().preloadRecentSessions(sortedSessions.slice(0, 5));
         } catch (error) {
           console.error("Failed to fetch sessions:", error);
+          const { selectedDevice, devices } = get();
+          if (selectedDevice) {
+            const updatedDevices = devices.map(d => 
+              d.id === selectedDevice.id ? { ...d, online: false } : d
+            );
+            set({ 
+              connectionStep: "idle",
+              selectedDevice: { ...selectedDevice, online: false },
+              devices: updatedDevices,
+            });
+          } else {
+            set({ connectionStep: "idle" });
+          }
         }
       },
 
@@ -376,11 +419,10 @@ export const useAppStore = create<AppState>()(
           return;
         }
         
-        messageCache.delete(cacheKey);
-        sessionHasMoreMessages.delete(cacheKey);
-        sessionLoadedCount.delete(cacheKey);
+        const previousCached = cached ? [...cached] : [];
+        const previousHasMore = sessionHasMoreMessages.get(cacheKey) || false;
         
-        set({ currentSessionId: id, messages: [], isLoading: true, hasMoreMessages: false, sessionLoadingStep: "loading_messages" });
+        set({ currentSessionId: id, messages: previousCached, isLoading: true, hasMoreMessages: previousHasMore, sessionLoadingStep: "loading_messages" });
         try {
           const { messages, hasMore } = await opencode.getSessionMessages(id, { 
             limit: MESSAGE_PAGE_SIZE
@@ -401,7 +443,21 @@ export const useAppStore = create<AppState>()(
         } catch (error) {
           console.error("Failed to fetch messages:", error);
           if (get().currentSessionId === id) {
-            set({ isLoading: false, sessionLoadingStep: "idle" });
+            const { selectedDevice, devices } = get();
+            if (selectedDevice) {
+              const updatedDevices = devices.map(d => 
+                d.id === selectedDevice.id ? { ...d, online: false } : d
+              );
+              set({ 
+                isLoading: false, 
+                sessionLoadingStep: "idle", 
+                connectionStep: "idle",
+                selectedDevice: { ...selectedDevice, online: false },
+                devices: updatedDevices,
+              });
+            } else {
+              set({ isLoading: false, sessionLoadingStep: "idle", connectionStep: "idle" });
+            }
           }
         }
       },

@@ -207,13 +207,26 @@ function RenameModal({ session, onClose, onRename }: RenameModalProps) {
 }
 
 export function SessionList({ onClose }: { onClose?: () => void }) {
-  const { sessions, currentSessionId, selectSession, createSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions } = useAppStore();
+  const { sessions, currentSessionId, selectSession, createSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions, connectionStep, selectedDevice, checkDeviceAndReconnect } = useAppStore();
   const [isCreating, setIsCreating] = useState(false);
   const [sessionToRename, setSessionToRename] = useState<Session | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const { isInstallable, install } = usePWA();
+
+  const isOffline = connectionStep === "idle" && selectedDevice !== null;
 
   const pinnedSessions = sessions.filter(s => pinnedSessionIds.includes(s.id));
   const unpinnedSessions = sessions.filter(s => !pinnedSessionIds.includes(s.id));
+
+  const handleReconnect = async () => {
+    if (isReconnecting) return;
+    setIsReconnecting(true);
+    try {
+      await checkDeviceAndReconnect();
+    } finally {
+      setIsReconnecting(false);
+    }
+  };
 
   const handleSelect = async (id: string) => {
     await selectSession(id);
@@ -285,6 +298,35 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-3">
+        {isOffline && (
+          <button
+            onClick={handleReconnect}
+            disabled={isReconnecting}
+            className="w-full mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-center"
+          >
+            <div className="flex items-center justify-center gap-2 text-red-400">
+              {isReconnecting ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span className="text-sm font-medium">Reconnecting...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="text-sm font-medium">Device offline</span>
+                </>
+              )}
+            </div>
+            {!isReconnecting && (
+              <p className="text-xs text-zinc-500 mt-1">Tap to reconnect</p>
+            )}
+          </button>
+        )}
         {sessions.length === 0 ? (
           <p className="text-zinc-500 text-center py-8">No sessions yet</p>
         ) : (

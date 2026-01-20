@@ -124,9 +124,16 @@ function ConnectingView() {
   const connectionStep = useAppStore((state) => state.connectionStep);
   const sessions = useAppStore((state) => state.sessions);
   const selectSession = useAppStore((state) => state.selectSession);
+  const checkDeviceAndReconnect = useAppStore((state) => state.checkDeviceAndReconnect);
   
-  const stepLabel = CONNECTION_STEP_LABELS[connectionStep] || "Connecting...";
+  const isOffline = connectionStep === "idle" && selectedDevice !== null;
+  const isConnecting = connectionStep !== "idle" && connectionStep !== "ready";
+  const stepLabel = isOffline ? "Device offline" : (CONNECTION_STEP_LABELS[connectionStep] || "Connecting...");
   const hasCachedSessions = sessions.length > 0;
+  
+  const handleReconnect = () => {
+    checkDeviceAndReconnect();
+  };
   
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col text-white" style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
@@ -140,22 +147,37 @@ function ConnectingView() {
           <div>
             <h1 className="text-lg font-semibold">{selectedDevice?.name}</h1>
             <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-blue-500" />
-              <span className="text-xs text-zinc-400">{stepLabel}</span>
+              {isOffline ? (
+                <span className={`w-2 h-2 rounded-full bg-red-500`} />
+              ) : (
+                <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-blue-500" />
+              )}
+              <span className={`text-xs ${isOffline ? "text-red-400" : "text-zinc-400"}`}>{stepLabel}</span>
             </div>
           </div>
         </div>
+        {isOffline && (
+          <button
+            onClick={handleReconnect}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
+          >
+            Reconnect
+          </button>
+        )}
       </header>
       
       <main className="flex-grow overflow-y-auto p-4">
         {hasCachedSessions ? (
           <div className="space-y-2">
-            <p className="text-xs text-zinc-500 mb-3">Recent sessions (cached)</p>
+            <p className="text-xs text-zinc-500 mb-3">
+              {isOffline ? "Cached sessions (device offline)" : "Recent sessions (cached)"}
+            </p>
             {sessions.slice(0, 10).map((session) => (
               <button
                 key={session.id}
                 onClick={() => selectSession(session.id)}
-                className="w-full text-left p-3 bg-zinc-900 hover:bg-zinc-800 rounded-lg border border-zinc-800"
+                disabled={isOffline}
+                className={`w-full text-left p-3 bg-zinc-900 rounded-lg border border-zinc-800 ${isOffline ? "opacity-50 cursor-not-allowed" : "hover:bg-zinc-800"}`}
               >
                 <span className="text-sm font-medium truncate block">
                   {session.title || "Untitled Session"}
@@ -170,8 +192,26 @@ function ConnectingView() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4" />
-            <p className="text-zinc-400">{stepLabel}</p>
+            {isOffline ? (
+              <>
+                <svg className="w-12 h-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 5.636a9 9 0 010 12.728m-3.536-3.536a4 4 0 010-5.656m-8.486 9.192a9 9 0 010-12.728m3.536 3.536a4 4 0 010 5.656" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6" />
+                </svg>
+                <p className="text-zinc-400 mb-4">Device is offline</p>
+                <button
+                  onClick={handleReconnect}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Tap to reconnect
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4" />
+                <p className="text-zinc-400">{stepLabel}</p>
+              </>
+            )}
           </div>
         )}
       </main>
