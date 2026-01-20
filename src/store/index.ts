@@ -14,6 +14,12 @@ const sessionHasMoreMessages = new Map<string, boolean>();
 const sessionLoadedCount = new Map<string, number>();
 const notificationDebounceTimers = new Map<string, NodeJS.Timeout>();
 
+let currentDeviceId: number | null = null;
+
+function getCacheKey(sessionId: string): string {
+  return currentDeviceId ? `${currentDeviceId}:${sessionId}` : sessionId;
+}
+
 const NOTIFICATION_DEBOUNCE_MS = 2500;
 
 function hasRunningToolInvocations(messages: SessionMessage[]): boolean {
@@ -239,13 +245,14 @@ export const useAppStore = create<AppState>()(
       },
 
       selectDevice: async (device) => {
-        const { relayToken, config, status, cachedSessionsByDevice, pinnedSessionIds } = get();
+        const { relayToken, selectedDevice: currentDevice, cachedSessionsByDevice } = get();
         if (!relayToken) return;
         
-        if (status.connected && config) {
-          set({ selectedDevice: device });
+        if (currentDevice?.id === device.id) {
           return;
         }
+        
+        currentDeviceId = device.id;
         
         const cached = cachedSessionsByDevice[device.id];
         const cachedSessions = cached?.sessions || [];
@@ -256,6 +263,9 @@ export const useAppStore = create<AppState>()(
           isLoading: true,
           sessions: cachedSessions,
           pinnedSessionIds: cachedPinnedIds,
+          currentSessionId: null,
+          messages: [],
+          todos: [],
           connectionStep: "connecting",
         });
         
@@ -269,8 +279,8 @@ export const useAppStore = create<AppState>()(
           };
           await get().setConfig(newConfig);
           
-          const { sessions, pinnedSessionIds: currentPinnedIds, selectedDevice: currentDevice } = get();
-          if (currentDevice?.id === device.id && sessions.length > 0) {
+          const { sessions, pinnedSessionIds: currentPinnedIds, selectedDevice: currentSelectedDevice } = get();
+          if (currentSelectedDevice?.id === device.id && sessions.length > 0) {
             set({ 
               cachedSessionsByDevice: {
                 ...get().cachedSessionsByDevice,
@@ -330,14 +340,15 @@ export const useAppStore = create<AppState>()(
       preloadRecentSessions: (sessions) => {
         const loadSequentially = async () => {
           for (const session of sessions) {
-            if (!messageCache.has(session.id)) {
+            const cacheKey = getCacheKey(session.id);
+            if (!messageCache.has(cacheKey)) {
               try {
                 const { messages, hasMore } = await opencode.getSessionMessages(session.id, { 
                   limit: MESSAGE_PAGE_SIZE
                 });
-                messageCache.set(session.id, messages);
-                sessionHasMoreMessages.set(session.id, hasMore);
-                sessionLoadedCount.set(session.id, messages.length);
+                messageCache.set(cacheKey, messages);
+                sessionHasMoreMessages.set(cacheKey, hasMore);
+                sessionLoadedCount.set(cacheKey, messages.length);
               } catch {}
             }
           }
@@ -350,23 +361,24 @@ export const useAppStore = create<AppState>()(
           return;
         }
         
+        const cacheKey = getCacheKey(id);
         const session = get().sessions.find(s => s.id === id);
         const sessionUpdatedTime = session?.time?.updated || 0;
-        const cacheUpdatedTime = sessionLastUpdated.get(id) || 0;
+        const cacheUpdatedTime = sessionLastUpdated.get(cacheKey) || 0;
         
-        const cached = messageCache.get(id);
+        const cached = messageCache.get(cacheKey);
         const shouldUseCache = cached && cacheUpdatedTime >= sessionUpdatedTime;
         
         if (shouldUseCache) {
-          const hasMore = sessionHasMoreMessages.get(id) || false;
+          const hasMore = sessionHasMoreMessages.get(cacheKey) || false;
           set({ currentSessionId: id, messages: cached, isLoading: false, hasMoreMessages: hasMore, sessionLoadingStep: "ready" });
           get().fetchTodos(id);
           return;
         }
         
-        messageCache.delete(id);
-        sessionHasMoreMessages.delete(id);
-        sessionLoadedCount.delete(id);
+        messageCache.delete(cacheKey);
+        sessionHasMoreMessages.delete(cacheKey);
+        sessionLoadedCount.delete(cacheKey);
         
         set({ currentSessionId: id, messages: [], isLoading: true, hasMoreMessages: false, sessionLoadingStep: "loading_messages" });
         try {
@@ -374,10 +386,10 @@ export const useAppStore = create<AppState>()(
             limit: MESSAGE_PAGE_SIZE
           });
           
-          messageCache.set(id, messages);
-          sessionHasMoreMessages.set(id, hasMore);
-          sessionLoadedCount.set(id, messages.length);
-          sessionLastUpdated.set(id, sessionUpdatedTime);
+          messageCache.set(cacheKey, messages);
+          sessionHasMoreMessages.set(cacheKey, hasMore);
+          sessionLoadedCount.set(cacheKey, messages.length);
+          sessionLastUpdated.set(cacheKey, sessionUpdatedTime);
           
           if (get().currentSessionId === id) {
             set({ messages, isLoading: false, hasMoreMessages: hasMore, sessionLoadingStep: "loading_todos" });
@@ -402,7 +414,8 @@ export const useAppStore = create<AppState>()(
         const { currentSessionId, isLoadingMore, hasMoreMessages, messages } = get();
         if (!currentSessionId || isLoadingMore || !hasMoreMessages) return;
         
-        const currentOffset = sessionLoadedCount.get(currentSessionId) || messages.length;
+        const cacheKey = getCacheKey(currentSessionId);
+        const currentOffset = sessionLoadedCount.get(cacheKey) || messages.length;
         
         set({ isLoadingMore: true });
         try {
@@ -426,9 +439,9 @@ export const useAppStore = create<AppState>()(
             return timeA - timeB;
           });
           
-          messageCache.set(currentSessionId, newMessages);
-          sessionHasMoreMessages.set(currentSessionId, hasMore);
-          sessionLoadedCount.set(currentSessionId, currentOffset + olderMessages.length);
+          messageCache.set(cacheKey, newMessages);
+          sessionHasMoreMessages.set(cacheKey, hasMore);
+          sessionLoadedCount.set(cacheKey, currentOffset + olderMessages.length);
           
           set({ messages: newMessages, hasMoreMessages: hasMore, isLoadingMore: false });
         } catch (error) {
@@ -442,6 +455,7 @@ export const useAppStore = create<AppState>()(
         if (!currentSessionId) return;
         
         const sessionIdAtStart = currentSessionId;
+        const cacheKey = getCacheKey(sessionIdAtStart);
         
         try {
           const { messages: latestMessages } = await opencode.getSessionMessages(sessionIdAtStart, {
@@ -464,7 +478,7 @@ export const useAppStore = create<AppState>()(
             return timeA - timeB;
           });
           
-          messageCache.set(sessionIdAtStart, mergedMessages);
+          messageCache.set(cacheKey, mergedMessages);
           set({ messages: mergedMessages });
           
           const lastMsg = mergedMessages[mergedMessages.length - 1];
@@ -498,6 +512,7 @@ export const useAppStore = create<AppState>()(
         set({ messages: [...messages, userMessage], sendingSessionId: currentSessionId });
 
         const sessionId = currentSessionId;
+        const cacheKey = getCacheKey(sessionId);
         try {
           await opencode.sendMessageAsync(sessionId, text, {
             model: selectedModel || undefined,
@@ -533,7 +548,7 @@ export const useAppStore = create<AppState>()(
                 return timeA - timeB;
               });
               
-              messageCache.set(sessionId, mergedMessages);
+              messageCache.set(cacheKey, mergedMessages);
               if (get().currentSessionId === sessionId) {
                 set({ messages: mergedMessages });
                 if (attempts % 5 === 0) {
@@ -591,10 +606,11 @@ export const useAppStore = create<AppState>()(
             const newSessions = sessions.filter(s => s.id !== sessionId);
             set({ sessions: newSessions });
             
-            messageCache.delete(sessionId);
-            sessionLastUpdated.delete(sessionId);
-            sessionHasMoreMessages.delete(sessionId);
-            sessionLoadedCount.delete(sessionId);
+            const cacheKey = getCacheKey(sessionId);
+            messageCache.delete(cacheKey);
+            sessionLastUpdated.delete(cacheKey);
+            sessionHasMoreMessages.delete(cacheKey);
+            sessionLoadedCount.delete(cacheKey);
             
             if (currentSessionId === sessionId) {
               set({ currentSessionId: null, messages: [], hasMoreMessages: false });
@@ -737,11 +753,12 @@ export const useAppStore = create<AppState>()(
                 const currentSession = state.sessions.find(s => s.id === sessionId);
                 if (!currentSession) return;
                 
-                const lastUpdated = sessionLastUpdated.get(sessionId) || 0;
+                const cacheKey = getCacheKey(sessionId);
+                const lastUpdated = sessionLastUpdated.get(cacheKey) || 0;
                 const newUpdated = currentSession.time?.updated || 0;
                 
                 if (newUpdated > lastUpdated) {
-                  sessionLastUpdated.set(sessionId, newUpdated);
+                  sessionLastUpdated.set(cacheKey, newUpdated);
                   
                   opencode.getSessionMessages(sessionId, { limit: MESSAGE_PAGE_SIZE }).then(({ messages: latestMessages }) => {
                     if (get().currentSessionId !== sessionId) return;
@@ -761,7 +778,7 @@ export const useAppStore = create<AppState>()(
                     });
                     
                     set({ messages: mergedMessages });
-                    messageCache.set(sessionId, mergedMessages);
+                    messageCache.set(cacheKey, mergedMessages);
                     
                     const lastMsg = mergedMessages[mergedMessages.length - 1];
                     const isAssistantDone = lastMsg?.info.role === "assistant" && lastMsg?.info.finish;
@@ -797,7 +814,7 @@ export const useAppStore = create<AppState>()(
                 newMessages = [...messages, { info, parts: [] }];
               }
               set({ messages: newMessages });
-              messageCache.set(currentSessionId, newMessages);
+              messageCache.set(getCacheKey(currentSessionId), newMessages);
             }
             break;
           }
@@ -835,7 +852,7 @@ export const useAppStore = create<AppState>()(
                 });
               }
               set({ messages: newMessages });
-              messageCache.set(currentSessionId, newMessages);
+              messageCache.set(getCacheKey(currentSessionId), newMessages);
             }
             break;
           }

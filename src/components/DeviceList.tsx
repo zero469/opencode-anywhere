@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useAppStore } from "@/store";
 import { Device } from "@/lib/relay";
 
-const SETUP_COMMAND = "curl -sSL https://opencode-relay-server.fly.dev/install.sh -o /tmp/setup.sh && bash /tmp/setup.sh";
+const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay-server.fly.dev/install.sh | bash";
+const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay-server.fly.dev/install.ps1 | iex";
 const APP_VERSION = "1.0.0";
 const GITHUB_URL = "https://github.com/code-yeongyu/opencode-anywhere";
 
@@ -44,9 +45,12 @@ function timeAgo(dateString: string): string {
 function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(!collapsed);
   const [copied, setCopied] = useState(false);
+  const [platform, setPlatform] = useState<'unix' | 'windows'>('unix');
+
+  const currentCommand = platform === 'unix' ? SETUP_COMMAND_UNIX : SETUP_COMMAND_WINDOWS;
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(SETUP_COMMAND);
+    await navigator.clipboard.writeText(currentCommand);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -87,13 +91,36 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
         </>
       )}
       
-      <p className="text-sm text-zinc-400 mb-4">
+      <p className="text-sm text-zinc-400 mb-3">
         Run this command on your computer:
       </p>
+
+      <div className="flex justify-center gap-1 mb-3">
+        <button
+          onClick={() => setPlatform('unix')}
+          className={`px-3 py-1 text-xs rounded-l-lg transition-colors ${
+            platform === 'unix' 
+              ? 'bg-zinc-700 text-white' 
+              : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          macOS / Linux
+        </button>
+        <button
+          onClick={() => setPlatform('windows')}
+          className={`px-3 py-1 text-xs rounded-r-lg transition-colors ${
+            platform === 'windows' 
+              ? 'bg-zinc-700 text-white' 
+              : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+          }`}
+        >
+          Windows
+        </button>
+      </div>
       
       <div className="bg-zinc-800 rounded-lg p-3 relative group">
         <code className="text-xs text-green-400 break-all block pr-8">
-          {SETUP_COMMAND}
+          {currentCommand}
         </code>
         <button
           onClick={handleCopy}
@@ -111,6 +138,12 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
           )}
         </button>
       </div>
+
+      {platform === 'windows' && (
+        <p className="text-xs text-zinc-500 mt-2">
+          Run in PowerShell as Administrator
+        </p>
+      )}
     </div>
   );
 }
