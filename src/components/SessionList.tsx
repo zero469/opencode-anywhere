@@ -57,6 +57,8 @@ function SwipeableSession({ session, isActive, isPinned, onClick, onRename, onTo
   }, []);
   
   const handleTouchEnd = useCallback(() => {
+    const wasDragging = isDraggingRef.current;
+    
     if (translateX < -ACTION_WIDTH / 2) {
       setTranslateX(-ACTION_WIDTH);
       setIsOpen(true);
@@ -64,17 +66,19 @@ function SwipeableSession({ session, isActive, isPinned, onClick, onRename, onTo
       setTranslateX(0);
       setIsOpen(false);
     }
-  }, [translateX]);
-  
-  const handleClick = useCallback(() => {
-    if (isDraggingRef.current) return;
-    if (isOpen) {
-      setTranslateX(0);
-      setIsOpen(false);
-    } else {
+    
+    setTimeout(() => {
+      isDraggingRef.current = false;
+    }, 0);
+
+    if (!wasDragging && translateX === 0 && !isOpen) {
       onClick();
     }
-  }, [isOpen, onClick]);
+  }, [translateX, isOpen, onClick]);
+  
+  const handleClick = useCallback(() => {
+    // Tap is handled in handleTouchEnd to avoid conflict with swipe gestures
+  }, []);
   
   const handleAction = useCallback((action: () => void) => {
     setTranslateX(0);
@@ -203,7 +207,7 @@ function RenameModal({ session, onClose, onRename }: RenameModalProps) {
 }
 
 export function SessionList({ onClose }: { onClose?: () => void }) {
-  const { sessions, currentSessionId, selectSession, createSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions, isLoading } = useAppStore();
+  const { sessions, currentSessionId, selectSession, createSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions } = useAppStore();
   const [isCreating, setIsCreating] = useState(false);
   const [sessionToRename, setSessionToRename] = useState<Session | null>(null);
   const { isInstallable, install } = usePWA();
@@ -212,7 +216,6 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
   const unpinnedSessions = sessions.filter(s => !pinnedSessionIds.includes(s.id));
 
   const handleSelect = async (id: string) => {
-    if (isLoading) return;
     await selectSession(id);
     onClose?.();
   };

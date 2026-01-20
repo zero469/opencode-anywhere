@@ -346,7 +346,7 @@ export const useAppStore = create<AppState>()(
       },
 
       selectSession: async (id) => {
-        if (get().isLoading && get().currentSessionId === id) {
+        if (get().currentSessionId === id) {
           return;
         }
         
@@ -368,7 +368,7 @@ export const useAppStore = create<AppState>()(
         sessionHasMoreMessages.delete(id);
         sessionLoadedCount.delete(id);
         
-        set({ currentSessionId: id, isLoading: true, hasMoreMessages: false, sessionLoadingStep: "loading_messages" });
+        set({ currentSessionId: id, messages: [], isLoading: true, hasMoreMessages: false, sessionLoadingStep: "loading_messages" });
         try {
           const { messages, hasMore } = await opencode.getSessionMessages(id, { 
             limit: MESSAGE_PAGE_SIZE
@@ -395,7 +395,7 @@ export const useAppStore = create<AppState>()(
       },
 
       clearCurrentSession: () => {
-        set({ currentSessionId: null, messages: [], hasMoreMessages: false, todos: [], sessionLoadingStep: "idle" });
+        set({ currentSessionId: null, messages: [], hasMoreMessages: false, todos: [], sessionLoadingStep: "idle", isLoading: false });
       },
 
       loadMoreMessages: async () => {
