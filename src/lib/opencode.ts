@@ -1,4 +1,4 @@
-import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent, ProvidersResponse, Agent, ModelSelection, TodoItem } from "@/types";
+import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
 import type { Session } from "@/types";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 
@@ -56,6 +56,9 @@ function getApiUrl(path: string): string {
     .replace("/global/health", "/api/opencode/health")
     .replace("/provider", "/api/opencode/provider")
     .replace("/agent", "/api/opencode/agent")
+    .replace(/^\/question\/([^/]+)\/reply$/, "/api/opencode/questions/$1/reply")
+    .replace(/^\/question\/([^/]+)\/reject$/, "/api/opencode/questions/$1/reject")
+    .replace(/^\/question$/, "/api/opencode/questions")
     .replace(/^\/session$/, "/api/opencode/sessions")
     .replace(/^\/session\/([^/]+)\/message$/, "/api/opencode/sessions/$1/messages")
     .replace(/^\/session\/([^/]+)\/prompt_async$/, "/api/opencode/sessions/$1/messages")
@@ -408,4 +411,41 @@ export function subscribeToEvents(
       eventSource?.close();
     },
   };
+}
+
+export async function getQuestions(): Promise<QuestionRequest[]> {
+  const url = isNative() ? `${getBaseUrl()}/question` : "/api/opencode/questions";
+  const response = await http(url, { headers: getHeaders() });
+  const data = await response.json();
+  
+  if (data.error) return [];
+  return Array.isArray(data) ? data : [];
+}
+
+export async function replyToQuestion(
+  requestId: string,
+  answers: string[][]
+): Promise<boolean> {
+  const url = isNative()
+    ? `${getBaseUrl()}/question/${requestId}/reply`
+    : `/api/opencode/questions/${requestId}/reply`;
+  const response = await http(url, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify({ answers }),
+  });
+  
+  return response.ok;
+}
+
+export async function rejectQuestion(requestId: string): Promise<boolean> {
+  const url = isNative()
+    ? `${getBaseUrl()}/question/${requestId}/reject`
+    : `/api/opencode/questions/${requestId}/reject`;
+  const response = await http(url, {
+    method: "POST",
+    headers: getHeaders(),
+  });
+  
+  return response.ok;
 }

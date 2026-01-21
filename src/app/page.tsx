@@ -10,6 +10,7 @@ import { SessionList } from "@/components/SessionList";
 import { MessageList } from "@/components/MessageList";
 import { MessageInput } from "@/components/MessageInput";
 import { PermissionDialog } from "@/components/PermissionDialog";
+import { QuestionDialog } from "@/components/QuestionDialog";
 import { TodoCard } from "@/components/TodoCard";
 import { requestNotificationPermission } from "@/lib/notifications";
 import { App } from "@capacitor/app";
@@ -101,6 +102,7 @@ function ChatView() {
       </main>
 
       <PermissionDialog />
+      <QuestionDialog />
     </div>
   );
 }

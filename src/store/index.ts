@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem } from "@/types";
+import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
 import { notifyReadyForInput } from "@/lib/notifications";
@@ -61,6 +61,7 @@ interface AppState {
   currentSessionId: string | null;
   messages: SessionMessage[];
   pendingPermissions: PermissionRequest[];
+  pendingQuestions: QuestionRequest[];
   isLoading: boolean;
   sendingSessionId: string | null;
   hasMoreMessages: boolean;
@@ -94,6 +95,8 @@ interface AppState {
   renameSession: (sessionId: string, title: string) => Promise<boolean>;
   togglePinSession: (sessionId: string) => void;
   respondPermission: (permissionId: string, allow: boolean) => Promise<void>;
+  replyToQuestion: (requestId: string, answers: string[][]) => Promise<void>;
+  rejectQuestion: (requestId: string) => Promise<void>;
   abortSession: () => Promise<void>;
   handleSSEEvent: (event: SSEEvent) => void;
   
@@ -125,6 +128,7 @@ export const useAppStore = create<AppState>()(
       currentSessionId: null,
       messages: [],
       pendingPermissions: [],
+      pendingQuestions: [],
       isLoading: false,
       sendingSessionId: null,
       hasMoreMessages: false,
@@ -237,7 +241,6 @@ export const useAppStore = create<AppState>()(
           set({ devices, isLoading: false });
         } catch (error: any) {
           console.error("Failed to fetch devices:", error);
-          // If token is invalid, log out
           if (error.message.toLowerCase().includes('unauthorized')) {
              get().logout();
           }
@@ -336,14 +339,13 @@ export const useAppStore = create<AppState>()(
           
           const updatedDevice = devices.find(d => d.id === selectedDevice.id);
           if (!updatedDevice) {
-            set({ connectionStep: "idle" });
+            set({ connectionStep: "idle", selectedDevice: null });
             return;
           }
           
           set({ selectedDevice: updatedDevice });
           
           if (updatedDevice.online) {
-            // Force reconnect by re-fetching config and re-initializing
             set({ connectionStep: "authenticating" });
             const frpcConfig = await relay.getFrpcConfig(relayToken, updatedDevice.id);
             const newConfig: ConnectionConfig = {
@@ -763,6 +765,32 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      replyToQuestion: async (requestId, answers) => {
+        const { pendingQuestions } = get();
+
+        try {
+          await opencode.replyToQuestion(requestId, answers);
+          set({
+            pendingQuestions: pendingQuestions.filter((q) => q.id !== requestId),
+          });
+        } catch (error) {
+          console.error("Failed to reply to question:", error);
+        }
+      },
+
+      rejectQuestion: async (requestId) => {
+        const { pendingQuestions } = get();
+
+        try {
+          await opencode.rejectQuestion(requestId);
+          set({
+            pendingQuestions: pendingQuestions.filter((q) => q.id !== requestId),
+          });
+        } catch (error) {
+          console.error("Failed to reject question:", error);
+        }
+      },
+
       abortSession: async () => {
         const { currentSessionId } = get();
         if (!currentSessionId) return;
@@ -974,6 +1002,37 @@ export const useAppStore = create<AppState>()(
             const todoSessionId = event.properties.sessionID as string | undefined;
             if (todoSessionId === currentSessionId) {
               get().fetchTodos(todoSessionId);
+            }
+            break;
+          }
+
+          case "question.asked": {
+            const question = event.properties as unknown as QuestionRequest;
+            if (question.sessionID === currentSessionId) {
+              const { pendingQuestions } = get();
+              if (!pendingQuestions.find(q => q.id === question.id)) {
+                set({ pendingQuestions: [...pendingQuestions, question] });
+                
+                if ("Notification" in window && Notification.permission === "granted") {
+                  const header = question.questions[0]?.header || "Question";
+                  new Notification("OpenCode Question", {
+                    body: header,
+                    icon: "/icon.svg",
+                  });
+                }
+              }
+            }
+            break;
+          }
+
+          case "question.replied":
+          case "question.rejected": {
+            const requestId = event.properties.requestID as string | undefined;
+            if (requestId) {
+              const { pendingQuestions } = get();
+              set({
+                pendingQuestions: pendingQuestions.filter(q => q.id !== requestId),
+              });
             }
             break;
           }
