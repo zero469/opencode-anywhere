@@ -214,6 +214,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
   const { isInstallable, install } = usePWA();
 
   const isOffline = connectionStep === "idle" && selectedDevice !== null;
+  const hasStaleCache = isOffline && sessions.length > 0 && sessions.every(s => !s.title);
 
   const pinnedSessions = sessions.filter(s => pinnedSessionIds.includes(s.id));
   const unpinnedSessions = sessions.filter(s => !pinnedSessionIds.includes(s.id));
@@ -327,7 +328,9 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
             )}
           </button>
         )}
-        {sessions.length === 0 ? (
+        {hasStaleCache ? (
+          <p className="text-zinc-500 text-center py-8">Failed to load sessions</p>
+        ) : sessions.length === 0 ? (
           <p className="text-zinc-500 text-center py-8">No sessions yet</p>
         ) : (
           <>

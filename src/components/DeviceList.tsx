@@ -436,7 +436,7 @@ export function DeviceList() {
       </main>
 
       <div className="py-6 flex justify-center">
-        <OpenCodeLogo width={140} />
+        <OpenCodeLogo width={260} />
       </div>
 
       <HelpButton />

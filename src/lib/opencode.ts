@@ -347,10 +347,12 @@ export function subscribeToEvents(
         
         if (questionsResponse.ok) {
           const questions = await questionsResponse.json();
+          console.log("[Polling] Questions:", questions?.length || 0, "pending");
           if (Array.isArray(questions)) {
             // Emit events for new questions
             for (const question of questions) {
               if (!knownQuestionIds.has(question.id)) {
+                console.log("[Polling] New question found:", question.id);
                 knownQuestionIds.add(question.id);
                 onEvent?.({ 
                   type: "question.asked", 

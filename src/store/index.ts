@@ -234,14 +234,16 @@ export const useAppStore = create<AppState>()(
 
       fetchDevices: async () => {
         const { relayToken } = get();
+        console.log("[fetchDevices] token:", relayToken ? "present" : "missing");
         if (!relayToken) return;
         set({ isLoading: true });
         try {
           const devices = await relay.getDevices(relayToken);
+          console.log("[fetchDevices] success, devices:", devices.length);
           set({ devices, isLoading: false });
         } catch (error: any) {
-          console.error("Failed to fetch devices:", error);
-          if (error.message.toLowerCase().includes('unauthorized')) {
+          console.error("[fetchDevices] error:", error, "message:", error?.message, "stack:", error?.stack);
+          if (error?.message?.toLowerCase?.()?.includes('unauthorized')) {
              get().logout();
           }
           set({ isLoading: false });

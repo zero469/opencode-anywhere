@@ -72,16 +72,27 @@ export const relay = {
   },
 
   async getDevices(token: string): Promise<Device[]> {
+    console.log("[relay.getDevices] fetching with token:", token.substring(0, 20) + "...");
     const response = await fetch(`${API_BASE_URL}/api/devices`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
+    console.log("[relay.getDevices] response status:", response.status);
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to fetch devices');
+      const text = await response.text();
+      console.log("[relay.getDevices] error response:", text);
+      let errorData;
+      try {
+        errorData = JSON.parse(text);
+      } catch {
+        errorData = { message: text };
+      }
+      throw new Error(errorData.message || errorData.error || 'Failed to fetch devices');
     }
-    return response.json();
+    const data = await response.json();
+    console.log("[relay.getDevices] success, count:", data.length);
+    return data;
   },
 
   async getFrpcConfig(token: string, deviceId: number): Promise<FrpcConfig> {
