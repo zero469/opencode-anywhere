@@ -325,18 +325,47 @@ export function subscribeToEvents(
 
   if (isNative()) {
     let pollTimeout: NodeJS.Timeout | null = null;
-    let lastMessageCount = 0;
+    const knownQuestionIds = new Set<string>();
 
     const poll = async () => {
       if (isClosing) return;
       
       try {
+        // Poll sessions
         const response = await nativeFetch(`${config.baseUrl}/session`, {
           headers: getHeaders(),
         });
         
         if (response.ok) {
           onEvent?.({ type: "session.updated", properties: {} });
+        }
+        
+        // Poll pending questions
+        const questionsResponse = await nativeFetch(`${config.baseUrl}/question`, {
+          headers: getHeaders(),
+        });
+        
+        if (questionsResponse.ok) {
+          const questions = await questionsResponse.json();
+          if (Array.isArray(questions)) {
+            // Emit events for new questions
+            for (const question of questions) {
+              if (!knownQuestionIds.has(question.id)) {
+                knownQuestionIds.add(question.id);
+                onEvent?.({ 
+                  type: "question.asked", 
+                  properties: question,
+                });
+              }
+            }
+            // Clean up answered/rejected questions
+            const currentIds = new Set(questions.map((q: any) => q.id));
+            for (const id of knownQuestionIds) {
+              if (!currentIds.has(id)) {
+                knownQuestionIds.delete(id);
+              }
+            }
+          }
         }
       } catch (e) {
         console.error("[Polling] Error:", e);
