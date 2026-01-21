@@ -130,8 +130,9 @@ export async function getProviders(): Promise<ProvidersResponse | null> {
   try {
     const url = isNative() ? `${getBaseUrl()}/provider` : "/api/opencode/provider";
     const response = await http(url, { headers: getHeaders() });
+    if (!response.ok) return null;
     const data = await response.json();
-    if (data.error) return null;
+    if (data.error || !Array.isArray(data.all)) return null;
     return data;
   } catch {
     return null;
@@ -142,8 +143,9 @@ export async function getAgents(): Promise<Agent[]> {
   try {
     const url = isNative() ? `${getBaseUrl()}/agent` : "/api/opencode/agent";
     const response = await http(url, { headers: getHeaders() });
+    if (!response.ok) return [];
     const data = await response.json();
-    if (data.error) return [];
+    if (data.error || !Array.isArray(data)) return [];
     return data;
   } catch {
     return [];

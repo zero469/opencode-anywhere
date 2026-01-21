@@ -276,7 +276,7 @@ export const useAppStore = create<AppState>()(
           set({ connectionStep: "authenticating" });
           const frpcConfig = await relay.getFrpcConfig(relayToken, device.id);
           const newConfig: ConnectionConfig = {
-            baseUrl: `https://${frpcConfig.subdomain}.${frpcConfig.domain}`,
+            baseUrl: `https://opencode-relay-server.fly.dev/proxy/${frpcConfig.subdomain}`,
             username: frpcConfig.auth_user,
             password: frpcConfig.auth_password,
           };
@@ -343,7 +343,15 @@ export const useAppStore = create<AppState>()(
           set({ selectedDevice: updatedDevice });
           
           if (updatedDevice.online) {
-            await get().selectDevice(updatedDevice);
+            // Force reconnect by re-fetching config and re-initializing
+            set({ connectionStep: "authenticating" });
+            const frpcConfig = await relay.getFrpcConfig(relayToken, updatedDevice.id);
+            const newConfig: ConnectionConfig = {
+              baseUrl: `https://opencode-relay-server.fly.dev/proxy/${frpcConfig.subdomain}`,
+              username: frpcConfig.auth_user,
+              password: frpcConfig.auth_password,
+            };
+            await get().setConfig(newConfig);
           } else {
             set({ connectionStep: "idle" });
           }
@@ -398,14 +406,20 @@ export const useAppStore = create<AppState>()(
       },
 
       preloadRecentSessions: (sessions) => {
+        const deviceIdAtStart = currentDeviceId;
         const loadSequentially = async () => {
           for (const session of sessions) {
+            if (currentDeviceId !== deviceIdAtStart) return;
+            
             const cacheKey = getCacheKey(session.id);
             if (!messageCache.has(cacheKey)) {
               try {
                 const { messages, hasMore } = await opencode.getSessionMessages(session.id, { 
                   limit: MESSAGE_PAGE_SIZE
                 });
+                
+                if (currentDeviceId !== deviceIdAtStart) return;
+                
                 messageCache.set(cacheKey, messages);
                 sessionHasMoreMessages.set(cacheKey, hasMore);
                 sessionLoadedCount.set(cacheKey, messages.length);
@@ -528,6 +542,7 @@ export const useAppStore = create<AppState>()(
         if (!currentSessionId) return;
         
         const sessionIdAtStart = currentSessionId;
+        const deviceIdAtStart = currentDeviceId;
         const cacheKey = getCacheKey(sessionIdAtStart);
         
         try {
@@ -535,7 +550,7 @@ export const useAppStore = create<AppState>()(
             limit: MESSAGE_PAGE_SIZE
           });
           
-          if (get().currentSessionId !== sessionIdAtStart) {
+          if (get().currentSessionId !== sessionIdAtStart || currentDeviceId !== deviceIdAtStart) {
             return;
           }
           
@@ -585,6 +600,7 @@ export const useAppStore = create<AppState>()(
         set({ messages: [...messages, userMessage], sendingSessionId: currentSessionId });
 
         const sessionId = currentSessionId;
+        const deviceIdAtStart = currentDeviceId;
         const cacheKey = getCacheKey(sessionId);
         try {
           await opencode.sendMessageAsync(sessionId, text, {
@@ -593,7 +609,7 @@ export const useAppStore = create<AppState>()(
           });
           
           const pollForResponse = async (attempts = 0) => {
-            if (attempts > 60 || !sendingSessions.has(sessionId)) {
+            if (attempts > 60 || !sendingSessions.has(sessionId) || currentDeviceId !== deviceIdAtStart) {
               sendingSessions.delete(sessionId);
               if (get().sendingSessionId === sessionId) {
                 set({ sendingSessionId: null });
@@ -622,7 +638,7 @@ export const useAppStore = create<AppState>()(
               });
               
               messageCache.set(cacheKey, mergedMessages);
-              if (get().currentSessionId === sessionId) {
+              if (get().currentSessionId === sessionId && currentDeviceId === deviceIdAtStart) {
                 set({ messages: mergedMessages });
                 if (attempts % 5 === 0) {
                   get().fetchTodos(sessionId);
@@ -767,7 +783,8 @@ export const useAppStore = create<AppState>()(
         const visibleAgents = agents.filter(a => !a.hidden && a.mode === "primary");
         set({ providers, agents: visibleAgents });
         
-        if (providers && !get().selectedModel) {
+        const hasValidProviders = providers && Array.isArray(providers.all) && Array.isArray(providers.connected);
+        if (hasValidProviders && !get().selectedModel) {
           const connectedProvider = providers.all.find(p => providers.connected.includes(p.id));
           if (connectedProvider) {
             const defaultModelId = providers.default[connectedProvider.id];
