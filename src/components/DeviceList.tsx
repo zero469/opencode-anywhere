@@ -6,7 +6,7 @@ import { Device } from "@/lib/relay";
 
 const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay-server.fly.dev/install.sh | bash";
 const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay-server.fly.dev/install.ps1 | iex";
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 const GITHUB_URL = "https://github.com/code-yeongyu/opencode-anywhere";
 
 function OpenCodeLogo({ width = 160 }: { width?: number }) {
