@@ -4,8 +4,8 @@ import { useEffect, useState, useRef } from "react";
 import { useAppStore } from "@/store";
 import { Device } from "@/lib/relay";
 
-const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay-server.fly.dev/install.sh | bash";
-const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay-server.fly.dev/install.ps1 | iex";
+const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay.azurewebsites.net/install.sh | bash";
+const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay.azurewebsites.net/install.ps1 | iex";
 const APP_VERSION = "1.1.0";
 const GITHUB_URL = "https://github.com/code-yeongyu/opencode-anywhere";
 

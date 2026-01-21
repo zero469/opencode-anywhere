@@ -279,7 +279,7 @@ export const useAppStore = create<AppState>()(
           set({ connectionStep: "authenticating" });
           const frpcConfig = await relay.getFrpcConfig(relayToken, device.id);
           const newConfig: ConnectionConfig = {
-            baseUrl: `https://opencode-relay-server.fly.dev/proxy/${frpcConfig.subdomain}`,
+            baseUrl: `https://opencode-relay.azurewebsites.net/proxy/${frpcConfig.subdomain}`,
             username: frpcConfig.auth_user,
             password: frpcConfig.auth_password,
           };
@@ -349,7 +349,7 @@ export const useAppStore = create<AppState>()(
             set({ connectionStep: "authenticating" });
             const frpcConfig = await relay.getFrpcConfig(relayToken, updatedDevice.id);
             const newConfig: ConnectionConfig = {
-              baseUrl: `https://opencode-relay-server.fly.dev/proxy/${frpcConfig.subdomain}`,
+              baseUrl: `https://opencode-relay.azurewebsites.net/proxy/${frpcConfig.subdomain}`,
               username: frpcConfig.auth_user,
               password: frpcConfig.auth_password,
             };

@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://opencode-relay-server.fly.dev';
+const API_BASE_URL = 'https://opencode-relay.azurewebsites.net';
 
 export interface Device {
   id: number;
