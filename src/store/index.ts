@@ -1008,7 +1008,7 @@ export const useAppStore = create<AppState>()(
 
           case "question.asked": {
             const question = event.properties as unknown as QuestionRequest;
-            if (question.sessionID === currentSessionId) {
+            if (question.id && question.questions) {
               const { pendingQuestions } = get();
               if (!pendingQuestions.find(q => q.id === question.id)) {
                 set({ pendingQuestions: [...pendingQuestions, question] });
