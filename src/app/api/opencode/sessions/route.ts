@@ -20,9 +20,11 @@ function getBaseUrl(req: NextRequest): string {
 export async function GET(req: NextRequest) {
   const baseUrl = getBaseUrl(req);
   const headers = getAuthHeaders(req);
+  const searchParams = req.nextUrl.searchParams.toString();
+  const url = searchParams ? `${baseUrl}/session?${searchParams}` : `${baseUrl}/session`;
   
   try {
-    const response = await fetch(`${baseUrl}/session`, { headers });
+    const response = await fetch(url, { headers });
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error) {

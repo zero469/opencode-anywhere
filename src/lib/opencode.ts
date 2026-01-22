@@ -157,7 +157,8 @@ export async function getAgents(): Promise<Agent[]> {
 }
 
 export async function getSessions(): Promise<Session[]> {
-  const url = isNative() ? `${getBaseUrl()}/session` : "/api/opencode/sessions";
+  const baseUrl = isNative() ? `${getBaseUrl()}/session` : "/api/opencode/sessions";
+  const url = `${baseUrl}?roots=true`;
   const response = await http(url, { headers: getHeaders() });
   const data = await response.json();
   
