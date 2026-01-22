@@ -8,11 +8,12 @@ export function ModelAgentSelector() {
     providers,
     agents,
     selectedModel,
-    selectedAgent,
     setSelectedModel,
     setSelectedAgent,
+    getSelectedAgent,
   } = useAppStore();
 
+  const selectedAgent = getSelectedAgent();
   const [isOpen, setIsOpen] = useState(false);
 
   if (!providers && agents.length === 0) {

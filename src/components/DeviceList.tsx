@@ -70,7 +70,7 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
   }
 
   return (
-    <div className={collapsed ? "bg-zinc-900 rounded-lg p-4" : "text-center mt-8"}>
+    <div className={collapsed ? "bg-zinc-900 rounded-lg p-4" : ""}>
       {collapsed && (
         <div className="flex justify-between items-center mb-3">
           <span className="text-sm font-medium">Add New Device</span>
@@ -82,17 +82,8 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
         </div>
       )}
       
-      {!collapsed && (
-        <>
-          <div className="mx-auto mb-4">
-            <OpenCodeLogo width={160} />
-          </div>
-          <h2 className="text-lg font-semibold mb-2">No Devices Yet</h2>
-        </>
-      )}
-      
       <p className="text-sm text-zinc-400 mb-3">
-        Run this command on your computer:
+        Run this command on your computer to connect:
       </p>
 
       <div className="flex justify-center gap-1 mb-3">
@@ -148,9 +139,22 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
   );
 }
 
-function HelpButton() {
-  const { user, logout, providers, agents, selectedModel, selectedAgent, setSelectedModel, setSelectedAgent } = useAppStore();
-  const [showHelp, setShowHelp] = useState(false);
+function SettingsButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-10 h-10 bg-zinc-800 hover:bg-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+    >
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    </button>
+  );
+}
+
+function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { user, logout, providers, agents, selectedModel, defaultAgent, setSelectedModel, setDefaultAgent } = useAppStore();
 
   const connectedProviders = providers?.all.filter(p => providers.connected.includes(p.id)) || [];
   
@@ -178,113 +182,98 @@ function HelpButton() {
 
   const handleAgentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
-    setSelectedAgent(value || null);
+    setDefaultAgent(value || null);
   };
 
   const currentModelValue = selectedModel ? `${selectedModel.providerID}:${selectedModel.modelID}` : "";
 
-  return (
-    <>
-      <button
-        onClick={() => setShowHelp(true)}
-        className="fixed bottom-6 left-6 w-10 h-10 bg-zinc-800 hover:bg-zinc-700 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-colors shadow-lg"
-        style={{ marginBottom: 'var(--safe-area-bottom)' }}
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      </button>
+  if (!isOpen) return null;
 
-      {showHelp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowHelp(false)}>
-          <div className="absolute inset-0 bg-black/50" />
-          <div 
-            className="relative bg-zinc-900 rounded-xl w-full max-w-sm overflow-hidden"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-center p-4 border-b border-zinc-800">
-              <h2 className="text-lg font-semibold text-white">Settings</h2>
-              <button onClick={() => setShowHelp(false)} className="text-zinc-500 hover:text-white">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="p-4 space-y-4">
-              {/* Default Model & Agent */}
-              {(allModels.length > 0 || agents.length > 0) && (
-                <div className="bg-zinc-800 rounded-lg divide-y divide-zinc-700">
-                  {allModels.length > 0 && (
-                    <div className="p-3">
-                      <label className="block text-sm text-zinc-400 mb-2">Default Model</label>
-                      <select
-                        value={currentModelValue}
-                        onChange={handleModelChange}
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                      >
-                        {allModels.map(m => (
-                          <option key={`${m.providerID}:${m.modelID}`} value={`${m.providerID}:${m.modelID}`}>
-                            {m.modelName}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {agents.length > 0 && (
-                    <div className="p-3">
-                      <label className="block text-sm text-zinc-400 mb-2">Default Agent</label>
-                      <select
-                        value={selectedAgent || ""}
-                        onChange={handleAgentChange}
-                        className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                      >
-                        {agents.map(a => (
-                          <option key={a.name} value={a.name}>
-                            {a.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50" />
+      <div 
+        className="relative bg-zinc-900 rounded-xl w-full max-w-sm overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center p-4 border-b border-zinc-800">
+          <h2 className="text-lg font-semibold text-white">Settings</h2>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="p-4 space-y-4">
+          {(allModels.length > 0 || agents.length > 0) && (
+            <div className="bg-zinc-800 rounded-lg divide-y divide-zinc-700">
+              {allModels.length > 0 && (
+                <div className="p-3">
+                  <label className="block text-sm text-zinc-400 mb-2">Default Model</label>
+                  <select
+                    value={currentModelValue}
+                    onChange={handleModelChange}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                  >
+                    {allModels.map(m => (
+                      <option key={`${m.providerID}:${m.modelID}`} value={`${m.providerID}:${m.modelID}`}>
+                        {m.modelName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
-
-              {/* Account & Info */}
-              <div className="bg-zinc-800 rounded-lg divide-y divide-zinc-700">
-                <div className="flex justify-between items-center p-3">
-                  <span className="text-sm text-zinc-400">Account</span>
-                  <span className="text-sm text-white">{user?.email}</span>
+              {agents.length > 0 && (
+                <div className="p-3">
+                  <label className="block text-sm text-zinc-400 mb-2">Default Agent</label>
+                  <select
+                    value={defaultAgent || ""}
+                    onChange={handleAgentChange}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                  >
+                    {agents.map(a => (
+                      <option key={a.name} value={a.name}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className="flex justify-between items-center p-3">
-                  <span className="text-sm text-zinc-400">Version</span>
-                  <span className="text-sm text-white">{APP_VERSION}</span>
-                </div>
-                <a 
-                  href={GITHUB_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex justify-between items-center p-3"
-                >
-                  <span className="text-sm text-zinc-400">GitHub</span>
-                  <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              </div>
-
-              <button
-                onClick={() => { setShowHelp(false); logout(); }}
-                className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-red-400 text-sm transition-colors"
-              >
-                Log Out
-              </button>
+              )}
             </div>
+          )}
+
+          <div className="bg-zinc-800 rounded-lg divide-y divide-zinc-700">
+            <div className="flex justify-between items-center p-3">
+              <span className="text-sm text-zinc-400">Account</span>
+              <span className="text-sm text-white">{user?.email}</span>
+            </div>
+            <div className="flex justify-between items-center p-3">
+              <span className="text-sm text-zinc-400">Version</span>
+              <span className="text-sm text-white">{APP_VERSION}</span>
+            </div>
+            <a 
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex justify-between items-center p-3"
+            >
+              <span className="text-sm text-zinc-400">GitHub</span>
+              <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
           </div>
+
+          <button
+            onClick={() => { onClose(); logout(); }}
+            className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-red-400 text-sm transition-colors"
+          >
+            Log Out
+          </button>
         </div>
-      )}
-    </>
+      </div>
+    </div>
   );
 }
 
@@ -383,7 +372,9 @@ export function DeviceList() {
     selectDevice,
     deleteDevice,
     isLoading,
+    devicesFetched,
   } = useAppStore();
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     fetchDevices();
@@ -395,31 +386,33 @@ export function DeviceList() {
     return () => clearInterval(interval);
   }, [fetchDevices]);
 
+  const showInitialLoading = !devicesFetched && isLoading;
+
   return (
     <div className="flex flex-col h-full bg-zinc-950 text-white" style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
       <div className="fixed top-0 left-0 right-0 bg-zinc-950 z-50" style={{ height: 'var(--safe-area-top)' }} />
-      <header className="flex items-center justify-between p-4 border-b border-zinc-800 shrink-0">
+      <header className="flex items-center justify-center p-4 border-b border-zinc-800 shrink-0">
         <h1 className="text-xl font-bold">Devices</h1>
-        <button
-          onClick={() => fetchDevices()}
-          disabled={isLoading}
-          className={`p-2 rounded-md transition-colors ${isLoading ? "text-zinc-600" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}
-          title="Refresh"
-        >
-          <svg className={`w-5 h-5 ${isLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        </button>
       </header>
 
-      <main className="flex-grow overflow-y-auto p-4">
-        {isLoading && devices.length === 0 && <p className="text-zinc-400">Loading devices...</p>}
-        
-        {!isLoading && devices.length === 0 && (
-          <SetupGuide />
-        )}
-
-        {devices.length > 0 && (
+      <main className="flex-grow overflow-y-auto p-4 flex flex-col">
+        {showInitialLoading ? (
+          <div className="flex-grow flex items-center justify-center">
+            <div className="flex items-center gap-3 text-zinc-400">
+              <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span>Loading devices...</span>
+            </div>
+          </div>
+        ) : devices.length === 0 ? (
+          <div className="flex-grow flex flex-col items-center justify-center text-center px-2">
+            <h2 className="text-lg font-semibold mb-6">No Devices Yet</h2>
+            <div className="w-full max-w-sm">
+              <SetupGuide />
+            </div>
+          </div>
+        ) : (
           <div className="space-y-3">
             <p className="text-xs text-zinc-500 mb-2">Swipe left to delete</p>
             {devices.map((device) => (
@@ -430,16 +423,29 @@ export function DeviceList() {
                 onDelete={() => deleteDevice(device.id)}
               />
             ))}
-            <SetupGuide collapsed />
+            <div className="mt-6 pt-6 border-t border-zinc-800">
+              <SetupGuide collapsed />
+            </div>
           </div>
         )}
       </main>
 
-      <div className="py-6 flex justify-center">
-        <OpenCodeLogo width={260} />
-      </div>
+      <footer className="py-4 px-6 flex items-center justify-between shrink-0">
+        <SettingsButton onClick={() => setShowSettings(true)} />
+        <OpenCodeLogo width={140} />
+        <button
+          onClick={() => fetchDevices()}
+          disabled={isLoading}
+          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isLoading ? "text-zinc-600" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}
+          title="Refresh"
+        >
+          <svg className={`w-5 h-5 ${isLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+      </footer>
 
-      <HelpButton />
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 }

@@ -70,7 +70,8 @@ interface AppState {
   providers: ProvidersResponse | null;
   agents: Agent[];
   selectedModel: ModelSelection | null;
-  selectedAgent: string | null;
+  sessionAgents: Record<string, string>;
+  defaultAgent: string | null;
   todos: TodoItem[];
 
   relayToken: string | null;
@@ -80,6 +81,7 @@ interface AppState {
   authError: string | null;
   pinnedSessionIds: string[];
   cachedSessionsByDevice: Record<number, { sessions: Session[]; pinnedIds: string[] }>;
+  devicesFetched: boolean;
 
   setConfig: (config: ConnectionConfig) => Promise<void>;
   disconnect: () => void;
@@ -103,6 +105,8 @@ interface AppState {
   fetchProvidersAndAgents: () => Promise<void>;
   setSelectedModel: (model: ModelSelection | null) => void;
   setSelectedAgent: (agent: string | null) => void;
+  setDefaultAgent: (agent: string | null) => void;
+  getSelectedAgent: () => string | null;
   fetchTodos: (sessionId?: string) => Promise<void>;
 
   sendVerification: (email: string) => Promise<void>;
@@ -137,7 +141,8 @@ export const useAppStore = create<AppState>()(
       providers: null,
       agents: [],
       selectedModel: null,
-      selectedAgent: null,
+      sessionAgents: {},
+      defaultAgent: null,
       todos: [],
 
       relayToken: null,
@@ -147,6 +152,7 @@ export const useAppStore = create<AppState>()(
       authError: null,
       pinnedSessionIds: [],
       cachedSessionsByDevice: {},
+      devicesFetched: false,
 
       setConfig: async (config) => {
         set({ isLoading: true, connectionStep: "connecting" });
@@ -178,7 +184,8 @@ export const useAppStore = create<AppState>()(
           providers: null,
           agents: [],
           selectedModel: null,
-          selectedAgent: null,
+          sessionAgents: {},
+          defaultAgent: null,
           todos: [],
         });
       },
@@ -240,13 +247,13 @@ export const useAppStore = create<AppState>()(
         try {
           const devices = await relay.getDevices(relayToken);
           console.log("[fetchDevices] success, devices:", devices.length);
-          set({ devices, isLoading: false });
+          set({ devices, isLoading: false, devicesFetched: true });
         } catch (error: any) {
           console.error("[fetchDevices] error:", error, "message:", error?.message, "stack:", error?.stack);
           if (error?.message?.toLowerCase?.()?.includes('unauthorized')) {
              get().logout();
           }
-          set({ isLoading: false });
+          set({ isLoading: false, devicesFetched: true });
         }
       },
 
@@ -588,8 +595,10 @@ export const useAppStore = create<AppState>()(
       },
 
       sendMessage: async (text) => {
-        const { currentSessionId, selectedModel, selectedAgent, messages } = get();
+        const { currentSessionId, selectedModel, sessionAgents, defaultAgent, messages } = get();
         if (!currentSessionId || !text.trim()) return;
+
+        const selectedAgent = sessionAgents[currentSessionId] || defaultAgent;
 
         const userMessage: SessionMessage = {
           info: {
@@ -834,14 +843,26 @@ export const useAppStore = create<AppState>()(
           }
         }
         
-        if (visibleAgents.length > 0 && !get().selectedAgent) {
+        if (visibleAgents.length > 0 && !get().defaultAgent) {
           const buildAgent = visibleAgents.find(a => a.name === "build");
-          set({ selectedAgent: buildAgent?.name || visibleAgents[0].name });
+          set({ defaultAgent: buildAgent?.name || visibleAgents[0].name });
         }
       },
       
       setSelectedModel: (model) => set({ selectedModel: model }),
-      setSelectedAgent: (agent) => set({ selectedAgent: agent }),
+      setSelectedAgent: (agent) => {
+        const { currentSessionId, sessionAgents } = get();
+        if (!currentSessionId || !agent) return;
+        set({ 
+          sessionAgents: { ...sessionAgents, [currentSessionId]: agent }
+        });
+      },
+      setDefaultAgent: (agent) => set({ defaultAgent: agent }),
+      getSelectedAgent: () => {
+        const { currentSessionId, sessionAgents, defaultAgent } = get();
+        if (!currentSessionId) return defaultAgent;
+        return sessionAgents[currentSessionId] || defaultAgent;
+      },
       
       fetchTodos: async (sessionId) => {
         const id = sessionId || get().currentSessionId;
@@ -1048,14 +1069,15 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: "opencode-anywhere-v6",
+      name: "opencode-anywhere-v7",
       partialize: (state) => ({ 
         relayToken: state.relayToken,
         user: state.user,
         devices: state.devices,
         selectedDevice: state.selectedDevice,
         selectedModel: state.selectedModel,
-        selectedAgent: state.selectedAgent,
+        sessionAgents: state.sessionAgents,
+        defaultAgent: state.defaultAgent,
         cachedSessionsByDevice: state.cachedSessionsByDevice,
       }),
     }
