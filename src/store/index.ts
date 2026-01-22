@@ -12,6 +12,7 @@ const sessionLastUpdated = new Map<string, number>();
 const sendingSessions = new Set<string>();
 const sessionHasMoreMessages = new Map<string, boolean>();
 const sessionLoadedCount = new Map<string, number>();
+const lastCheckedSessionTimes = new Map<string, number>();
 
 let storeGetRef: (() => AppState) | null = null;
 let storeSetRef: ((partial: Partial<AppState>) => void) | null = null;
@@ -917,12 +918,57 @@ export const useAppStore = create<AppState>()(
                 s.id === sessionData.id ? { ...s, ...sessionData } : s
               );
               set({ sessions: newSessions });
+              
+              opencode.getSessionMessages(sessionData.id, { limit: 1 }).then(({ messages: latestMessages }) => {
+                const lastMsg = latestMessages[0];
+                const { runningSessions } = get();
+                const isRunning = lastMsg && (
+                  lastMsg.info.role === "user" || 
+                  (lastMsg.info.role === "assistant" && !lastMsg.info.finish && !lastMsg.info.time?.completed)
+                );
+                
+                if (isRunning && !runningSessions.includes(sessionData.id)) {
+                  set({ runningSessions: [...runningSessions, sessionData.id] });
+                } else if (!isRunning && runningSessions.includes(sessionData.id)) {
+                  markSessionComplete(sessionData.id, get().sessions);
+                }
+              }).catch(console.error);
             } else {
               get().refreshSessions().then(async () => {
                 const state = get();
-                const { runningSessions, sessions: currentSessions } = state;
+                const { sessions: currentSessions } = state;
                 
+                const recentlyUpdatedSessions = currentSessions.filter(s => {
+                  const lastChecked = lastCheckedSessionTimes.get(s.id) || 0;
+                  const updated = s.time?.updated || 0;
+                  return updated > lastChecked;
+                });
+                
+                for (const session of recentlyUpdatedSessions) {
+                  lastCheckedSessionTimes.set(session.id, session.time?.updated || Date.now());
+                  
+                  try {
+                    const { messages: latestMessages } = await opencode.getSessionMessages(session.id, { limit: 1 });
+                    const lastMsg = latestMessages[0];
+                    const { runningSessions } = get();
+                    const isRunning = lastMsg && (
+                      lastMsg.info.role === "user" || 
+                      (lastMsg.info.role === "assistant" && !lastMsg.info.finish && !lastMsg.info.time?.completed)
+                    );
+                    
+                    if (isRunning && !runningSessions.includes(session.id)) {
+                      set({ runningSessions: [...runningSessions, session.id] });
+                    } else if (!isRunning && runningSessions.includes(session.id)) {
+                      markSessionComplete(session.id, currentSessions);
+                    }
+                  } catch (e) {
+                    console.error("Failed to check session:", session.id, e);
+                  }
+                }
+                
+                const { runningSessions } = get();
                 for (const runningId of runningSessions) {
+                  if (recentlyUpdatedSessions.some(s => s.id === runningId)) continue;
                   try {
                     const { messages: latestMessages } = await opencode.getSessionMessages(runningId, { limit: 1 });
                     const lastMsg = latestMessages[0];
@@ -978,13 +1024,20 @@ export const useAppStore = create<AppState>()(
             const info = event.properties.info as MessageInfo | undefined;
             const sessionId = info?.sessionID;
             
-            if (sessionId && info?.role === "assistant") {
+            if (sessionId) {
               const { runningSessions } = get();
-              const isComplete = info.time?.completed || info.finish;
-              if (!isComplete && !runningSessions.includes(sessionId)) {
-                set({ runningSessions: [...runningSessions, sessionId] });
-              } else if (isComplete && runningSessions.includes(sessionId)) {
-                markSessionComplete(sessionId, sessions);
+              
+              if (info?.role === "user") {
+                if (!runningSessions.includes(sessionId)) {
+                  set({ runningSessions: [...runningSessions, sessionId] });
+                }
+              } else if (info?.role === "assistant") {
+                const isComplete = info.time?.completed || info.finish;
+                if (!isComplete && !runningSessions.includes(sessionId)) {
+                  set({ runningSessions: [...runningSessions, sessionId] });
+                } else if (isComplete && runningSessions.includes(sessionId)) {
+                  markSessionComplete(sessionId, sessions);
+                }
               }
             }
             
