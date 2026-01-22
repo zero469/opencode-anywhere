@@ -161,3 +161,23 @@ export interface QuestionRequest {
     callID: string;
   };
 }
+
+// Pairing types
+export interface QRCodeData {
+  v: number;           // version
+  r: string;           // relay URL
+  p: string;           // pairing ID
+  c: string;           // pairing code
+  h?: string;          // hostname
+  k?: string;          // encryption key (for E2E)
+}
+
+export interface PairingCompleteResponse {
+  device: {
+    id: number;
+    name: string;
+    subdomain: string;
+    auth_user: string;
+    auth_password: string;
+  };
+}

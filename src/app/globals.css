@@ -52,3 +52,15 @@ input, textarea, button {
 ::-webkit-scrollbar-thumb:hover {
   background: #52525b;
 }
+
+body.scanner-active {
+  background: transparent !important;
+}
+
+body.scanner-active > * {
+  visibility: hidden;
+}
+
+body.scanner-active .scanner-visible {
+  visibility: visible;
+}

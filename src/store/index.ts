@@ -90,6 +90,7 @@ interface AppState {
   pinnedSessionIds: string[];
   cachedSessionsByDevice: Record<number, { sessions: Session[]; pinnedIds: string[] }>;
   devicesFetched: boolean;
+  deviceEncryptionKeys: Record<number, string>;
 
   setConfig: (config: ConnectionConfig) => Promise<void>;
   disconnect: () => void;
@@ -124,6 +125,9 @@ interface AppState {
   fetchDevices: () => Promise<void>;
   selectDevice: (device: Device) => Promise<void>;
   deleteDevice: (deviceId: number) => Promise<void>;
+  updateDevice: (deviceId: number, name: string) => Promise<void>;
+  saveDeviceEncryptionKey: (deviceId: number, key: string) => void;
+  getDeviceEncryptionKey: (deviceId: number) => string | null;
   deselectDevice: () => void;
   clearAuthError: () => void;
   checkDeviceAndReconnect: () => Promise<void>;
@@ -166,6 +170,7 @@ export const useAppStore = create<AppState>()(
       pinnedSessionIds: [],
       cachedSessionsByDevice: {},
       devicesFetched: false,
+      deviceEncryptionKeys: {},
 
       setConfig: async (config) => {
         set({ isLoading: true, connectionStep: "connecting" });
@@ -238,6 +243,7 @@ export const useAppStore = create<AppState>()(
       },
 
       logout: () => {
+        opencode.setEncryptionKey(null);
         set({
           relayToken: null,
           user: null,
@@ -271,7 +277,7 @@ export const useAppStore = create<AppState>()(
       },
 
       selectDevice: async (device) => {
-        const { relayToken, selectedDevice: currentDevice, cachedSessionsByDevice } = get();
+        const { relayToken, selectedDevice: currentDevice, cachedSessionsByDevice, getDeviceEncryptionKey } = get();
         if (!relayToken) return;
         
         if (currentDevice?.id === device.id) {
@@ -282,6 +288,7 @@ export const useAppStore = create<AppState>()(
         currentDeviceId = device.id;
         
         opencode.initClient({ baseUrl: '', username: '', password: '' });
+        opencode.setEncryptionKey(getDeviceEncryptionKey(device.id));
         
         const cached = cachedSessionsByDevice[device.id];
         const cachedSessions = cached?.sessions || [];
@@ -328,6 +335,7 @@ export const useAppStore = create<AppState>()(
       },
 
       deselectDevice: () => {
+        opencode.setEncryptionKey(null);
         set({ 
           selectedDevice: null, 
           currentSessionId: null,
@@ -351,11 +359,37 @@ export const useAppStore = create<AppState>()(
           throw error;
         }
       },
+
+      updateDevice: async (deviceId, name) => {
+        const { relayToken, devices, selectedDevice } = get();
+        if (!relayToken) return;
+        
+        try {
+          const updatedDevice = await relay.updateDevice(relayToken, deviceId, name);
+          set({ 
+            devices: devices.map(d => d.id === deviceId ? updatedDevice : d),
+            selectedDevice: selectedDevice?.id === deviceId ? updatedDevice : selectedDevice,
+          });
+        } catch (error) {
+          console.error("Failed to update device:", error);
+          throw error;
+        }
+      },
+
+      saveDeviceEncryptionKey: (deviceId, key) => {
+        const { deviceEncryptionKeys } = get();
+        set({ deviceEncryptionKeys: { ...deviceEncryptionKeys, [deviceId]: key } });
+      },
+
+      getDeviceEncryptionKey: (deviceId) => {
+        const { deviceEncryptionKeys } = get();
+        return deviceEncryptionKeys[deviceId] || null;
+      },
       
       clearAuthError: () => set({ authError: null }),
 
       checkDeviceAndReconnect: async () => {
-        const { relayToken, selectedDevice, pinnedSessionIds } = get();
+        const { relayToken, selectedDevice, pinnedSessionIds, getDeviceEncryptionKey } = get();
         if (!relayToken || !selectedDevice) return;
         
         set({ connectionStep: "connecting" });
@@ -374,6 +408,7 @@ export const useAppStore = create<AppState>()(
           
           if (updatedDevice.online) {
             set({ connectionStep: "authenticating" });
+            opencode.setEncryptionKey(getDeviceEncryptionKey(updatedDevice.id));
             const frpcConfig = await relay.getFrpcConfig(relayToken, updatedDevice.id);
             const newConfig: ConnectionConfig = {
               baseUrl: `https://opencode-relay.azurewebsites.net/proxy/${frpcConfig.subdomain}`,
@@ -1165,7 +1200,7 @@ export const useAppStore = create<AppState>()(
       },
     }},
     {
-      name: "opencode-anywhere-v7",
+      name: "opencode-anywhere-v8",
       partialize: (state) => ({ 
         relayToken: state.relayToken,
         user: state.user,
@@ -1176,6 +1211,7 @@ export const useAppStore = create<AppState>()(
         defaultAgent: state.defaultAgent,
         cachedSessionsByDevice: state.cachedSessionsByDevice,
         pinnedSessionIds: state.pinnedSessionIds,
+        deviceEncryptionKeys: state.deviceEncryptionKeys,
       }),
     }
   )

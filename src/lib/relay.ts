@@ -8,6 +8,7 @@ export interface Device {
   auth_password: string;
   online: boolean;
   last_seen: string;
+  encryption_key?: string;
 }
 
 export interface FrpcConfig {
@@ -119,5 +120,46 @@ export const relay = {
       const errorData = await response.json();
       throw new Error(errorData.message || 'Failed to delete device');
     }
+  },
+
+  async updateDevice(token: string, deviceId: number, name: string): Promise<Device> {
+    const response = await fetch(`${API_BASE_URL}/api/devices/${deviceId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to update device');
+    }
+    return response.json();
+  },
+
+  async completePairing(
+    relayUrl: string,
+    token: string,
+    pairingId: string,
+    pairingCode: string,
+    deviceName: string
+  ): Promise<{ device: Device }> {
+    const response = await fetch(`${relayUrl}/api/pairing/${pairingId}/complete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ 
+        pairing_code: pairingCode,
+        device_name: deviceName 
+      }),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to complete pairing');
+    }
+    return response.json();
   },
 };

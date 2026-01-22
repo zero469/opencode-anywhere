@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useAppStore } from "@/store";
 import { Device } from "@/lib/relay";
+import { QRScanner } from "./QRScanner";
 
 const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay.azurewebsites.net/install.sh | bash";
 const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay.azurewebsites.net/install.ps1 | iex";
@@ -153,6 +154,92 @@ function SettingsButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+function RenameDeviceModal({ 
+  isOpen, 
+  device, 
+  onClose, 
+  onSave 
+}: { 
+  isOpen: boolean; 
+  device: Device | null;
+  onClose: () => void;
+  onSave: (name: string) => Promise<void>;
+}) {
+  const [name, setName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isOpen && device) {
+      setName(device.name);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [isOpen, device]);
+
+  const handleSave = async () => {
+    if (!name.trim() || isSaving) return;
+    setIsSaving(true);
+    try {
+      await onSave(name.trim());
+      onClose();
+    } catch {
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isOpen || !device) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50" />
+      <div 
+        className="relative bg-zinc-900 rounded-xl w-full max-w-sm overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center p-4 border-b border-zinc-800">
+          <h2 className="text-lg font-semibold text-white">Rename Device</h2>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <div className="p-4 space-y-4">
+          <input
+            ref={inputRef}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Device name"
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave();
+            }}
+          />
+          
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-white font-medium transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!name.trim() || isSaving}
+              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 disabled:text-zinc-500 rounded-xl text-white font-medium transition-colors"
+            >
+              {isSaving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { user, logout, providers, agents, selectedModel, defaultAgent, setSelectedModel, setDefaultAgent } = useAppStore();
 
@@ -277,10 +364,12 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
   );
 }
 
-function DeviceItem({ device, onSelect, onDelete }: { 
+function DeviceItem({ device, onSelect, onDelete, onRename, needsRepair }: { 
   device: Device; 
   onSelect: () => void; 
   onDelete: () => void;
+  onRename: () => void;
+  needsRepair: boolean;
 }) {
   const [showDelete, setShowDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -316,6 +405,11 @@ function DeviceItem({ device, onSelect, onDelete }: {
     }
   };
 
+  const handleRename = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onRename();
+  };
+
   return (
     <div className="relative overflow-hidden rounded-lg">
       <div 
@@ -343,22 +437,41 @@ function DeviceItem({ device, onSelect, onDelete }: {
         onTouchEnd={() => {}}
         className={`w-full text-left p-4 bg-zinc-900 hover:bg-zinc-800 flex items-center justify-between transition-all duration-200 ${showDelete ? "-translate-x-20" : "translate-x-0"}`}
       >
-        <div className="flex items-center">
+        <div className="flex items-center flex-1 min-w-0">
           <span
-            className={`w-3 h-3 rounded-full mr-4 ${
+            className={`w-3 h-3 rounded-full mr-4 shrink-0 ${
               device.online ? "bg-green-500" : "bg-red-500"
             }`}
           ></span>
-          <div>
-            <p className="font-semibold">{device.name}</p>
-            <p className="text-sm text-zinc-400">
-              {device.online
-                ? "Online"
-                : `Last seen ${timeAgo(device.last_seen)}`}
-            </p>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold truncate">{device.name}</p>
+            {needsRepair ? (
+              <p className="text-sm text-amber-400 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Needs re-pairing
+              </p>
+            ) : (
+              <p className="text-sm text-zinc-400">
+                {device.online
+                  ? "Online"
+                  : `Last seen ${timeAgo(device.last_seen)}`}
+              </p>
+            )}
           </div>
         </div>
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-zinc-500"><path d="m9 18 6-6-6-6"/></svg>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleRename}
+            className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-zinc-500"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
       </button>
     </div>
   );
@@ -371,10 +484,14 @@ export function DeviceList() {
     fetchDevices,
     selectDevice,
     deleteDevice,
+    updateDevice,
     isLoading,
     devicesFetched,
+    getDeviceEncryptionKey,
   } = useAppStore();
   const [showSettings, setShowSettings] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [renameDevice, setRenameDevice] = useState<Device | null>(null);
 
   useEffect(() => {
     fetchDevices();
@@ -408,7 +525,19 @@ export function DeviceList() {
         ) : devices.length === 0 ? (
           <div className="flex-grow flex flex-col items-center justify-center text-center px-2">
             <h2 className="text-lg font-semibold mb-6">No Devices Yet</h2>
+            
+            <button
+              onClick={() => setShowScanner(true)}
+              className="w-full max-w-sm mb-6 py-4 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center gap-3 text-white font-medium transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              </svg>
+              Scan QR Code to Pair
+            </button>
+            
             <div className="w-full max-w-sm">
+              <p className="text-zinc-500 text-sm mb-4">Or set up manually:</p>
               <SetupGuide />
             </div>
           </div>
@@ -421,9 +550,20 @@ export function DeviceList() {
                 device={device}
                 onSelect={() => selectDevice(device)}
                 onDelete={() => deleteDevice(device.id)}
+                onRename={() => setRenameDevice(device)}
+                needsRepair={!getDeviceEncryptionKey(device.id)}
               />
             ))}
             <div className="mt-6 pt-6 border-t border-zinc-800">
+              <button
+                onClick={() => setShowScanner(true)}
+                className="w-full py-3 mb-4 bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center justify-center gap-2 text-white text-sm font-medium transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                </svg>
+                Scan QR Code
+              </button>
               <SetupGuide collapsed />
             </div>
           </div>
@@ -446,6 +586,21 @@ export function DeviceList() {
       </footer>
 
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <QRScanner 
+        isOpen={showScanner} 
+        onClose={() => setShowScanner(false)} 
+        onSuccess={() => setShowScanner(false)}
+      />
+      <RenameDeviceModal
+        isOpen={!!renameDevice}
+        device={renameDevice}
+        onClose={() => setRenameDevice(null)}
+        onSave={async (name) => {
+          if (renameDevice) {
+            await updateDevice(renameDevice.id, name);
+          }
+        }}
+      />
     </div>
   );
 }

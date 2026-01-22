@@ -1,28 +1,54 @@
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
 import type { Session } from "@/types";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import { encrypt, decrypt } from "./crypto";
 
 export type { Session };
 
 let currentConfig: ConnectionConfig | null = null;
+let currentEncryptionKey: string | null = null;
+
+export function setEncryptionKey(key: string | null) {
+  currentEncryptionKey = key;
+}
 
 function isNative(): boolean {
   return Capacitor.isNativePlatform();
 }
 
 async function nativeFetch(url: string, options?: { method?: string; headers?: Record<string, string>; body?: string; timeout?: number }) {
+  let requestBody = options?.body;
+  
+  if (currentEncryptionKey && requestBody) {
+    requestBody = await encrypt(requestBody, currentEncryptionKey);
+  }
+  
   const response = await CapacitorHttp.request({
     url,
     method: options?.method || 'GET',
     headers: options?.headers,
-    data: options?.body ? JSON.parse(options.body) : undefined,
+    data: currentEncryptionKey ? requestBody : (requestBody ? JSON.parse(requestBody) : undefined),
     connectTimeout: options?.timeout || 60000,
-    readTimeout: options?.timeout || 300000, // 5 minutes for large responses
+    readTimeout: options?.timeout || 300000,
+    responseType: currentEncryptionKey ? 'text' : undefined,
   });
+  
+  let responseData = response.data;
+  
+  if (currentEncryptionKey && responseData && typeof responseData === 'string') {
+    try {
+      const decrypted = await decrypt(responseData, currentEncryptionKey);
+      responseData = JSON.parse(decrypted);
+    } catch (e) {
+      console.error("[nativeFetch] Decryption failed:", e);
+      throw new Error("Failed to decrypt response");
+    }
+  }
+  
   return {
     ok: response.status >= 200 && response.status < 300,
     status: response.status,
-    json: async () => response.data,
+    json: async () => responseData,
   };
 }
 
