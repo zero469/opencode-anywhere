@@ -12,15 +12,35 @@ const sessionLastUpdated = new Map<string, number>();
 const sendingSessions = new Set<string>();
 const sessionHasMoreMessages = new Map<string, boolean>();
 const sessionLoadedCount = new Map<string, number>();
-const notificationDebounceTimers = new Map<string, NodeJS.Timeout>();
+
+let storeGetRef: (() => AppState) | null = null;
+let storeSetRef: ((partial: Partial<AppState>) => void) | null = null;
+
+function markSessionComplete(sessionId: string, sessions: Session[]) {
+  if (!storeGetRef || !storeSetRef) return;
+  
+  const { runningSessions, sendingSessionId } = storeGetRef();
+  
+  if (runningSessions.includes(sessionId)) {
+    storeSetRef({ runningSessions: runningSessions.filter(id => id !== sessionId) });
+    
+    const session = sessions.find(s => s.id === sessionId);
+    notifyReadyForInput(session?.title);
+  }
+  
+  if (sendingSessions.has(sessionId)) {
+    sendingSessions.delete(sessionId);
+    if (sendingSessionId === sessionId) {
+      storeSetRef({ sendingSessionId: null });
+    }
+  }
+}
 
 let currentDeviceId: number | null = null;
 
 function getCacheKey(sessionId: string): string {
   return currentDeviceId ? `${currentDeviceId}:${sessionId}` : sessionId;
 }
-
-const NOTIFICATION_DEBOUNCE_MS = 2500;
 
 function hasRunningToolInvocations(messages: SessionMessage[]): boolean {
   for (const msg of messages) {
@@ -33,20 +53,6 @@ function hasRunningToolInvocations(messages: SessionMessage[]): boolean {
     }
   }
   return false;
-}
-
-function scheduleNotification(sessionId: string, sessionTitle?: string) {
-  const existingTimer = notificationDebounceTimers.get(sessionId);
-  if (existingTimer) {
-    clearTimeout(existingTimer);
-  }
-  
-  const timer = setTimeout(() => {
-    notificationDebounceTimers.delete(sessionId);
-    notifyReadyForInput(sessionTitle);
-  }, NOTIFICATION_DEBOUNCE_MS);
-  
-  notificationDebounceTimers.set(sessionId, timer);
 }
 
 type ConnectionStep = "idle" | "connecting" | "authenticating" | "loading_sessions" | "ready";
@@ -124,7 +130,11 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set, get) => {
+      storeGetRef = get;
+      storeSetRef = set;
+      
+      return {
       config: null,
       status: { connected: false },
       connectionStep: "idle",
@@ -673,12 +683,7 @@ export const useAppStore = create<AppState>()(
               if (!isAssistantDone || hasActiveTools) {
                 setTimeout(() => pollForResponse(attempts + 1), 1000);
               } else {
-                sendingSessions.delete(sessionId);
-                if (get().sendingSessionId === sessionId) {
-                  set({ sendingSessionId: null });
-                }
-                const session = get().sessions.find(s => s.id === sessionId);
-                scheduleNotification(sessionId, session?.title);
+                markSessionComplete(sessionId, get().sessions);
               }
             } catch (e) {
               console.error("[Poll] Error:", e);
@@ -898,12 +903,26 @@ export const useAppStore = create<AppState>()(
               );
               set({ sessions: newSessions });
             } else {
-              get().refreshSessions().then(() => {
+              get().refreshSessions().then(async () => {
                 const state = get();
+                const { runningSessions, sessions: currentSessions } = state;
+                
+                for (const runningId of runningSessions) {
+                  try {
+                    const { messages: latestMessages } = await opencode.getSessionMessages(runningId, { limit: 1 });
+                    const lastMsg = latestMessages[0];
+                    if (lastMsg?.info.role === "assistant" && lastMsg?.info.finish) {
+                      markSessionComplete(runningId, currentSessions);
+                    }
+                  } catch (e) {
+                    console.error("Failed to check running session:", runningId, e);
+                  }
+                }
+                
                 const sessionId = state.currentSessionId;
                 if (!sessionId || state.isLoading) return;
                 
-                const currentSession = state.sessions.find(s => s.id === sessionId);
+                const currentSession = currentSessions.find(s => s.id === sessionId);
                 if (!currentSession) return;
                 
                 const cacheKey = getCacheKey(sessionId);
@@ -932,15 +951,6 @@ export const useAppStore = create<AppState>()(
                     
                     set({ messages: mergedMessages });
                     messageCache.set(cacheKey, mergedMessages);
-                    
-                    const lastMsg = mergedMessages[mergedMessages.length - 1];
-                    const isAssistantDone = lastMsg?.info.role === "assistant" && lastMsg?.info.finish;
-                    if (isAssistantDone && sendingSessions.has(sessionId)) {
-                      sendingSessions.delete(sessionId);
-                      if (get().sendingSessionId === sessionId) {
-                        set({ sendingSessionId: null });
-                      }
-                    }
                   }).catch(console.error);
                 }
               });
@@ -955,10 +965,11 @@ export const useAppStore = create<AppState>()(
             
             if (sessionId && info?.role === "assistant") {
               const { runningSessions } = get();
-              if (!info.time?.completed && !runningSessions.includes(sessionId)) {
+              const isComplete = info.time?.completed || info.finish;
+              if (!isComplete && !runningSessions.includes(sessionId)) {
                 set({ runningSessions: [...runningSessions, sessionId] });
-              } else if (info.time?.completed && runningSessions.includes(sessionId)) {
-                set({ runningSessions: runningSessions.filter(id => id !== sessionId) });
+              } else if (isComplete && runningSessions.includes(sessionId)) {
+                markSessionComplete(sessionId, sessions);
               }
             }
             
@@ -1084,7 +1095,7 @@ export const useAppStore = create<AppState>()(
             break;
         }
       },
-    }),
+    }},
     {
       name: "opencode-anywhere-v7",
       partialize: (state) => ({ 
