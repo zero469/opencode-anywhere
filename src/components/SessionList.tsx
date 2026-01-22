@@ -132,11 +132,6 @@ function SwipeableSession({ session, isActive, isPinned, hasPermission, isRunnin
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            {isPinned && (
-              <svg className="w-3 h-3 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
-              </svg>
-            )}
             {hasPermission && (
               <span className="w-2.5 h-2.5 bg-orange-500 rounded-full flex-shrink-0 animate-pulse" />
             )}
