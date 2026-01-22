@@ -66,6 +66,7 @@ interface AppState {
   sendingSessionId: string | null;
   hasMoreMessages: boolean;
   isLoadingMore: boolean;
+  runningSessions: string[];
   
   providers: ProvidersResponse | null;
   agents: Agent[];
@@ -137,6 +138,7 @@ export const useAppStore = create<AppState>()(
       sendingSessionId: null,
       hasMoreMessages: false,
       isLoadingMore: false,
+      runningSessions: [],
       
       providers: null,
       agents: [],
@@ -610,7 +612,13 @@ export const useAppStore = create<AppState>()(
           parts: [{ type: "text", text, id: `prt_temp_${Date.now()}` }],
         };
         sendingSessions.add(currentSessionId);
-        set({ messages: [...messages, userMessage], sendingSessionId: currentSessionId });
+        set({ 
+          messages: [...messages, userMessage], 
+          sendingSessionId: currentSessionId,
+          runningSessions: get().runningSessions.includes(currentSessionId) 
+            ? get().runningSessions 
+            : [...get().runningSessions, currentSessionId]
+        });
 
         const sessionId = currentSessionId;
         const deviceIdAtStart = currentDeviceId;
@@ -944,6 +952,15 @@ export const useAppStore = create<AppState>()(
           case "message.updated": {
             const info = event.properties.info as MessageInfo | undefined;
             const sessionId = info?.sessionID;
+            
+            if (sessionId && info?.role === "assistant") {
+              const { runningSessions } = get();
+              if (!info.time?.completed && !runningSessions.includes(sessionId)) {
+                set({ runningSessions: [...runningSessions, sessionId] });
+              } else if (info.time?.completed && runningSessions.includes(sessionId)) {
+                set({ runningSessions: runningSessions.filter(id => id !== sessionId) });
+              }
+            }
             
             if (sessionId === currentSessionId && info) {
               const existingIndex = messages.findIndex((m) => m.info.id === info.id);

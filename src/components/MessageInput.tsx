@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useAppStore } from "@/store";
 import { ModelAgentSelector } from "./ModelAgentSelector";
 
@@ -13,9 +13,17 @@ export function MessageInput() {
   const sendMessage = useAppStore((state) => state.sendMessage);
   const currentSessionId = useAppStore((state) => state.currentSessionId);
   const sendingSessionId = useAppStore((state) => state.sendingSessionId);
+  const messages = useAppStore((state) => state.messages);
   const abortSession = useAppStore((state) => state.abortSession);
   
-  const isSending = sendingSessionId === currentSessionId;
+  const isSessionBusy = useMemo(() => {
+    if (sendingSessionId === currentSessionId) return true;
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg) return false;
+    if (lastMsg.info.role === "user") return true;
+    if (lastMsg.info.role === "assistant" && !lastMsg.info.time?.completed) return true;
+    return false;
+  }, [sendingSessionId, currentSessionId, messages]);
   
   const [text, setText] = useState("");
   const [isComposing, setIsComposing] = useState(false);
@@ -42,14 +50,14 @@ export function MessageInput() {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = text.trim();
-    if (!trimmed || isSending) return;
+    if (!trimmed || isSessionBusy) return;
     
     setText("");
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
     await sendMessage(trimmed);
-  }, [text, isSending, sendMessage]);
+  }, [text, isSessionBusy, sendMessage]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (isMobile) return;
@@ -84,9 +92,9 @@ export function MessageInput() {
             placeholder="Message..."
             rows={1}
             className="flex-1 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[42px] max-h-[200px] overflow-y-auto"
-            disabled={isSending}
+            disabled={isSessionBusy}
           />
-          {isSending ? (
+          {isSessionBusy ? (
             <button
               type="button"
               onClick={() => abortSession()}
