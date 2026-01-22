@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
-import { notifyReadyForInput, notifyPermissionRequest, notifyQuestion } from "@/lib/notifications";
+import { notifyTaskComplete, notifyApprovalNeeded, notifyInputNeeded } from "@/lib/notifications";
 
 const MESSAGE_PAGE_SIZE = 30;
 
@@ -26,7 +26,7 @@ function markSessionComplete(sessionId: string, sessions: Session[]) {
     storeSetRef({ runningSessions: runningSessions.filter(id => id !== sessionId) });
     
     const session = sessions.find(s => s.id === sessionId);
-    notifyReadyForInput(session?.title);
+    notifyTaskComplete(session?.title);
   }
   
   if (sendingSessions.has(sessionId)) {
@@ -1106,7 +1106,7 @@ export const useAppStore = create<AppState>()(
               console.log("[SSE] Adding new permission to pendingPermissions:", permission.id);
               set({ pendingPermissions: [...pendingPermissions, permission] });
               const session = sessions.find(s => s.id === permission.sessionID);
-              notifyPermissionRequest(permission.permission, session?.title);
+              notifyApprovalNeeded(permission.permission, session?.title);
             }
             break;
           }
@@ -1137,7 +1137,7 @@ export const useAppStore = create<AppState>()(
                 set({ pendingQuestions: [...pendingQuestions, question] });
                 const header = question.questions[0]?.header || "Question";
                 const session = sessions.find(s => s.id === question.sessionID);
-                notifyQuestion(header, session?.title);
+                notifyInputNeeded(header, session?.title);
               } else {
                 console.log("[SSE] Question already in pendingQuestions:", question.id);
               }

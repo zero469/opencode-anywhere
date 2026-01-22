@@ -23,7 +23,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
-export async function notifyReadyForInput(sessionTitle?: string): Promise<void> {
+export async function notifyTaskComplete(sessionTitle?: string): Promise<void> {
   if (!Capacitor.isNativePlatform() || !permissionGranted) {
     return;
   }
@@ -33,8 +33,8 @@ export async function notifyReadyForInput(sessionTitle?: string): Promise<void> 
       notifications: [
         {
           id: Date.now(),
-          title: "Ready for input",
-          body: sessionTitle || "OpenCode is waiting for your response",
+          title: "✅ Task Complete",
+          body: sessionTitle || "Session finished",
           schedule: { at: new Date(Date.now() + 100) },
           sound: "default",
         },
@@ -43,7 +43,7 @@ export async function notifyReadyForInput(sessionTitle?: string): Promise<void> 
   } catch {}
 }
 
-export async function notifyPermissionRequest(toolName: string, sessionTitle?: string): Promise<void> {
+export async function notifyApprovalNeeded(toolName: string, sessionTitle?: string): Promise<void> {
   if (!Capacitor.isNativePlatform() || !permissionGranted) {
     return;
   }
@@ -53,8 +53,8 @@ export async function notifyPermissionRequest(toolName: string, sessionTitle?: s
       notifications: [
         {
           id: Date.now(),
-          title: sessionTitle || "Permission Required",
-          body: `Wants to run: ${toolName}`,
+          title: "⚠️ Approval Needed",
+          body: sessionTitle ? `${sessionTitle}: ${toolName}` : toolName,
           schedule: { at: new Date(Date.now() + 100) },
           sound: "default",
         },
@@ -63,7 +63,7 @@ export async function notifyPermissionRequest(toolName: string, sessionTitle?: s
   } catch {}
 }
 
-export async function notifyQuestion(header: string, sessionTitle?: string): Promise<void> {
+export async function notifyInputNeeded(header: string, sessionTitle?: string): Promise<void> {
   if (!Capacitor.isNativePlatform() || !permissionGranted) {
     return;
   }
@@ -73,8 +73,8 @@ export async function notifyQuestion(header: string, sessionTitle?: string): Pro
       notifications: [
         {
           id: Date.now(),
-          title: sessionTitle || "Question from OpenCode",
-          body: header,
+          title: "❓ Input Needed",
+          body: sessionTitle ? `${sessionTitle}: ${header}` : header,
           schedule: { at: new Date(Date.now() + 100) },
           sound: "default",
         },
