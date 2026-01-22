@@ -24,12 +24,13 @@ interface SwipeableSessionProps {
   session: Session;
   isActive: boolean;
   isPinned: boolean;
+  hasPermission: boolean;
   onClick: () => void;
   onRename: () => void;
   onTogglePin: () => void;
 }
 
-function SwipeableSession({ session, isActive, isPinned, onClick, onRename, onTogglePin }: SwipeableSessionProps) {
+function SwipeableSession({ session, isActive, isPinned, hasPermission, onClick, onRename, onTogglePin }: SwipeableSessionProps) {
   const timeValue = session.time?.updated || session.time?.created || 0;
   const dirName = session.directory?.split('/').pop() || '';
   
@@ -135,6 +136,9 @@ function SwipeableSession({ session, isActive, isPinned, onClick, onRename, onTo
                 <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
               </svg>
             )}
+            {hasPermission && (
+              <span className="w-2.5 h-2.5 bg-orange-500 rounded-full flex-shrink-0 animate-pulse" />
+            )}
             <span className="text-sm font-medium text-white truncate">
               {session.title || "Untitled Session"}
             </span>
@@ -207,7 +211,8 @@ function RenameModal({ session, onClose, onRename }: RenameModalProps) {
 }
 
 export function SessionList({ onClose }: { onClose?: () => void }) {
-  const { sessions, currentSessionId, selectSession, createSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions, connectionStep, selectedDevice, checkDeviceAndReconnect } = useAppStore();
+  const { sessions, currentSessionId, selectSession, createSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions, connectionStep, selectedDevice, checkDeviceAndReconnect, pendingPermissions } = useAppStore();
+  const sessionsWithPermissions = new Set(pendingPermissions.map(p => p.sessionID));
   const [isCreating, setIsCreating] = useState(false);
   const [sessionToRename, setSessionToRename] = useState<Session | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -258,6 +263,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
       session={session}
       isActive={session.id === currentSessionId}
       isPinned={pinnedSessionIds.includes(session.id)}
+      hasPermission={sessionsWithPermissions.has(session.id)}
       onClick={() => handleSelect(session.id)}
       onRename={() => setSessionToRename(session)}
       onTogglePin={() => togglePinSession(session.id)}

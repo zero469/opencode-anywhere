@@ -42,3 +42,43 @@ export async function notifyReadyForInput(sessionTitle?: string): Promise<void> 
     });
   } catch {}
 }
+
+export async function notifyPermissionRequest(toolName: string, sessionTitle?: string): Promise<void> {
+  if (!Capacitor.isNativePlatform() || !permissionGranted) {
+    return;
+  }
+  
+  try {
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: Date.now(),
+          title: sessionTitle || "Permission Required",
+          body: `Wants to run: ${toolName}`,
+          schedule: { at: new Date(Date.now() + 100) },
+          sound: "default",
+        },
+      ],
+    });
+  } catch {}
+}
+
+export async function notifyQuestion(header: string, sessionTitle?: string): Promise<void> {
+  if (!Capacitor.isNativePlatform() || !permissionGranted) {
+    return;
+  }
+  
+  try {
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: Date.now(),
+          title: sessionTitle || "Question from OpenCode",
+          body: header,
+          schedule: { at: new Date(Date.now() + 100) },
+          sound: "default",
+        },
+      ],
+    });
+  } catch {}
+}

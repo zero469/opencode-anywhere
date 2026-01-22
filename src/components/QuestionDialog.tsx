@@ -7,14 +7,19 @@ export function QuestionDialog() {
   const { pendingQuestions, replyToQuestion, rejectQuestion } = useAppStore();
   const [selectedOptions, setSelectedOptions] = useState<Record<number, string[]>>({});
 
+  console.log("[QuestionDialog] pendingQuestions:", pendingQuestions.length);
+  
   if (pendingQuestions.length === 0) return null;
 
   const question = pendingQuestions[0];
   const questionItem = question.questions[0];
 
+  console.log("[QuestionDialog] Rendering question:", question.id, "questionItem:", questionItem);
+
   if (!questionItem) return null;
 
   const handleOptionSelect = (questionIndex: number, optionLabel: string) => {
+    console.log("[QuestionDialog] Option selected:", optionLabel);
     if (questionItem.multiple) {
       const current = selectedOptions[questionIndex] || [];
       if (current.includes(optionLabel)) {
@@ -38,17 +43,20 @@ export function QuestionDialog() {
 
   const handleReply = async () => {
     const answers = question.questions.map((_, index) => selectedOptions[index] || []);
+    console.log("[QuestionDialog] handleReply called with answers:", answers);
     await replyToQuestion(question.id, answers);
     setSelectedOptions({});
   };
 
   const handleReject = async () => {
+    console.log("[QuestionDialog] handleReject called");
     await rejectQuestion(question.id);
     setSelectedOptions({});
   };
 
   const currentSelection = selectedOptions[0] || [];
   const hasSelection = currentSelection.length > 0;
+  const options = questionItem.options || [];
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -61,42 +69,46 @@ export function QuestionDialog() {
         </p>
         
         <div className="space-y-2 mb-4">
-          {questionItem.options.map((option, optionIndex) => {
-            const isSelected = currentSelection.includes(option.label);
-            return (
-              <button
-                key={optionIndex}
-                onClick={() => handleOptionSelect(0, option.label)}
-                className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                  isSelected
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      isSelected ? "border-blue-500" : "border-zinc-600"
-                    }`}
-                  >
-                    {isSelected && (
-                      <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                    )}
-                  </div>
-                  <div>
-                    <div className="text-white font-medium text-sm">
-                      {option.label}
+          {options.length === 0 ? (
+            <p className="text-zinc-500 text-sm">No options available</p>
+          ) : (
+            options.map((option, optionIndex) => {
+              const isSelected = currentSelection.includes(option.label);
+              return (
+                <button
+                  key={optionIndex}
+                  onClick={() => handleOptionSelect(0, option.label)}
+                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                    isSelected
+                      ? "border-blue-500 bg-blue-500/10"
+                      : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        isSelected ? "border-blue-500" : "border-zinc-600"
+                      }`}
+                    >
+                      {isSelected && (
+                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                      )}
                     </div>
-                    {option.description && (
-                      <div className="text-zinc-500 text-xs mt-0.5">
-                        {option.description}
+                    <div>
+                      <div className="text-white font-medium text-sm">
+                        {option.label}
                       </div>
-                    )}
+                      {option.description && (
+                        <div className="text-zinc-500 text-xs mt-0.5">
+                          {option.description}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })
+          )}
         </div>
 
         <div className="flex gap-3">

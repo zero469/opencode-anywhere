@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
-import { notifyReadyForInput } from "@/lib/notifications";
+import { notifyReadyForInput, notifyPermissionRequest, notifyQuestion } from "@/lib/notifications";
 
 const MESSAGE_PAGE_SIZE = 30;
 
@@ -770,26 +770,30 @@ export const useAppStore = create<AppState>()(
       replyToQuestion: async (requestId, answers) => {
         const { pendingQuestions } = get();
 
+        console.log("[Question] Replying to question:", requestId, "with answers:", JSON.stringify(answers));
         try {
-          await opencode.replyToQuestion(requestId, answers);
+          const success = await opencode.replyToQuestion(requestId, answers);
+          console.log("[Question] Reply result:", success);
           set({
             pendingQuestions: pendingQuestions.filter((q) => q.id !== requestId),
           });
         } catch (error) {
-          console.error("Failed to reply to question:", error);
+          console.error("[Question] Failed to reply to question:", error);
         }
       },
 
       rejectQuestion: async (requestId) => {
         const { pendingQuestions } = get();
 
+        console.log("[Question] Rejecting question:", requestId);
         try {
-          await opencode.rejectQuestion(requestId);
+          const success = await opencode.rejectQuestion(requestId);
+          console.log("[Question] Reject result:", success);
           set({
             pendingQuestions: pendingQuestions.filter((q) => q.id !== requestId),
           });
         } catch (error) {
-          console.error("Failed to reject question:", error);
+          console.error("[Question] Failed to reject question:", error);
         }
       },
 
@@ -979,15 +983,13 @@ export const useAppStore = create<AppState>()(
 
           case "permission.asked": {
             const permission = event.properties as unknown as PermissionRequest;
-            if (permission.sessionID === currentSessionId) {
+            console.log("[SSE] permission.asked received:", JSON.stringify(permission));
+            const { pendingPermissions } = get();
+            if (!pendingPermissions.find(p => p.id === permission.id)) {
+              console.log("[SSE] Adding new permission to pendingPermissions:", permission.id);
               set({ pendingPermissions: [...pendingPermissions, permission] });
-              
-              if ("Notification" in window && Notification.permission === "granted") {
-                new Notification("OpenCode Permission Request", {
-                  body: `Tool: ${permission.toolName}`,
-                  icon: "/icon.svg",
-                });
-              }
+              const session = sessions.find(s => s.id === permission.sessionID);
+              notifyPermissionRequest(permission.permission, session?.title);
             }
             break;
           }
@@ -1010,19 +1012,20 @@ export const useAppStore = create<AppState>()(
 
           case "question.asked": {
             const question = event.properties as unknown as QuestionRequest;
+            console.log("[SSE] question.asked received:", JSON.stringify(question));
             if (question.id && question.questions) {
               const { pendingQuestions } = get();
               if (!pendingQuestions.find(q => q.id === question.id)) {
+                console.log("[SSE] Adding new question to pendingQuestions:", question.id);
                 set({ pendingQuestions: [...pendingQuestions, question] });
-                
-                if ("Notification" in window && Notification.permission === "granted") {
-                  const header = question.questions[0]?.header || "Question";
-                  new Notification("OpenCode Question", {
-                    body: header,
-                    icon: "/icon.svg",
-                  });
-                }
+                const header = question.questions[0]?.header || "Question";
+                const session = sessions.find(s => s.id === question.sessionID);
+                notifyQuestion(header, session?.title);
+              } else {
+                console.log("[SSE] Question already in pendingQuestions:", question.id);
               }
+            } else {
+              console.log("[SSE] Invalid question format:", question);
             }
             break;
           }

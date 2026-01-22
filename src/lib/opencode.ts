@@ -59,11 +59,12 @@ function getApiUrl(path: string): string {
     .replace(/^\/question\/([^/]+)\/reply$/, "/api/opencode/questions/$1/reply")
     .replace(/^\/question\/([^/]+)\/reject$/, "/api/opencode/questions/$1/reject")
     .replace(/^\/question$/, "/api/opencode/questions")
+    .replace(/^\/permission\/([^/]+)\/reply$/, "/api/opencode/permissions/$1/reply")
+    .replace(/^\/permission$/, "/api/opencode/permissions")
     .replace(/^\/session$/, "/api/opencode/sessions")
     .replace(/^\/session\/([^/]+)\/message$/, "/api/opencode/sessions/$1/messages")
     .replace(/^\/session\/([^/]+)\/prompt_async$/, "/api/opencode/sessions/$1/messages")
     .replace(/^\/session\/([^/]+)\/abort$/, "/api/opencode/sessions/$1/abort")
-    .replace(/^\/session\/([^/]+)\/permissions\/([^/]+)$/, "/api/opencode/sessions/$1/permissions/$2")
     .replace(/^\/session\/([^/]+)\/todo$/, "/api/opencode/sessions/$1/todo")
     .replace(/^\/session\/([^/]+)$/, "/api/opencode/sessions/$1");
   return proxyPath;
@@ -242,13 +243,15 @@ export async function respondToPermission(
   allow: boolean
 ): Promise<boolean> {
   const url = isNative()
-    ? `${getBaseUrl()}/session/${sessionId}/permissions/${permissionId}`
-    : `/api/opencode/sessions/${sessionId}/permissions/${permissionId}`;
+    ? `${getBaseUrl()}/permission/${permissionId}/reply`
+    : `/api/opencode/permissions/${permissionId}/reply`;
+  console.log("[API] respondToPermission URL:", url, "allow:", allow);
   const response = await http(url, {
     method: "POST",
     headers: getHeaders(),
-    body: JSON.stringify({ response: allow ? "allow" : "deny" }),
+    body: JSON.stringify({ reply: allow ? "once" : "reject" }),
   });
+  console.log("[API] respondToPermission response:", response.ok, response.status);
   
   return response.ok;
 }
@@ -326,6 +329,7 @@ export function subscribeToEvents(
   if (isNative()) {
     let pollTimeout: NodeJS.Timeout | null = null;
     const knownQuestionIds = new Set<string>();
+    const knownPermissionIds = new Set<string>();
 
     const poll = async () => {
       if (isClosing) return;
@@ -340,8 +344,38 @@ export function subscribeToEvents(
           onEvent?.({ type: "session.updated", properties: {} });
         }
         
+        // Poll pending permissions
+        const permissionsUrl = `${config.baseUrl}/permission`;
+        const permissionsResponse = await nativeFetch(permissionsUrl, {
+          headers: getHeaders(),
+        });
+        
+        if (permissionsResponse.ok) {
+          const permissions = await permissionsResponse.json();
+          console.log("[Polling] Permissions:", permissions?.length || 0, "pending");
+          if (Array.isArray(permissions)) {
+            for (const permission of permissions) {
+              if (!knownPermissionIds.has(permission.id)) {
+                console.log("[Polling] New permission found:", permission.id, permission.permission);
+                knownPermissionIds.add(permission.id);
+                onEvent?.({ 
+                  type: "permission.asked", 
+                  properties: permission,
+                });
+              }
+            }
+            const currentIds = new Set(permissions.map((p: any) => p.id));
+            for (const id of knownPermissionIds) {
+              if (!currentIds.has(id)) {
+                knownPermissionIds.delete(id);
+              }
+            }
+          }
+        }
+        
         // Poll pending questions
-        const questionsResponse = await nativeFetch(`${config.baseUrl}/question`, {
+        const questionsUrl = `${config.baseUrl}/question`;
+        const questionsResponse = await nativeFetch(questionsUrl, {
           headers: getHeaders(),
         });
         
@@ -460,11 +494,13 @@ export async function replyToQuestion(
   const url = isNative()
     ? `${getBaseUrl()}/question/${requestId}/reply`
     : `/api/opencode/questions/${requestId}/reply`;
+  console.log("[API] replyToQuestion URL:", url, "answers:", JSON.stringify(answers));
   const response = await http(url, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ answers }),
   });
+  console.log("[API] replyToQuestion response:", response.ok, response.status);
   
   return response.ok;
 }
@@ -473,10 +509,12 @@ export async function rejectQuestion(requestId: string): Promise<boolean> {
   const url = isNative()
     ? `${getBaseUrl()}/question/${requestId}/reject`
     : `/api/opencode/questions/${requestId}/reject`;
+  console.log("[API] rejectQuestion URL:", url);
   const response = await http(url, {
     method: "POST",
     headers: getHeaders(),
   });
-  
+  console.log("[API] rejectQuestion response:", response.ok, response.status);
+
   return response.ok;
 }

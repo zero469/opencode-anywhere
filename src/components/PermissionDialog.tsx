@@ -3,11 +3,19 @@
 import { useAppStore } from "@/store";
 
 export function PermissionDialog() {
-  const { pendingPermissions, respondPermission } = useAppStore();
+  const { pendingPermissions, respondPermission, currentSessionId } = useAppStore();
 
-  if (pendingPermissions.length === 0) return null;
+  const currentSessionPermissions = pendingPermissions.filter(
+    p => p.sessionID === currentSessionId
+  );
 
-  const permission = pendingPermissions[0];
+  console.log("[PermissionDialog] pendingPermissions:", pendingPermissions.length, "for current session:", currentSessionPermissions.length);
+
+  if (currentSessionPermissions.length === 0) return null;
+
+  const permission = currentSessionPermissions[0];
+
+  console.log("[PermissionDialog] Rendering permission:", permission.id, permission.permission);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -18,12 +26,10 @@ export function PermissionDialog() {
         </p>
         
         <div className="bg-zinc-800 rounded-lg p-3 mb-4">
-          <code className="text-blue-400 font-mono text-sm">{permission.toolName}</code>
-          {permission.input != null && (
+          <code className="text-blue-400 font-mono text-sm">{permission.permission}</code>
+          {permission.patterns && permission.patterns.length > 0 && (
             <pre className="text-xs text-zinc-500 mt-2 overflow-x-auto max-h-32 overflow-y-auto">
-              {typeof permission.input === "string" 
-                ? permission.input 
-                : JSON.stringify(permission.input, null, 2)}
+              {permission.patterns.join(", ")}
             </pre>
           )}
         </div>

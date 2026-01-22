@@ -81,10 +81,13 @@ export interface MessagePart {
 export interface PermissionRequest {
   id: string;
   sessionID: string;
-  toolName: string;
-  input: unknown;
-  time?: {
-    created: number;
+  permission: string;
+  patterns?: string[];
+  metadata?: Record<string, unknown>;
+  always?: string[];
+  tool?: {
+    messageID: string;
+    callID: string;
   };
 }
 
