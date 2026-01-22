@@ -277,24 +277,29 @@ export const useAppStore = create<AppState>()(
           return;
         }
         
+        const previousDeviceId = currentDeviceId;
         currentDeviceId = device.id;
         
         opencode.initClient({ baseUrl: '', username: '', password: '' });
         
         const cached = cachedSessionsByDevice[device.id];
         const cachedSessions = cached?.sessions || [];
-        const cachedPinnedIds = cached?.pinnedIds || [];
         
-        set({ 
+        const newState: Partial<AppState> = { 
           selectedDevice: device, 
           isLoading: true,
           sessions: cachedSessions,
-          pinnedSessionIds: cachedPinnedIds,
           currentSessionId: null,
           messages: [],
           todos: [],
           connectionStep: "connecting",
-        });
+        };
+        
+        if (previousDeviceId !== device.id) {
+          newState.pinnedSessionIds = cached?.pinnedIds || [];
+        }
+        
+        set(newState);
         
         try {
           set({ connectionStep: "authenticating" });
@@ -349,7 +354,7 @@ export const useAppStore = create<AppState>()(
       clearAuthError: () => set({ authError: null }),
 
       checkDeviceAndReconnect: async () => {
-        const { relayToken, selectedDevice } = get();
+        const { relayToken, selectedDevice, pinnedSessionIds } = get();
         if (!relayToken || !selectedDevice) return;
         
         set({ connectionStep: "connecting" });
@@ -375,6 +380,16 @@ export const useAppStore = create<AppState>()(
               password: frpcConfig.auth_password,
             };
             await get().setConfig(newConfig);
+            
+            const { sessions, selectedDevice: currentSelectedDevice } = get();
+            if (currentSelectedDevice?.id === updatedDevice.id && sessions.length > 0) {
+              set({ 
+                cachedSessionsByDevice: {
+                  ...get().cachedSessionsByDevice,
+                  [updatedDevice.id]: { sessions, pinnedIds: pinnedSessionIds }
+                }
+              });
+            }
           } else {
             set({ connectionStep: "idle" });
           }
@@ -1107,6 +1122,7 @@ export const useAppStore = create<AppState>()(
         sessionAgents: state.sessionAgents,
         defaultAgent: state.defaultAgent,
         cachedSessionsByDevice: state.cachedSessionsByDevice,
+        pinnedSessionIds: state.pinnedSessionIds,
       }),
     }
   )
