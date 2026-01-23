@@ -342,12 +342,20 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteDevice: async (deviceId) => {
-        const { relayToken, devices, selectedDevice } = get();
+        const { relayToken, devices, selectedDevice, deviceEncryptionKeys, cachedSessionsByDevice } = get();
         if (!relayToken) return;
         
         try {
           await relay.deleteDevice(relayToken, deviceId);
-          set({ devices: devices.filter(d => d.id !== deviceId) });
+          
+          const { [deviceId]: _removedKey, ...remainingKeys } = deviceEncryptionKeys;
+          const { [deviceId]: _removedCache, ...remainingCache } = cachedSessionsByDevice;
+          
+          set({ 
+            devices: devices.filter(d => d.id !== deviceId),
+            deviceEncryptionKeys: remainingKeys,
+            cachedSessionsByDevice: remainingCache,
+          });
           
           if (selectedDevice?.id === deviceId) {
             get().deselectDevice();
