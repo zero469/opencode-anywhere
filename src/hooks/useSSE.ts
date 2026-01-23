@@ -5,7 +5,7 @@ import { useAppStore } from "@/store";
 import { subscribeToEvents, getConfig } from "@/lib/opencode";
 
 export function useSSE() {
-  const { config, status, handleSSEEvent } = useAppStore();
+  const { config, status, handleSSEEvent, selectedDevice, deviceEncryptionKeys } = useAppStore();
   const eventSourceRef = useRef<{ close: () => void } | null>(null);
 
   useEffect(() => {
@@ -14,10 +14,19 @@ export function useSSE() {
       return;
     }
 
-    eventSourceRef.current = subscribeToEvents(currentConfig, handleSSEEvent);
+    const getCurrentSessionId = () => useAppStore.getState().currentSessionId;
+    
+    const deviceInfo = selectedDevice ? {
+      subdomain: selectedDevice.subdomain,
+      authUser: selectedDevice.auth_user,
+      authPassword: selectedDevice.auth_password,
+      encryptionKey: deviceEncryptionKeys[selectedDevice.id],
+    } : undefined;
+
+    eventSourceRef.current = subscribeToEvents(currentConfig, handleSSEEvent, getCurrentSessionId, deviceInfo);
 
     return () => {
       eventSourceRef.current?.close();
     };
-  }, [config, status.connected, handleSSEEvent]);
+  }, [config, status.connected, handleSSEEvent, selectedDevice, deviceEncryptionKeys]);
 }

@@ -349,20 +349,92 @@ export async function getSessionTodos(sessionId: string): Promise<TodoItem[]> {
 
 export function subscribeToEvents(
   config: ConnectionConfig,
-  onEvent?: (event: SSEEvent) => void
+  onEvent?: (event: SSEEvent) => void,
+  getCurrentSessionId?: () => string | null,
+  deviceInfo?: { subdomain: string; authUser: string; authPassword: string; encryptionKey?: string }
 ): { close: () => void } {
   let isClosing = false;
+
+  if (isNative() && deviceInfo) {
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+
+    const connect = () => {
+      if (isClosing) return;
+
+      const relayUrl = new URL(config.baseUrl || '');
+      const wsProtocol = relayUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${relayUrl.host}/api/events/${deviceInfo.subdomain}?auth_user=${encodeURIComponent(deviceInfo.authUser)}&auth_password=${encodeURIComponent(deviceInfo.authPassword)}`;
+      
+      console.log("[WebSocket] Connecting to:", wsUrl.replace(/auth_password=[^&]+/, 'auth_password=***'));
+      
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log("[WebSocket] Connected");
+      };
+
+      ws.onmessage = async (event) => {
+        try {
+          let data = event.data;
+          
+          if (deviceInfo.encryptionKey && typeof data === 'string') {
+            try {
+              const decrypted = await decrypt(data, deviceInfo.encryptionKey);
+              data = decrypted;
+            } catch (e) {
+              console.error("[WebSocket] Decryption failed:", e);
+              return;
+            }
+          }
+          
+          const sseEvent = JSON.parse(data) as SSEEvent;
+          console.log("[WebSocket] Event:", sseEvent.type);
+          onEvent?.(sseEvent);
+        } catch (e) {
+          console.error("[WebSocket] Parse error:", e);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error("[WebSocket] Error:", error);
+      };
+
+      ws.onclose = (event) => {
+        console.log("[WebSocket] Closed:", event.code, event.reason);
+        ws = null;
+        if (!isClosing) {
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
+      };
+    };
+
+    connect();
+
+    return {
+      close: () => {
+        isClosing = true;
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+        }
+        if (ws) {
+          ws.close();
+          ws = null;
+        }
+      },
+    };
+  }
 
   if (isNative()) {
     let pollTimeout: NodeJS.Timeout | null = null;
     const knownQuestionIds = new Set<string>();
     const knownPermissionIds = new Set<string>();
+    let lastTodosJson = "";
 
     const poll = async () => {
       if (isClosing) return;
       
       try {
-        // Poll sessions
         const response = await nativeFetch(`${config.baseUrl}/session`, {
           headers: getHeaders(),
         });
@@ -371,7 +443,6 @@ export function subscribeToEvents(
           onEvent?.({ type: "session.updated", properties: {} });
         }
         
-        // Poll pending permissions
         const permissionsUrl = `${config.baseUrl}/permission`;
         const permissionsResponse = await nativeFetch(permissionsUrl, {
           headers: getHeaders(),
@@ -400,7 +471,6 @@ export function subscribeToEvents(
           }
         }
         
-        // Poll pending questions
         const questionsUrl = `${config.baseUrl}/question`;
         const questionsResponse = await nativeFetch(questionsUrl, {
           headers: getHeaders(),
@@ -410,7 +480,6 @@ export function subscribeToEvents(
           const questions = await questionsResponse.json();
           console.log("[Polling] Questions:", questions?.length || 0, "pending");
           if (Array.isArray(questions)) {
-            // Emit events for new questions
             for (const question of questions) {
               if (!knownQuestionIds.has(question.id)) {
                 console.log("[Polling] New question found:", question.id);
@@ -421,12 +490,31 @@ export function subscribeToEvents(
                 });
               }
             }
-            // Clean up answered/rejected questions
             const currentIds = new Set(questions.map((q: any) => q.id));
             for (const id of knownQuestionIds) {
               if (!currentIds.has(id)) {
                 knownQuestionIds.delete(id);
               }
+            }
+          }
+        }
+        
+        const currentSessionId = getCurrentSessionId?.();
+        if (currentSessionId) {
+          const todosUrl = `${config.baseUrl}/session/${currentSessionId}/todo`;
+          const todosResponse = await nativeFetch(todosUrl, {
+            headers: getHeaders(),
+          });
+          
+          if (todosResponse.ok) {
+            const todos = await todosResponse.json();
+            const todosJson = JSON.stringify(todos);
+            if (todosJson !== lastTodosJson) {
+              lastTodosJson = todosJson;
+              onEvent?.({
+                type: "todo.updated",
+                properties: { sessionID: currentSessionId, todos: Array.isArray(todos) ? todos : [] },
+              });
             }
           }
         }

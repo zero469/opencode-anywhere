@@ -1156,8 +1156,15 @@ export const useAppStore = create<AppState>()(
 
           case "todo.updated": {
             const todoSessionId = event.properties.sessionID as string | undefined;
+            const todosFromEvent = event.properties.todos as TodoItem[] | undefined;
             if (todoSessionId === currentSessionId) {
-              get().fetchTodos(todoSessionId);
+              if (todosFromEvent && Array.isArray(todosFromEvent)) {
+                // Use todos directly from the event - no API call needed
+                set({ todos: todosFromEvent });
+              } else {
+                // Fallback to API if todos not in event
+                get().fetchTodos(todoSessionId);
+              }
             }
             break;
           }
