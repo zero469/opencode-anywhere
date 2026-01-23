@@ -377,10 +377,13 @@ export function subscribeToEvents(
       ws.onmessage = async (event) => {
         try {
           let data = event.data;
+          console.log("[WebSocket] Raw message:", typeof data, data?.length);
           
           if (deviceInfo.encryptionKey && typeof data === 'string') {
             try {
-              const decrypted = await decrypt(data, deviceInfo.encryptionKey);
+              const encryptedBase64 = JSON.parse(data);
+              console.log("[WebSocket] Parsed encrypted data, len:", encryptedBase64?.length);
+              const decrypted = await decrypt(encryptedBase64, deviceInfo.encryptionKey);
               data = decrypted;
             } catch (e) {
               console.error("[WebSocket] Decryption failed:", e);

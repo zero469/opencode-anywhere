@@ -944,6 +944,8 @@ export const useAppStore = create<AppState>()(
 
       handleSSEEvent: (event) => {
         const { currentSessionId, messages, pendingPermissions, sessions, isLoading, sendingSessionId } = get();
+        
+        console.log("[handleSSEEvent] Received:", event.type, "currentSessionId:", currentSessionId);
 
         switch (event.type) {
           case "session.updated": {
