@@ -39,9 +39,11 @@ async function nativeFetch(url: string, options?: { method?: string; headers?: R
     try {
       const decrypted = await decrypt(responseData, currentEncryptionKey);
       responseData = JSON.parse(decrypted);
-    } catch (e) {
-      console.error("[nativeFetch] Decryption failed:", e);
-      throw new Error("Failed to decrypt response");
+    } catch (decryptErr) {
+      try {
+        responseData = JSON.parse(responseData);
+      } catch {
+      }
     }
   }
   
@@ -272,13 +274,11 @@ export async function respondToPermission(
   const url = isNative()
     ? `${getBaseUrl()}/permission/${permissionId}/reply`
     : `/api/opencode/permissions/${permissionId}/reply`;
-  console.log("[API] respondToPermission URL:", url, "allow:", allow);
   const response = await http(url, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ reply: allow ? "once" : "reject" }),
   });
-  console.log("[API] respondToPermission response:", response.ok, response.status);
   
   return response.ok;
 }
@@ -366,25 +366,25 @@ export function subscribeToEvents(
       const wsProtocol = relayUrl.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${wsProtocol}//${relayUrl.host}/api/events/${deviceInfo.subdomain}?auth_user=${encodeURIComponent(deviceInfo.authUser)}&auth_password=${encodeURIComponent(deviceInfo.authPassword)}`;
       
-      console.log("[WebSocket] Connecting to:", wsUrl.replace(/auth_password=[^&]+/, 'auth_password=***'));
-      
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log("[WebSocket] Connected");
       };
 
       ws.onmessage = async (event) => {
         try {
-          let data = event.data;
-          console.log("[WebSocket] Raw message:", typeof data, data?.length);
+          const raw = event.data;
           
-          if (deviceInfo.encryptionKey && typeof data === 'string') {
+          const envelope = JSON.parse(raw);
+          if (envelope.event !== 'sse' || !envelope.data) {
+            return;
+          }
+          
+          let data = envelope.data;
+          
+          if (deviceInfo.encryptionKey) {
             try {
-              const encryptedBase64 = JSON.parse(data);
-              console.log("[WebSocket] Parsed encrypted data, len:", encryptedBase64?.length);
-              const decrypted = await decrypt(encryptedBase64, deviceInfo.encryptionKey);
-              data = decrypted;
+              data = await decrypt(data, deviceInfo.encryptionKey);
             } catch (e) {
               console.error("[WebSocket] Decryption failed:", e);
               return;
@@ -392,7 +392,6 @@ export function subscribeToEvents(
           }
           
           const sseEvent = JSON.parse(data) as SSEEvent;
-          console.log("[WebSocket] Event:", sseEvent.type);
           onEvent?.(sseEvent);
         } catch (e) {
           console.error("[WebSocket] Parse error:", e);
@@ -404,7 +403,6 @@ export function subscribeToEvents(
       };
 
       ws.onclose = (event) => {
-        console.log("[WebSocket] Closed:", event.code, event.reason);
         ws = null;
         if (!isClosing) {
           reconnectTimeout = setTimeout(connect, 3000);
@@ -453,11 +451,9 @@ export function subscribeToEvents(
         
         if (permissionsResponse.ok) {
           const permissions = await permissionsResponse.json();
-          console.log("[Polling] Permissions:", permissions?.length || 0, "pending");
           if (Array.isArray(permissions)) {
             for (const permission of permissions) {
               if (!knownPermissionIds.has(permission.id)) {
-                console.log("[Polling] New permission found:", permission.id, permission.permission);
                 knownPermissionIds.add(permission.id);
                 onEvent?.({ 
                   type: "permission.asked", 
@@ -481,11 +477,9 @@ export function subscribeToEvents(
         
         if (questionsResponse.ok) {
           const questions = await questionsResponse.json();
-          console.log("[Polling] Questions:", questions?.length || 0, "pending");
           if (Array.isArray(questions)) {
             for (const question of questions) {
               if (!knownQuestionIds.has(question.id)) {
-                console.log("[Polling] New question found:", question.id);
                 knownQuestionIds.add(question.id);
                 onEvent?.({ 
                   type: "question.asked", 
@@ -612,13 +606,11 @@ export async function replyToQuestion(
   const url = isNative()
     ? `${getBaseUrl()}/question/${requestId}/reply`
     : `/api/opencode/questions/${requestId}/reply`;
-  console.log("[API] replyToQuestion URL:", url, "answers:", JSON.stringify(answers));
   const response = await http(url, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify({ answers }),
   });
-  console.log("[API] replyToQuestion response:", response.ok, response.status);
   
   return response.ok;
 }
@@ -627,12 +619,10 @@ export async function rejectQuestion(requestId: string): Promise<boolean> {
   const url = isNative()
     ? `${getBaseUrl()}/question/${requestId}/reject`
     : `/api/opencode/questions/${requestId}/reject`;
-  console.log("[API] rejectQuestion URL:", url);
   const response = await http(url, {
     method: "POST",
     headers: getHeaders(),
   });
-  console.log("[API] rejectQuestion response:", response.ok, response.status);
 
   return response.ok;
 }

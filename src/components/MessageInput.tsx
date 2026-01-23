@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { ModelAgentSelector } from "./ModelAgentSelector";
 
@@ -12,18 +12,10 @@ const isMobileDevice = () => {
 export function MessageInput() {
   const sendMessage = useAppStore((state) => state.sendMessage);
   const currentSessionId = useAppStore((state) => state.currentSessionId);
-  const sendingSessionId = useAppStore((state) => state.sendingSessionId);
-  const messages = useAppStore((state) => state.messages);
+  const runningSessions = useAppStore((state) => state.runningSessions);
   const abortSession = useAppStore((state) => state.abortSession);
   
-  const isSessionBusy = useMemo(() => {
-    if (sendingSessionId === currentSessionId) return true;
-    const lastMsg = messages[messages.length - 1];
-    if (!lastMsg) return false;
-    if (lastMsg.info.role === "user") return true;
-    if (lastMsg.info.role === "assistant" && !lastMsg.info.time?.completed) return true;
-    return false;
-  }, [sendingSessionId, currentSessionId, messages]);
+  const isSessionBusy = currentSessionId ? runningSessions.includes(currentSessionId) : false;
   
   const [text, setText] = useState("");
   const [isComposing, setIsComposing] = useState(false);

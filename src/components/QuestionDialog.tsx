@@ -6,20 +6,15 @@ import { useAppStore } from "@/store";
 export function QuestionDialog() {
   const { pendingQuestions, replyToQuestion, rejectQuestion } = useAppStore();
   const [selectedOptions, setSelectedOptions] = useState<Record<number, string[]>>({});
-
-  console.log("[QuestionDialog] pendingQuestions:", pendingQuestions.length);
   
   if (pendingQuestions.length === 0) return null;
 
   const question = pendingQuestions[0];
   const questionItem = question.questions[0];
 
-  console.log("[QuestionDialog] Rendering question:", question.id, "questionItem:", questionItem);
-
   if (!questionItem) return null;
 
   const handleOptionSelect = (questionIndex: number, optionLabel: string) => {
-    console.log("[QuestionDialog] Option selected:", optionLabel);
     if (questionItem.multiple) {
       const current = selectedOptions[questionIndex] || [];
       if (current.includes(optionLabel)) {
@@ -43,13 +38,11 @@ export function QuestionDialog() {
 
   const handleReply = async () => {
     const answers = question.questions.map((_, index) => selectedOptions[index] || []);
-    console.log("[QuestionDialog] handleReply called with answers:", answers);
     await replyToQuestion(question.id, answers);
     setSelectedOptions({});
   };
 
   const handleReject = async () => {
-    console.log("[QuestionDialog] handleReject called");
     await rejectQuestion(question.id);
     setSelectedOptions({});
   };

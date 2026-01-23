@@ -260,12 +260,10 @@ export const useAppStore = create<AppState>()(
 
       fetchDevices: async () => {
         const { relayToken } = get();
-        console.log("[fetchDevices] token:", relayToken ? "present" : "missing");
         if (!relayToken) return;
         set({ isLoading: true });
         try {
           const devices = await relay.getDevices(relayToken);
-          console.log("[fetchDevices] success, devices:", devices.length);
           set({ devices, isLoading: false, devicesFetched: true });
         } catch (error: any) {
           console.error("[fetchDevices] error:", error, "message:", error?.message, "stack:", error?.stack);
@@ -682,67 +680,15 @@ export const useAppStore = create<AppState>()(
         });
 
         const sessionId = currentSessionId;
-        const deviceIdAtStart = currentDeviceId;
-        const cacheKey = getCacheKey(sessionId);
         try {
           await opencode.sendMessageAsync(sessionId, text, {
             model: selectedModel || undefined,
             agent: selectedAgent || undefined,
           });
-          
-          const pollForResponse = async (attempts = 0) => {
-            if (attempts > 60 || !sendingSessions.has(sessionId) || currentDeviceId !== deviceIdAtStart) {
-              sendingSessions.delete(sessionId);
-              if (get().sendingSessionId === sessionId) {
-                set({ sendingSessionId: null });
-              }
-              return;
-            }
-            
-            try {
-              const currentMessages = get().messages;
-              
-              const { messages: latestMessages } = await opencode.getSessionMessages(sessionId, {
-                limit: MESSAGE_PAGE_SIZE
-              });
-              
-              const existingNonTemp = currentMessages.filter(m => !m.info.id.startsWith('temp_'));
-              
-              const messageMap = new Map(existingNonTemp.map(m => [m.info.id, m]));
-              for (const msg of latestMessages) {
-                messageMap.set(msg.info.id, msg);
-              }
-              
-              const mergedMessages = Array.from(messageMap.values()).sort((a, b) => {
-                const timeA = a.info.time?.created || 0;
-                const timeB = b.info.time?.created || 0;
-                return timeA - timeB;
-              });
-              
-              messageCache.set(cacheKey, mergedMessages);
-              if (get().currentSessionId === sessionId && currentDeviceId === deviceIdAtStart) {
-                set({ messages: mergedMessages });
-                if (attempts % 5 === 0) {
-                  get().fetchTodos(sessionId);
-                }
-              }
-              
-              const lastMsg = mergedMessages[mergedMessages.length - 1];
-              const isAssistantDone = lastMsg?.info.role === "assistant" && lastMsg?.info.finish;
-              const hasActiveTools = hasRunningToolInvocations(mergedMessages);
-              
-              if (!isAssistantDone || hasActiveTools) {
-                setTimeout(() => pollForResponse(attempts + 1), 1000);
-              } else {
-                markSessionComplete(sessionId, get().sessions);
-              }
-            } catch (e) {
-              console.error("[Poll] Error:", e);
-              setTimeout(() => pollForResponse(attempts + 1), 2000);
-            }
-          };
-          
-          pollForResponse();
+          sendingSessions.delete(sessionId);
+          if (get().sendingSessionId === sessionId) {
+            set({ sendingSessionId: null });
+          }
         } catch (error) {
           console.error("Failed to send message:", error);
           sendingSessions.delete(sessionId);
@@ -843,10 +789,8 @@ export const useAppStore = create<AppState>()(
       replyToQuestion: async (requestId, answers) => {
         const { pendingQuestions } = get();
 
-        console.log("[Question] Replying to question:", requestId, "with answers:", JSON.stringify(answers));
         try {
-          const success = await opencode.replyToQuestion(requestId, answers);
-          console.log("[Question] Reply result:", success);
+          await opencode.replyToQuestion(requestId, answers);
           set({
             pendingQuestions: pendingQuestions.filter((q) => q.id !== requestId),
           });
@@ -858,10 +802,8 @@ export const useAppStore = create<AppState>()(
       rejectQuestion: async (requestId) => {
         const { pendingQuestions } = get();
 
-        console.log("[Question] Rejecting question:", requestId);
         try {
-          const success = await opencode.rejectQuestion(requestId);
-          console.log("[Question] Reject result:", success);
+          await opencode.rejectQuestion(requestId);
           set({
             pendingQuestions: pendingQuestions.filter((q) => q.id !== requestId),
           });
@@ -944,8 +886,6 @@ export const useAppStore = create<AppState>()(
 
       handleSSEEvent: (event) => {
         const { currentSessionId, messages, pendingPermissions, sessions, isLoading, sendingSessionId } = get();
-        
-        console.log("[handleSSEEvent] Received:", event.type, "currentSessionId:", currentSessionId);
 
         switch (event.type) {
           case "session.updated": {
@@ -956,102 +896,37 @@ export const useAppStore = create<AppState>()(
               );
               set({ sessions: newSessions });
               
-              opencode.getSessionMessages(sessionData.id, { limit: 1 }).then(({ messages: latestMessages }) => {
-                const lastMsg = latestMessages[0];
-                const { runningSessions } = get();
-                const isRunning = lastMsg && (
-                  lastMsg.info.role === "user" || 
-                  (lastMsg.info.role === "assistant" && !lastMsg.info.finish && !lastMsg.info.time?.completed)
-                );
+              const sessionId = sessionData.id;
+              const cacheKey = getCacheKey(sessionId);
+              const sessionUpdatedTime = sessionData.time?.updated || 0;
+              const lastUpdated = sessionLastUpdated.get(cacheKey) || 0;
+              
+              if (currentSessionId === sessionId && sessionUpdatedTime > lastUpdated) {
+                sessionLastUpdated.set(cacheKey, sessionUpdatedTime);
                 
-                if (isRunning && !runningSessions.includes(sessionData.id)) {
-                  set({ runningSessions: [...runningSessions, sessionData.id] });
-                } else if (!isRunning && runningSessions.includes(sessionData.id)) {
-                  markSessionComplete(sessionData.id, get().sessions);
-                }
-              }).catch(console.error);
+                opencode.getSessionMessages(sessionId, { limit: MESSAGE_PAGE_SIZE }).then(({ messages: latestMessages }) => {
+                  if (get().currentSessionId !== sessionId) return;
+                  
+                  const currentMessages = get().messages;
+                  const existingNonTemp = currentMessages.filter(m => !m.info.id.startsWith('temp_'));
+                  
+                  const messageMap = new Map(existingNonTemp.map(m => [m.info.id, m]));
+                  for (const msg of latestMessages) {
+                    messageMap.set(msg.info.id, msg);
+                  }
+                  
+                  const mergedMessages = Array.from(messageMap.values()).sort((a, b) => {
+                    const timeA = a.info.time?.created || 0;
+                    const timeB = b.info.time?.created || 0;
+                    return timeA - timeB;
+                  });
+                  
+                  set({ messages: mergedMessages });
+                  messageCache.set(cacheKey, mergedMessages);
+                }).catch(console.error);
+              }
             } else {
-              get().refreshSessions().then(async () => {
-                const state = get();
-                const { sessions: currentSessions } = state;
-                
-                const recentlyUpdatedSessions = currentSessions.filter(s => {
-                  const lastChecked = lastCheckedSessionTimes.get(s.id) || 0;
-                  const updated = s.time?.updated || 0;
-                  return updated > lastChecked;
-                });
-                
-                for (const session of recentlyUpdatedSessions) {
-                  lastCheckedSessionTimes.set(session.id, session.time?.updated || Date.now());
-                  
-                  try {
-                    const { messages: latestMessages } = await opencode.getSessionMessages(session.id, { limit: 1 });
-                    const lastMsg = latestMessages[0];
-                    const { runningSessions } = get();
-                    const isRunning = lastMsg && (
-                      lastMsg.info.role === "user" || 
-                      (lastMsg.info.role === "assistant" && !lastMsg.info.finish && !lastMsg.info.time?.completed)
-                    );
-                    
-                    if (isRunning && !runningSessions.includes(session.id)) {
-                      set({ runningSessions: [...runningSessions, session.id] });
-                    } else if (!isRunning && runningSessions.includes(session.id)) {
-                      markSessionComplete(session.id, currentSessions);
-                    }
-                  } catch (e) {
-                    console.error("Failed to check session:", session.id, e);
-                  }
-                }
-                
-                const { runningSessions } = get();
-                for (const runningId of runningSessions) {
-                  if (recentlyUpdatedSessions.some(s => s.id === runningId)) continue;
-                  try {
-                    const { messages: latestMessages } = await opencode.getSessionMessages(runningId, { limit: 1 });
-                    const lastMsg = latestMessages[0];
-                    if (lastMsg?.info.role === "assistant" && lastMsg?.info.finish) {
-                      markSessionComplete(runningId, currentSessions);
-                    }
-                  } catch (e) {
-                    console.error("Failed to check running session:", runningId, e);
-                  }
-                }
-                
-                const sessionId = state.currentSessionId;
-                if (!sessionId || state.isLoading) return;
-                
-                const currentSession = currentSessions.find(s => s.id === sessionId);
-                if (!currentSession) return;
-                
-                const cacheKey = getCacheKey(sessionId);
-                const lastUpdated = sessionLastUpdated.get(cacheKey) || 0;
-                const newUpdated = currentSession.time?.updated || 0;
-                
-                if (newUpdated > lastUpdated) {
-                  sessionLastUpdated.set(cacheKey, newUpdated);
-                  
-                  opencode.getSessionMessages(sessionId, { limit: MESSAGE_PAGE_SIZE }).then(({ messages: latestMessages }) => {
-                    if (get().currentSessionId !== sessionId) return;
-                    
-                    const currentMessages = get().messages;
-                    const existingNonTemp = currentMessages.filter(m => !m.info.id.startsWith('temp_'));
-                    
-                    const messageMap = new Map(existingNonTemp.map(m => [m.info.id, m]));
-                    for (const msg of latestMessages) {
-                      messageMap.set(msg.info.id, msg);
-                    }
-                    
-                    const mergedMessages = Array.from(messageMap.values()).sort((a, b) => {
-                      const timeA = a.info.time?.created || 0;
-                      const timeB = b.info.time?.created || 0;
-                      return timeA - timeB;
-                    });
-                    
-                    set({ messages: mergedMessages });
-                    messageCache.set(cacheKey, mergedMessages);
-                  }).catch(console.error);
-                }
-              });
+              get().refreshSessions();
             }
             break;
           }
@@ -1061,36 +936,23 @@ export const useAppStore = create<AppState>()(
             const info = event.properties.info as MessageInfo | undefined;
             const sessionId = info?.sessionID;
             
-            if (sessionId) {
-              const { runningSessions } = get();
-              
-              if (info?.role === "user") {
-                if (!runningSessions.includes(sessionId)) {
-                  set({ runningSessions: [...runningSessions, sessionId] });
-                }
-              } else if (info?.role === "assistant") {
-                const isComplete = info.time?.completed || info.finish;
-                if (!isComplete && !runningSessions.includes(sessionId)) {
-                  set({ runningSessions: [...runningSessions, sessionId] });
-                } else if (isComplete && runningSessions.includes(sessionId)) {
-                  markSessionComplete(sessionId, sessions);
-                }
-              }
-            }
-            
             if (sessionId === currentSessionId && info) {
-              const existingIndex = messages.findIndex((m) => m.info.id === info.id);
+              const currentMessages = get().messages;
+              const existingIndex = currentMessages.findIndex((m) => m.info.id === info.id);
               let newMessages: SessionMessage[];
+              
               if (existingIndex >= 0) {
-                newMessages = [...messages];
+                newMessages = [...currentMessages];
                 const existingMsg = newMessages[existingIndex];
                 newMessages[existingIndex] = {
                   info,
                   parts: existingMsg.parts,
                 };
               } else {
-                newMessages = [...messages, { info, parts: [] }];
+                const nonTempMessages = currentMessages.filter(m => !m.info.id.startsWith('temp_') || m.info.role !== info.role);
+                newMessages = [...nonTempMessages, { info, parts: [] }];
               }
+              
               set({ messages: newMessages });
               messageCache.set(getCacheKey(currentSessionId), newMessages);
             }
@@ -1137,10 +999,8 @@ export const useAppStore = create<AppState>()(
 
           case "permission.asked": {
             const permission = event.properties as unknown as PermissionRequest;
-            console.log("[SSE] permission.asked received:", JSON.stringify(permission));
             const { pendingPermissions } = get();
             if (!pendingPermissions.find(p => p.id === permission.id)) {
-              console.log("[SSE] Adding new permission to pendingPermissions:", permission.id);
               set({ pendingPermissions: [...pendingPermissions, permission] });
               const session = sessions.find(s => s.id === permission.sessionID);
               notifyApprovalNeeded(permission.permission, session?.title);
@@ -1173,20 +1033,14 @@ export const useAppStore = create<AppState>()(
 
           case "question.asked": {
             const question = event.properties as unknown as QuestionRequest;
-            console.log("[SSE] question.asked received:", JSON.stringify(question));
             if (question.id && question.questions) {
               const { pendingQuestions } = get();
               if (!pendingQuestions.find(q => q.id === question.id)) {
-                console.log("[SSE] Adding new question to pendingQuestions:", question.id);
                 set({ pendingQuestions: [...pendingQuestions, question] });
                 const header = question.questions[0]?.header || "Question";
                 const session = sessions.find(s => s.id === question.sessionID);
                 notifyInputNeeded(header, session?.title);
-              } else {
-                console.log("[SSE] Question already in pendingQuestions:", question.id);
               }
-            } else {
-              console.log("[SSE] Invalid question format:", question);
             }
             break;
           }
@@ -1199,6 +1053,35 @@ export const useAppStore = create<AppState>()(
               set({
                 pendingQuestions: pendingQuestions.filter(q => q.id !== requestId),
               });
+            }
+            break;
+          }
+
+          case "session.idle": {
+            const sessionId = event.properties.sessionID as string | undefined;
+            if (sessionId) {
+              const { runningSessions } = get();
+              if (runningSessions.includes(sessionId)) {
+                markSessionComplete(sessionId, sessions);
+              }
+            }
+            break;
+          }
+
+          case "session.status": {
+            const sessionId = event.properties.sessionID as string | undefined;
+            const statusObj = event.properties.status as { type?: string } | undefined;
+            const statusType = statusObj?.type;
+            if (sessionId && statusType) {
+              const { runningSessions } = get();
+              const isRunning = statusType === "busy" || statusType === "running";
+              const isIdle = statusType === "idle";
+              
+              if (isRunning && !runningSessions.includes(sessionId)) {
+                set({ runningSessions: [...runningSessions, sessionId] });
+              } else if (isIdle && runningSessions.includes(sessionId)) {
+                markSessionComplete(sessionId, sessions);
+              }
             }
             break;
           }

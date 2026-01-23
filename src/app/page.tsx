@@ -32,7 +32,6 @@ function ChatView() {
       if (isActive) {
         const state = useAppStore.getState();
         if (state.currentSessionId) {
-          console.log("[appStateChange] Refreshing session:", state.currentSessionId);
           state.refreshCurrentSession();
         }
       }

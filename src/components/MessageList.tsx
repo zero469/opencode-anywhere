@@ -387,13 +387,29 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
   const isLoadingMore = useAppStore((state) => state.isLoadingMore);
   const loadMoreMessages = useAppStore((state) => state.loadMoreMessages);
   const currentSessionId = useAppStore((state) => state.currentSessionId);
+  const runningSessions = useAppStore((state) => state.runningSessions);
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
   const prevSessionIdRef = useRef<string | null>(null);
-  const lastMessageIdRef = useRef<string | null>(null);
   const firstMessageIdRef = useRef<string | null>(null);
   const prevScrollHeightRef = useRef<number>(0);
+  const userScrolledUpRef = useRef(false);
+
+  const isSessionRunning = currentSessionId ? runningSessions.includes(currentSessionId) : false;
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      userScrolledUpRef.current = distanceFromBottom > 150;
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     if (keyboardHeight > 0) {
@@ -406,9 +422,7 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
     if (!container || messages.length === 0) return;
     
     const isNewSession = prevSessionIdRef.current !== currentSessionId;
-    const currentLastMessageId = messages[messages.length - 1]?.info.id;
     const currentFirstMessageId = messages[0]?.info.id;
-    const hasNewMessageAtBottom = currentLastMessageId !== lastMessageIdRef.current;
     const hasOlderMessagesLoaded = currentFirstMessageId !== firstMessageIdRef.current && !isNewSession;
     
     if (hasOlderMessagesLoaded && prevScrollHeightRef.current > 0) {
@@ -416,26 +430,26 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
       const scrollDiff = newScrollHeight - prevScrollHeightRef.current;
       container.scrollTop = scrollDiff;
     } else if (isNewSession) {
+      userScrolledUpRef.current = false;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           bottomRef.current?.scrollIntoView({ behavior: "instant" });
         });
       });
-    } else if (hasNewMessageAtBottom) {
-      const timer = setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
-      prevSessionIdRef.current = currentSessionId;
-      lastMessageIdRef.current = currentLastMessageId;
-      firstMessageIdRef.current = currentFirstMessageId;
-      return () => clearTimeout(timer);
+    } else if (!userScrolledUpRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
     
     prevSessionIdRef.current = currentSessionId;
-    lastMessageIdRef.current = currentLastMessageId;
     firstMessageIdRef.current = currentFirstMessageId;
     prevScrollHeightRef.current = container.scrollHeight;
   }, [messages, currentSessionId]);
+
+  useEffect(() => {
+    if (isSessionRunning && !userScrolledUpRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [isSessionRunning]);
 
   useEffect(() => {
     const container = containerRef.current;

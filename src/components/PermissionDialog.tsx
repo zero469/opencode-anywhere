@@ -9,13 +9,9 @@ export function PermissionDialog() {
     p => p.sessionID === currentSessionId
   );
 
-  console.log("[PermissionDialog] pendingPermissions:", pendingPermissions.length, "for current session:", currentSessionPermissions.length);
-
   if (currentSessionPermissions.length === 0) return null;
 
   const permission = currentSessionPermissions[0];
-
-  console.log("[PermissionDialog] Rendering permission:", permission.id, permission.permission);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
