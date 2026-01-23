@@ -14,6 +14,8 @@ vi.mock('@/lib/opencode', () => ({
   abortSession: vi.fn(),
   getProviders: vi.fn(),
   getAgents: vi.fn(),
+  getConfig: vi.fn(),
+  getSessionTodos: vi.fn(),
 }))
 
 const mockOpencode = opencode as {
@@ -27,11 +29,15 @@ const mockOpencode = opencode as {
   abortSession: ReturnType<typeof vi.fn>
   getProviders: ReturnType<typeof vi.fn>
   getAgents: ReturnType<typeof vi.fn>
+  getConfig: ReturnType<typeof vi.fn>
+  getSessionTodos: ReturnType<typeof vi.fn>
 }
 
 describe('useAppStore', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockOpencode.getConfig.mockReturnValue({ baseUrl: 'http://localhost:4096' })
+    mockOpencode.getSessionTodos.mockResolvedValue([])
     useAppStore.setState({
       config: null,
       status: { connected: false },
@@ -40,11 +46,13 @@ describe('useAppStore', () => {
       messages: [],
       pendingPermissions: [],
       isLoading: false,
-      isSending: false,
+      sendingSessionId: null,
       providers: null,
       agents: [],
       selectedModel: null,
-      selectedAgent: null,
+      sessionAgents: {},
+      defaultAgent: null,
+      runningSessions: [],
     })
   })
 
@@ -95,7 +103,8 @@ describe('useAppStore', () => {
         currentSessionId: '1',
         messages: [{ info: { id: 'm1', sessionID: '1', role: 'user' }, parts: [] }],
         selectedModel: { providerID: 'p', modelID: 'm' },
-        selectedAgent: 'build',
+        sessionAgents: { '1': 'build' },
+        defaultAgent: 'build',
       })
 
       useAppStore.getState().disconnect()
@@ -107,7 +116,6 @@ describe('useAppStore', () => {
       expect(state.currentSessionId).toBeNull()
       expect(state.messages).toEqual([])
       expect(state.selectedModel).toBeNull()
-      expect(state.selectedAgent).toBeNull()
     })
   })
 
@@ -145,7 +153,7 @@ describe('useAppStore', () => {
       useAppStore.setState({
         currentSessionId: 's1',
         selectedModel: { providerID: 'anthropic', modelID: 'claude-3' },
-        selectedAgent: 'build',
+        sessionAgents: { 's1': 'build' },
       })
       mockOpencode.sendMessageAsync.mockResolvedValue(true)
 
@@ -353,7 +361,7 @@ describe('useAppStore', () => {
         providerID: 'anthropic',
         modelID: 'claude-3',
       })
-      expect(useAppStore.getState().selectedAgent).toBe('build')
+      expect(useAppStore.getState().defaultAgent).toBe('build')
     })
 
     it('filters hidden agents', async () => {
@@ -492,31 +500,32 @@ describe('useAppStore', () => {
           properties: {
             id: 'perm-1',
             sessionID: 's1',
-            toolName: 'bash',
-            arguments: { command: 'ls' },
+            permission: 'bash',
+            metadata: { command: 'ls' },
           },
         }
 
         useAppStore.getState().handleSSEEvent(event)
 
         expect(useAppStore.getState().pendingPermissions).toHaveLength(1)
-        expect(useAppStore.getState().pendingPermissions[0].toolName).toBe('bash')
+        expect(useAppStore.getState().pendingPermissions[0].permission).toBe('bash')
       })
 
-      it('ignores permissions for other sessions', () => {
+      it('ignores duplicate permissions', () => {
         const event: SSEEvent = {
           type: 'permission.asked',
           properties: {
             id: 'perm-1',
-            sessionID: 'other-session',
-            toolName: 'bash',
-            arguments: {},
+            sessionID: 's1',
+            permission: 'bash',
+            metadata: {},
           },
         }
 
         useAppStore.getState().handleSSEEvent(event)
+        useAppStore.getState().handleSSEEvent(event)
 
-        expect(useAppStore.getState().pendingPermissions).toHaveLength(0)
+        expect(useAppStore.getState().pendingPermissions).toHaveLength(1)
       })
     })
 
@@ -580,9 +589,11 @@ describe('useAppStore', () => {
       expect(useAppStore.getState().selectedModel).toEqual({ providerID: 'openai', modelID: 'gpt-4' })
     })
 
-    it('sets selected agent', () => {
+    it('sets selected agent for current session', () => {
+      useAppStore.setState({ currentSessionId: 's1' })
       useAppStore.getState().setSelectedAgent('oracle')
-      expect(useAppStore.getState().selectedAgent).toBe('oracle')
+      expect(useAppStore.getState().sessionAgents['s1']).toBe('oracle')
+      expect(useAppStore.getState().getSelectedAgent()).toBe('oracle')
     })
   })
 })

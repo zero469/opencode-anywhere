@@ -7,13 +7,17 @@ global.fetch = mockFetch
 
 function createMockRequest(
   headers: Record<string, string> = {},
-  body?: unknown
+  body?: unknown,
+  searchParams: string = ''
 ): NextRequest {
   return {
     headers: {
       get: (key: string) => headers[key] || null,
     },
     json: () => Promise.resolve(body),
+    nextUrl: {
+      searchParams: new URLSearchParams(searchParams),
+    },
   } as unknown as NextRequest
 }
 

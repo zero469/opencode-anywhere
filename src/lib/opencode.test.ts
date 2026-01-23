@@ -108,6 +108,7 @@ describe('opencode client', () => {
     it('returns providers on success', async () => {
       const providers = { all: [], connected: [], default: {} }
       mockFetch.mockResolvedValueOnce({
+        ok: true,
         json: () => Promise.resolve(providers),
       })
 
@@ -139,6 +140,7 @@ describe('opencode client', () => {
     it('returns agents on success', async () => {
       const agents = [{ name: 'build', mode: 'primary' }]
       mockFetch.mockResolvedValueOnce({
+        ok: true,
         json: () => Promise.resolve(agents),
       })
 
@@ -261,10 +263,10 @@ describe('opencode client', () => {
 
       expect(result).toBe(true)
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/opencode/sessions/session-1/permissions/perm-1',
+        '/api/opencode/permissions/perm-1/reply',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ response: 'allow' }),
+          body: JSON.stringify({ reply: 'once' }),
         })
       )
     })
@@ -275,9 +277,9 @@ describe('opencode client', () => {
       await respondToPermission('session-1', 'perm-1', false)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        '/api/opencode/sessions/session-1/permissions/perm-1',
+        '/api/opencode/permissions/perm-1/reply',
         expect.objectContaining({
-          body: JSON.stringify({ response: 'deny' }),
+          body: JSON.stringify({ reply: 'reject' }),
         })
       )
     })
