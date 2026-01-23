@@ -1001,6 +1001,11 @@ export const useAppStore = create<AppState>()(
               }
               set({ messages: newMessages });
               messageCache.set(getCacheKey(currentSessionId), newMessages);
+              
+              const { runningSessions } = get();
+              if (runningSessions.includes(sessionId) && !hasRunningToolInvocations(newMessages)) {
+                markSessionComplete(sessionId, sessions);
+              }
             }
             break;
           }
