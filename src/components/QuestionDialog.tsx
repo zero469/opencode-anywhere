@@ -4,18 +4,21 @@ import { useState } from "react";
 import { useAppStore } from "@/store";
 
 export function QuestionDialog() {
-  const { pendingQuestions, replyToQuestion, rejectQuestion } = useAppStore();
+  const { pendingQuestions, replyToQuestion, rejectQuestion, currentSessionId } = useAppStore();
   const [selectedOptions, setSelectedOptions] = useState<Record<number, string[]>>({});
   
-  if (pendingQuestions.length === 0) return null;
+  // Only show questions for the current session
+  const sessionQuestions = pendingQuestions.filter(q => q.sessionID === currentSessionId);
+  
+  if (sessionQuestions.length === 0) return null;
 
-  const question = pendingQuestions[0];
-  const questionItem = question.questions[0];
+  const question = sessionQuestions[0];
+  const questions = question.questions;
 
-  if (!questionItem) return null;
+  if (!questions || questions.length === 0) return null;
 
-  const handleOptionSelect = (questionIndex: number, optionLabel: string) => {
-    if (questionItem.multiple) {
+  const handleOptionSelect = (questionIndex: number, optionLabel: string, isMultiple: boolean) => {
+    if (isMultiple) {
       const current = selectedOptions[questionIndex] || [];
       if (current.includes(optionLabel)) {
         setSelectedOptions({
@@ -37,7 +40,7 @@ export function QuestionDialog() {
   };
 
   const handleReply = async () => {
-    const answers = question.questions.map((_, index) => selectedOptions[index] || []);
+    const answers = questions.map((_, index) => selectedOptions[index] || []);
     await replyToQuestion(question.id, answers);
     setSelectedOptions({});
   };
@@ -47,64 +50,101 @@ export function QuestionDialog() {
     setSelectedOptions({});
   };
 
-  const currentSelection = selectedOptions[0] || [];
-  const hasSelection = currentSelection.length > 0;
-  const options = questionItem.options || [];
+  // Check if all questions have at least one selection
+  const allQuestionsAnswered = questions.every((_, index) => {
+    const selection = selectedOptions[index] || [];
+    return selection.length > 0;
+  });
+
+  const totalPendingRequests = sessionQuestions.length;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border border-zinc-700">
-        <h3 className="text-lg font-semibold text-white mb-1">
-          {questionItem.header}
-        </h3>
-        <p className="text-zinc-400 text-sm mb-4">
-          {questionItem.question}
-        </p>
-        
-        <div className="space-y-2 mb-4">
-          {options.length === 0 ? (
-            <p className="text-zinc-500 text-sm">No options available</p>
-          ) : (
-            options.map((option, optionIndex) => {
-              const isSelected = currentSelection.includes(option.label);
-              return (
-                <button
-                  key={optionIndex}
-                  onClick={() => handleOptionSelect(0, option.label)}
-                  className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                    isSelected
-                      ? "border-blue-500 bg-blue-500/10"
-                      : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                        isSelected ? "border-blue-500" : "border-zinc-600"
-                      }`}
-                    >
-                      {isSelected && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-white font-medium text-sm">
-                        {option.label}
-                      </div>
-                      {option.description && (
-                        <div className="text-zinc-500 text-xs mt-0.5">
-                          {option.description}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
+      <div className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border border-zinc-700 max-h-[80vh] overflow-y-auto">
+        {/* Header with count indicator */}
+        {totalPendingRequests > 1 && (
+          <div className="text-xs text-zinc-500 mb-3">
+            Question set 1 of {totalPendingRequests}
+          </div>
+        )}
 
-        <div className="flex gap-3">
+        {/* Render ALL questions within this QuestionRequest */}
+        {questions.map((questionItem, questionIndex) => {
+          const currentSelection = selectedOptions[questionIndex] || [];
+          const options = questionItem.options || [];
+          const isLastQuestion = questionIndex === questions.length - 1;
+
+          return (
+            <div key={questionIndex} className={!isLastQuestion ? "mb-6 pb-6 border-b border-zinc-700" : ""}>
+              <h3 className="text-lg font-semibold text-white mb-1">
+                {questionItem.header}
+                {questions.length > 1 && (
+                  <span className="text-zinc-500 text-sm font-normal ml-2">
+                    ({questionIndex + 1}/{questions.length})
+                  </span>
+                )}
+              </h3>
+              <p className="text-zinc-400 text-sm mb-4">
+                {questionItem.question}
+              </p>
+              
+              {questionItem.multiple && (
+                <p className="text-xs text-blue-400 mb-2">Select multiple options</p>
+              )}
+
+              <div className="space-y-2">
+                {options.length === 0 ? (
+                  <p className="text-zinc-500 text-sm">No options available</p>
+                ) : (
+                  options.map((option, optionIndex) => {
+                    const isSelected = currentSelection.includes(option.label);
+                    return (
+                      <button
+                        key={optionIndex}
+                        onClick={() => handleOptionSelect(questionIndex, option.label, questionItem.multiple || false)}
+                        className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                          isSelected
+                            ? "border-blue-500 bg-blue-500/10"
+                            : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-5 h-5 flex-shrink-0 ${questionItem.multiple ? "rounded" : "rounded-full"} border-2 flex items-center justify-center ${
+                              isSelected ? "border-blue-500" : "border-zinc-600"
+                            }`}
+                          >
+                            {isSelected && (
+                              questionItem.multiple ? (
+                                <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              ) : (
+                                <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+                              )
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-white font-medium text-sm">
+                              {option.label}
+                            </div>
+                            {option.description && (
+                              <div className="text-zinc-500 text-xs mt-0.5">
+                                {option.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="flex gap-3 mt-4">
           <button
             onClick={handleReject}
             className="flex-1 py-2 px-4 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-white font-medium transition-colors"
@@ -113,9 +153,9 @@ export function QuestionDialog() {
           </button>
           <button
             onClick={handleReply}
-            disabled={!hasSelection}
+            disabled={!allQuestionsAnswered}
             className={`flex-1 py-2 px-4 rounded-lg text-white font-medium transition-colors ${
-              hasSelection
+              allQuestionsAnswered
                 ? "bg-blue-600 hover:bg-blue-700"
                 : "bg-zinc-700 opacity-50 cursor-not-allowed"
             }`}
