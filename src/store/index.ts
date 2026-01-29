@@ -14,6 +14,10 @@ const sessionHasMoreMessages = new Map<string, boolean>();
 const sessionLoadedCount = new Map<string, number>();
 const lastCheckedSessionTimes = new Map<string, number>();
 
+// Request tracking to prevent stale responses from overwriting newer data
+let selectSessionRequestId = 0;
+let sessionUpdatedRequestId = 0;
+
 let storeGetRef: (() => AppState) | null = null;
 let storeSetRef: ((partial: Partial<AppState>) => void) | null = null;
 
@@ -56,7 +60,47 @@ function hasRunningToolInvocations(messages: SessionMessage[]): boolean {
   return false;
 }
 
-type ConnectionStep = "idle" | "connecting" | "authenticating" | "loading_sessions" | "ready";
+// Fallback check interval for detecting session completion when SSE events are missed
+const FALLBACK_CHECK_INTERVAL = 10000; // 10 seconds
+let fallbackCheckInterval: NodeJS.Timeout | null = null;
+
+function startFallbackCheck() {
+  if (fallbackCheckInterval) return;
+  
+  fallbackCheckInterval = setInterval(async () => {
+    const state = storeGetRef?.();
+    if (!state) return;
+    
+    const { runningSessions, sessions } = state;
+    if (!runningSessions.length) return;
+    
+    for (const sessionId of runningSessions) {
+      try {
+        const { messages } = await opencode.getSessionMessages(sessionId, { limit: 30 });
+        if (!messages.length) continue;
+        
+        const lastMsg = messages[messages.length - 1];
+        const isAssistantDone = lastMsg?.info.role === 'assistant' && lastMsg?.info.finish;
+        const noRunningTools = !hasRunningToolInvocations(messages);
+        
+        if (isAssistantDone && noRunningTools) {
+          markSessionComplete(sessionId, sessions);
+        }
+      } catch (e) {
+        console.error('[FallbackCheck] Error checking session:', sessionId, e);
+      }
+    }
+  }, FALLBACK_CHECK_INTERVAL);
+}
+
+function stopFallbackCheck() {
+  if (fallbackCheckInterval) {
+    clearInterval(fallbackCheckInterval);
+    fallbackCheckInterval = null;
+  }
+}
+
+type ConnectionStep = "idle" | "connecting" | "authenticating" | "loading_sessions" | "ready" | "disconnected";
 type SessionLoadingStep = "idle" | "loading_messages" | "loading_todos" | "ready";
 
 interface AppState {
@@ -515,6 +559,8 @@ export const useAppStore = create<AppState>()(
           return;
         }
         
+        const thisRequestId = ++selectSessionRequestId;
+        const deviceIdAtStart = currentDeviceId;
         const cacheKey = getCacheKey(id);
         const session = get().sessions.find(s => s.id === id);
         const sessionUpdatedTime = session?.time?.updated || 0;
@@ -534,10 +580,27 @@ export const useAppStore = create<AppState>()(
         const previousHasMore = sessionHasMoreMessages.get(cacheKey) || false;
         
         set({ currentSessionId: id, messages: previousCached, isLoading: true, hasMoreMessages: previousHasMore, sessionLoadingStep: "loading_messages" });
+        
+        const fetchWithRetry = async (retriesLeft: number): Promise<{ messages: SessionMessage[]; hasMore: boolean }> => {
+          try {
+            return await opencode.getSessionMessages(id, { limit: MESSAGE_PAGE_SIZE });
+          } catch (error: any) {
+            if (retriesLeft > 0 && (error?.message?.includes('503') || error?.message?.includes('not connected'))) {
+              console.log('[selectSession] Device not connected, retrying in 1s...', retriesLeft);
+              await new Promise(r => setTimeout(r, 1000));
+              return fetchWithRetry(retriesLeft - 1);
+            }
+            throw error;
+          }
+        };
+        
         try {
-          const { messages, hasMore } = await opencode.getSessionMessages(id, { 
-            limit: MESSAGE_PAGE_SIZE
-          });
+          const { messages, hasMore } = await fetchWithRetry(3);
+          
+          if (thisRequestId !== selectSessionRequestId || currentDeviceId !== deviceIdAtStart) {
+            console.log('[selectSession] Stale response discarded:', { requestId: thisRequestId, currentRequestId: selectSessionRequestId });
+            return;
+          }
           
           messageCache.set(cacheKey, messages);
           sessionHasMoreMessages.set(cacheKey, hasMore);
@@ -547,13 +610,13 @@ export const useAppStore = create<AppState>()(
           if (get().currentSessionId === id) {
             set({ messages, isLoading: false, hasMoreMessages: hasMore, sessionLoadingStep: "loading_todos" });
             await get().fetchTodos(id);
-            if (get().currentSessionId === id) {
+            if (get().currentSessionId === id && thisRequestId === selectSessionRequestId) {
               set({ sessionLoadingStep: "ready" });
             }
           }
         } catch (error) {
           console.error("Failed to fetch messages:", error);
-          if (get().currentSessionId === id) {
+          if (get().currentSessionId === id && thisRequestId === selectSessionRequestId) {
             const { selectedDevice, devices } = get();
             if (selectedDevice) {
               const updatedDevices = devices.map(d => 
@@ -703,6 +766,27 @@ export const useAppStore = create<AppState>()(
           if (get().sendingSessionId === sessionId) {
             set({ sendingSessionId: null });
           }
+          
+          const errorMessage = error instanceof Error ? error.message : "Failed to send";
+          const isDeviceDisconnected = errorMessage.toLowerCase().includes("device not connected");
+          
+          if (isDeviceDisconnected) {
+            set({ connectionStep: "disconnected" });
+          }
+          
+          const currentMessages = get().messages;
+          const tempMsgIndex = currentMessages.findIndex(m => m.info.id === userMessage.info.id);
+          if (tempMsgIndex >= 0) {
+            const newMessages = [...currentMessages];
+            newMessages[tempMsgIndex] = {
+              ...newMessages[tempMsgIndex],
+              info: {
+                ...newMessages[tempMsgIndex].info,
+                error: isDeviceDisconnected ? "Device disconnected" : errorMessage,
+              },
+            };
+            set({ messages: newMessages });
+          }
         }
       },
 
@@ -837,7 +921,7 @@ export const useAppStore = create<AppState>()(
           opencode.getAgents(),
         ]);
         
-        const visibleAgents = agents.filter(a => !a.hidden && a.mode === "primary");
+        const visibleAgents = agents.filter(a => !a.hidden && a.mode !== "subagent");
         set({ providers, agents: visibleAgents });
         
         const hasValidProviders = providers && Array.isArray(providers.all) && Array.isArray(providers.connected);
@@ -911,8 +995,14 @@ export const useAppStore = create<AppState>()(
               
               if (currentSessionId === sessionId && sessionUpdatedTime > lastUpdated) {
                 sessionLastUpdated.set(cacheKey, sessionUpdatedTime);
+                const thisRequestId = ++sessionUpdatedRequestId;
+                const deviceIdAtFetch = currentDeviceId;
                 
                 opencode.getSessionMessages(sessionId, { limit: MESSAGE_PAGE_SIZE }).then(({ messages: latestMessages }) => {
+                  if (thisRequestId !== sessionUpdatedRequestId || currentDeviceId !== deviceIdAtFetch) {
+                    console.log('[session.updated] Stale response discarded:', { requestId: thisRequestId, currentRequestId: sessionUpdatedRequestId });
+                    return;
+                  }
                   if (get().currentSessionId !== sessionId) return;
                   
                   const currentMessages = get().messages;
@@ -1003,8 +1093,12 @@ export const useAppStore = create<AppState>()(
               messageCache.set(getCacheKey(currentSessionId), newMessages);
               
               const { runningSessions } = get();
-              if (runningSessions.includes(sessionId) && !hasRunningToolInvocations(newMessages)) {
-                markSessionComplete(sessionId, sessions);
+              if (runningSessions.includes(sessionId)) {
+                const lastMsg = newMessages[newMessages.length - 1];
+                const isAssistantFinished = lastMsg?.info.role === 'assistant' && lastMsg?.info.finish;
+                if (isAssistantFinished && !hasRunningToolInvocations(newMessages)) {
+                  markSessionComplete(sessionId, sessions);
+                }
               }
             }
             break;
@@ -1121,3 +1215,5 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
+
+export { startFallbackCheck, stopFallbackCheck };

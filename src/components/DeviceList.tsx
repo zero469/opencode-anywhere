@@ -7,7 +7,6 @@ import { QRScanner } from "./QRScanner";
 
 const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay.azurewebsites.net/install.sh | bash";
 const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay.azurewebsites.net/install.ps1 | iex";
-const START_COMMAND = "tunnel-client start";
 const APP_VERSION = "1.1.0";
 const GITHUB_URL = "https://github.com/code-yeongyu/opencode-anywhere";
 
@@ -23,8 +22,15 @@ function OpenCodeLogo({ width = 160 }: { width?: number }) {
 
 function timeAgo(dateString: string): string {
   const date = new Date(dateString);
+  
+  if (isNaN(date.getTime()) || date.getFullYear() < 2000) {
+    return "never";
+  }
+  
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (seconds < 0) return "just now";
 
   let interval = seconds / 31536000;
   if (interval > 1) return Math.floor(interval) + " years ago";
@@ -41,21 +47,20 @@ function timeAgo(dateString: string): string {
   interval = seconds / 60;
   if (interval > 1) return Math.floor(interval) + " minutes ago";
   
-  return Math.floor(seconds) + " seconds ago";
+  return "just now";
 }
 
 function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
   const [isExpanded, setIsExpanded] = useState(!collapsed);
-  const [copied, setCopied] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [platform, setPlatform] = useState<'unix' | 'windows'>('unix');
-  const [step, setStep] = useState<1 | 2>(1);
 
   const currentCommand = platform === 'unix' ? SETUP_COMMAND_UNIX : SETUP_COMMAND_WINDOWS;
 
-  const handleCopy = async (text: string, id: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(id);
-    setTimeout(() => setCopied(null), 2000);
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(currentCommand);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (collapsed && !isExpanded) {
@@ -67,7 +72,7 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
-        Manual setup
+        Add New Device
       </button>
     );
   }
@@ -76,7 +81,7 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
     <div className={collapsed ? "bg-zinc-900 rounded-lg p-4" : ""}>
       {collapsed && (
         <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-medium">Manual Setup</span>
+          <span className="text-sm font-medium">Add New Device</span>
           <button onClick={() => setIsExpanded(false)} className="text-zinc-500 hover:text-zinc-300">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -85,131 +90,63 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
         </div>
       )}
 
-      <div className="flex gap-2 mb-4">
+      <p className="text-sm text-zinc-400 mb-3">
+        Run this command on your computer:
+      </p>
+
+      <div className="flex justify-center gap-1 mb-3">
         <button
-          onClick={() => setStep(1)}
-          className={`flex-1 py-2 text-xs rounded-lg transition-colors ${
-            step === 1 
-              ? 'bg-blue-600 text-white' 
+          onClick={() => setPlatform('unix')}
+          className={`px-3 py-1 text-xs rounded-l-lg transition-colors ${
+            platform === 'unix' 
+              ? 'bg-zinc-700 text-white' 
               : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
           }`}
         >
-          1. Install
+          macOS / Linux
         </button>
         <button
-          onClick={() => setStep(2)}
-          className={`flex-1 py-2 text-xs rounded-lg transition-colors ${
-            step === 2 
-              ? 'bg-blue-600 text-white' 
+          onClick={() => setPlatform('windows')}
+          className={`px-3 py-1 text-xs rounded-r-lg transition-colors ${
+            platform === 'windows' 
+              ? 'bg-zinc-700 text-white' 
               : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
           }`}
         >
-          2. Start & Pair
+          Windows
+        </button>
+      </div>
+      
+      <div className="bg-zinc-800 rounded-lg p-3 relative group">
+        <code className="text-xs text-green-400 break-all block pr-8">
+          {currentCommand}
+        </code>
+        <button
+          onClick={handleCopy}
+          className="absolute top-2 right-2 p-1.5 rounded bg-zinc-700 hover:bg-zinc-600 transition-colors"
+          title="Copy to clipboard"
+        >
+          {copied ? (
+            <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          )}
         </button>
       </div>
 
-      {step === 1 ? (
-        <>
-          <p className="text-sm text-zinc-400 mb-3">
-            Install tunnel-client on your computer:
-          </p>
-
-          <div className="flex justify-center gap-1 mb-3">
-            <button
-              onClick={() => setPlatform('unix')}
-              className={`px-3 py-1 text-xs rounded-l-lg transition-colors ${
-                platform === 'unix' 
-                  ? 'bg-zinc-700 text-white' 
-                  : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              macOS / Linux
-            </button>
-            <button
-              onClick={() => setPlatform('windows')}
-              className={`px-3 py-1 text-xs rounded-r-lg transition-colors ${
-                platform === 'windows' 
-                  ? 'bg-zinc-700 text-white' 
-                  : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              Windows
-            </button>
-          </div>
-          
-          <div className="bg-zinc-800 rounded-lg p-3 relative group">
-            <code className="text-xs text-green-400 break-all block pr-8">
-              {currentCommand}
-            </code>
-            <button
-              onClick={() => handleCopy(currentCommand, 'install')}
-              className="absolute top-2 right-2 p-1.5 rounded bg-zinc-700 hover:bg-zinc-600 transition-colors"
-              title="Copy to clipboard"
-            >
-              {copied === 'install' ? (
-                <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              )}
-            </button>
-          </div>
-
-          {platform === 'windows' && (
-            <p className="text-xs text-zinc-500 mt-2">
-              Run in PowerShell as Administrator
-            </p>
-          )}
-
-          <button
-            onClick={() => setStep(2)}
-            className="w-full mt-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm text-zinc-300 transition-colors"
-          >
-            Next →
-          </button>
-        </>
-      ) : (
-        <>
-          <p className="text-sm text-zinc-400 mb-3">
-            Run this command to display a QR code:
-          </p>
-          
-          <div className="bg-zinc-800 rounded-lg p-3 relative group mb-4">
-            <code className="text-xs text-green-400 break-all block pr-8">
-              {START_COMMAND}
-            </code>
-            <button
-              onClick={() => handleCopy(START_COMMAND, 'start')}
-              className="absolute top-2 right-2 p-1.5 rounded bg-zinc-700 hover:bg-zinc-600 transition-colors"
-              title="Copy to clipboard"
-            >
-              {copied === 'start' ? (
-                <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              )}
-            </button>
-          </div>
-
-          <p className="text-sm text-zinc-400 mb-2">
-            Then tap <span className="text-blue-400">&quot;Scan QR Code&quot;</span> above to pair.
-          </p>
-
-          <button
-            onClick={() => setStep(1)}
-            className="w-full mt-2 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm text-zinc-300 transition-colors"
-          >
-            ← Back
-          </button>
-        </>
+      {platform === 'windows' && (
+        <p className="text-xs text-zinc-500 mt-2">
+          Run in PowerShell as Administrator
+        </p>
       )}
+
+      <p className="text-xs text-zinc-500 mt-3">
+        The installer will show a QR code. Tap <span className="text-blue-400">&quot;Scan QR Code&quot;</span> to pair.
+      </p>
     </div>
   );
 }

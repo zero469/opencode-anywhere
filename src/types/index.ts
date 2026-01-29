@@ -49,6 +49,7 @@ export interface MessageInfo {
     updated?: number;
     completed?: number;
   };
+  error?: string;
 }
 
 export interface SessionMessage {
@@ -119,7 +120,7 @@ export interface ProvidersResponse {
 export interface Agent {
   name: string;
   description?: string;
-  mode?: "primary" | "subagent";
+  mode?: "primary" | "subagent" | "all";
   hidden?: boolean;
   model?: {
     modelID: string;

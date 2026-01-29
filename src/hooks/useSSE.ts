@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useAppStore } from "@/store";
+import { useAppStore, startFallbackCheck, stopFallbackCheck } from "@/store";
 import { subscribeToEvents, getConfig } from "@/lib/opencode";
 
 export function useSSE() {
-  const { config, status, handleSSEEvent, selectedDevice, deviceEncryptionKeys } = useAppStore();
+  const { config, status, handleSSEEvent, selectedDevice, deviceEncryptionKeys, refreshCurrentSession } = useAppStore();
   const eventSourceRef = useRef<{ close: () => void } | null>(null);
 
   useEffect(() => {
@@ -23,10 +23,16 @@ export function useSSE() {
       encryptionKey: deviceEncryptionKeys[selectedDevice.id],
     } : undefined;
 
-    eventSourceRef.current = subscribeToEvents(currentConfig, handleSSEEvent, getCurrentSessionId, deviceInfo);
+    const handleReconnect = () => {
+      refreshCurrentSession();
+    };
+
+    eventSourceRef.current = subscribeToEvents(currentConfig, handleSSEEvent, getCurrentSessionId, deviceInfo, handleReconnect);
+    startFallbackCheck();
 
     return () => {
       eventSourceRef.current?.close();
+      stopFallbackCheck();
     };
-  }, [config, status.connected, handleSSEEvent, selectedDevice, deviceEncryptionKeys]);
+  }, [config, status.connected, handleSSEEvent, selectedDevice, deviceEncryptionKeys, refreshCurrentSession]);
 }

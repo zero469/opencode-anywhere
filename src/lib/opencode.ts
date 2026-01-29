@@ -19,8 +19,12 @@ function isNative(): boolean {
 async function nativeFetch(url: string, options?: { method?: string; headers?: Record<string, string>; body?: string; timeout?: number }) {
   let requestBody = options?.body;
   
+  console.log('[nativeFetch] encryptionKey set:', !!currentEncryptionKey, 'hasBody:', !!requestBody);
+  
   if (currentEncryptionKey && requestBody) {
+    console.log('[nativeFetch] Encrypting body, original length:', requestBody.length);
     requestBody = await encrypt(requestBody, currentEncryptionKey);
+    console.log('[nativeFetch] Encrypted body length:', requestBody.length, 'preview:', requestBody.substring(0, 50));
   }
   
   const response = await CapacitorHttp.request({
@@ -40,9 +44,12 @@ async function nativeFetch(url: string, options?: { method?: string; headers?: R
       const decrypted = await decrypt(responseData, currentEncryptionKey);
       responseData = JSON.parse(decrypted);
     } catch (decryptErr) {
+      console.error('[nativeFetch] Decryption failed:', decryptErr, 'Response preview:', responseData?.substring?.(0, 100));
       try {
         responseData = JSON.parse(responseData);
-      } catch {
+      } catch (parseErr) {
+        console.error('[nativeFetch] JSON parse also failed, returning raw data as error');
+        responseData = { error: responseData };
       }
     }
   }
@@ -221,11 +228,20 @@ export async function getSessionMessages(
   const url = queryString ? `${baseUrlPath}?${queryString}` : baseUrlPath;
   
   const response = await http(url, { headers: getHeaders(), timeout: 300000 });
+  
+  if (!response.ok) {
+    const errorText = typeof response.status === 'number' ? `HTTP ${response.status}` : 'Request failed';
+    throw new Error(errorText);
+  }
+  
   const data = await response.json();
   
   if (data.error) throw new Error(data.error);
   
   const messages = Array.isArray(data) ? data : [];
+  if (!Array.isArray(data)) {
+    console.error('[getSessionMessages] Unexpected response type:', typeof data, data?.substring?.(0, 100) || data);
+  }
   const hasMore = options?.limit !== undefined && messages.length >= options.limit;
   
   return {
@@ -251,19 +267,34 @@ export async function sendMessageAsync(
   }
   
   if (options?.agent) {
-    body.agent = options.agent;
+    // opencode requires lowercase agent names
+    body.agent = options.agent.toLowerCase();
   }
 
   const url = isNative()
     ? `${getBaseUrl()}/session/${sessionId}/prompt_async`
     : `/api/opencode/sessions/${sessionId}/messages`;
+  
+  console.log('[sendMessageAsync] Sending to:', url, 'body:', JSON.stringify(body));
+  
   const response = await http(url, {
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(body),
   });
   
-  return response.ok;
+  console.log('[sendMessageAsync] Response:', response.ok, response.status);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('[sendMessageAsync] Error data:', errorData);
+    throw new Error(errorData?.error || `Failed to send message: ${response.status}`);
+  }
+  
+  const responseData = await response.json().catch(() => null);
+  console.log('[sendMessageAsync] Response data:', responseData);
+  
+  return true;
 }
 
 export async function respondToPermission(
@@ -351,13 +382,15 @@ export function subscribeToEvents(
   config: ConnectionConfig,
   onEvent?: (event: SSEEvent) => void,
   getCurrentSessionId?: () => string | null,
-  deviceInfo?: { subdomain: string; authUser: string; authPassword: string; encryptionKey?: string }
+  deviceInfo?: { subdomain: string; authUser: string; authPassword: string; encryptionKey?: string },
+  onReconnect?: () => void
 ): { close: () => void } {
   let isClosing = false;
 
   if (isNative() && deviceInfo) {
     let ws: WebSocket | null = null;
     let reconnectTimeout: NodeJS.Timeout | null = null;
+    let hasConnectedBefore = false;
 
     const connect = () => {
       if (isClosing) return;
@@ -369,6 +402,11 @@ export function subscribeToEvents(
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
+        if (hasConnectedBefore && onReconnect) {
+          console.log('[WebSocket] Reconnected, refreshing session data');
+          onReconnect();
+        }
+        hasConnectedBefore = true;
       };
 
       ws.onmessage = async (event) => {
