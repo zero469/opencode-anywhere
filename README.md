@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/zero469/opencode-anywhere/main/public/icon.svg" width="128" height="128" alt="OpenCode Anywhere Logo">
+<img src="https://raw.githubusercontent.com/zero469/opencode-anywhere/main/public/app-icon.png" width="128" height="128" alt="OpenCode Anywhere Logo" style="border-radius: 22%;">
 
 **Control your AI coding assistant from anywhere**
 
