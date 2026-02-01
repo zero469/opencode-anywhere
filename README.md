@@ -8,7 +8,7 @@
 
 A native iOS app for [OpenCode](https://github.com/sst/opencode) - like Happy Coder for Claude Code, but for OpenCode.
 
-[![Download on TestFlight](https://img.shields.io/badge/Download-TestFlight-blue?style=for-the-badge&logo=apple)](https://testflight.apple.com/join/your-link)
+[![Download on TestFlight](https://img.shields.io/badge/Download-TestFlight-blue?style=for-the-badge&logo=apple)](https://testflight.apple.com/join/ShuMKWur)
 [![GitHub Stars](https://img.shields.io/github/stars/zero469/opencode-anywhere?style=for-the-badge)](https://github.com/zero469/opencode-anywhere)
 
 [English](#features) | [中文](#中文文档)
@@ -35,7 +35,7 @@ A native iOS app for [OpenCode](https://github.com/sst/opencode) - like Happy Co
 
 <div align="center">
 
-**[Download OpenCode Anywhere on TestFlight](https://testflight.apple.com/join/your-link)**
+**[Download OpenCode Anywhere on TestFlight](https://testflight.apple.com/join/ShuMKWur)**
 
 </div>
 
@@ -199,7 +199,7 @@ Built for use with [OpenCode](https://github.com/sst/opencode) by SST.
 
 <div align="center">
 
-**[在 TestFlight 下载 OpenCode Anywhere](https://testflight.apple.com/join/your-link)**
+**[在 TestFlight 下载 OpenCode Anywhere](https://testflight.apple.com/join/ShuMKWur)**
 
 </div>
 
