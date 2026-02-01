@@ -1,312 +1,122 @@
 # OpenCode Anywhere
 
-A mobile-friendly client for [OpenCode](https://github.com/sst/opencode) - control your AI coding assistant from anywhere.
+<div align="center">
 
-Similar to Happy Coder for Claude Code, but for OpenCode.
+<img src="https://raw.githubusercontent.com/zero469/opencode-anywhere/main/public/icon.svg" width="128" height="128" alt="OpenCode Anywhere Logo">
 
-**Now available as a native iOS app!**
+**Control your AI coding assistant from anywhere**
 
-[中文文档](#中文文档)
+A native iOS app for [OpenCode](https://github.com/sst/opencode) - like Happy Coder for Claude Code, but for OpenCode.
+
+[![Download on TestFlight](https://img.shields.io/badge/Download-TestFlight-blue?style=for-the-badge&logo=apple)](https://testflight.apple.com/join/your-link)
+[![GitHub Stars](https://img.shields.io/github/stars/zero469/opencode-anywhere?style=for-the-badge)](https://github.com/zero469/opencode-anywhere)
+
+[English](#features) | [中文](#中文文档)
+
+</div>
+
+---
 
 ## Features
 
-- **Native iOS App**: Full native experience with Capacitor - smoother scrolling, better performance
-- **PWA Support**: Install on iOS/Android home screen for native-like experience
-- **Real-time Updates**: SSE-based live streaming of assistant responses
-- **Session Management**: Create, switch, and manage multiple coding sessions
-- **On-demand Pagination**: Load messages incrementally for large sessions (2000+ messages)
-- **Permission Handling**: Approve/deny tool executions remotely
-- **Push Notifications**: Get notified when assistant needs your attention (native iOS notifications)
-- **Dark Mode**: Easy on the eyes, optimized for mobile
-- **Relay Server Integration**: Secure remote access via opencode-relay-server
+- **Native iOS App** - Full native experience with Capacitor, available on TestFlight
+- **QR Code Pairing** - Scan to connect, no manual URL entry needed
+- **End-to-End Encryption** - AES-256-GCM encryption, relay server sees only encrypted data
+- **Real-time Updates** - SSE-based live streaming of assistant responses
+- **Multi-Device Management** - Connect to multiple computers from one app
+- **Push Notifications** - Get notified when assistant needs your attention
+- **Session Management** - Create, switch, and manage multiple coding sessions
+- **Permission Handling** - Approve/deny tool executions remotely
+- **Dark Mode** - Easy on the eyes, optimized for mobile
 
 ## Quick Start
 
-### Option 1: Native iOS App (Recommended)
+### Step 1: Download the App
 
-1. Clone the repo and install dependencies:
+<div align="center">
+
+**[Download OpenCode Anywhere on TestFlight](https://testflight.apple.com/join/your-link)**
+
+</div>
+
+### Step 2: Setup Your Computer
+
+Run the tunnel client on each computer you want to access remotely:
+
 ```bash
-git clone https://github.com/anthropics/opencode-anywhere.git
-cd opencode-anywhere
-npm install
+# Download and run (macOS/Linux)
+curl -L https://github.com/zero469/opencode-relay-server/releases/latest/download/tunnel-client-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') -o tunnel-client && chmod +x tunnel-client && ./tunnel-client
 ```
 
-2. Build and sync with iOS:
-```bash
-npm run build:native
+Or download manually from [Releases](https://github.com/zero469/opencode-relay-server/releases).
+
+The tunnel client will:
+1. Prompt you to login (create account in the iOS app first)
+2. Display a QR code for pairing
+3. Auto-start OpenCode if not running
+4. Configure auto-start on boot
+
+### Step 3: Pair Your Device
+
+1. Open the iOS app
+2. Tap "Scan QR Code"
+3. Scan the QR code shown in your terminal
+4. Done! Your device appears in the app
+
+## Architecture
+
+```
+┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+│                 │   E2E   │                 │   E2E   │                 │
+│    iOS App      │◄───────►│  Relay Server   │◄───────►│  tunnel-client  │
+│                 │ Encrypt │   (fly.io)      │ Encrypt │                 │
+└─────────────────┘         └─────────────────┘         └────────┬────────┘
+                                                                 │
+                                                                 │ HTTP
+                                                                 ▼
+                                                        ┌─────────────────┐
+                                                        │ OpenCode Server │
+                                                        │  (localhost)    │
+                                                        └─────────────────┘
 ```
 
-3. Open in Xcode and run:
+### Security Model
+
+- **E2E Encryption**: Data between iOS app and tunnel-client is encrypted with AES-256-GCM
+- **Key Exchange**: Encryption key is embedded in QR code, never sent to relay server
+- **Zero Knowledge**: Relay server only forwards encrypted traffic, cannot read your code
+- **Device Auth**: Each device has unique credentials, revocable from the app
+
+## Alternative: Local Network / Cloudflare Tunnel
+
+Don't want to use the relay server? You can also:
+
+### Option A: Same Network (PWA)
+
 ```bash
-npx cap open ios
-# Press Cmd+R in Xcode to build and run on your device
-```
-
-### Option 2: PWA (Web Browser)
-
-### 1. Start OpenCode Server
-
-On your development machine:
-
-```bash
-# Start OpenCode with HTTP server enabled
+# On your computer
 opencode serve --hostname 0.0.0.0 --port 4096
+
+# Open http://YOUR_IP:4096 on your phone
 ```
 
-### 2. Connect CLI to the Server (Important!)
+### Option B: Cloudflare Tunnel
 
-If you want to see messages from Anywhere in your CLI (and vice versa), use the `attach` command to connect to the same server:
-
-```bash
-# In a separate terminal, attach CLI to the running server
-opencode attach http://localhost:4096
-```
-
-> **Note**: Running `opencode` without `attach` starts a separate internal server. The CLI and Anywhere would share the same storage files but won't sync in real-time. Using `attach` ensures both clients connect to the same server and receive real-time SSE updates.
-
-### 3. Run the Client
-
-```bash
-cd opencode-anywhere
-npm install
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) on your phone (same network).
-
-### 4. Connect
-
-Enter your OpenCode server URL (e.g., `http://192.168.1.100:4096`) and connect.
-
-## Remote Access (Optional)
-
-For access outside your local network, use the included relay server:
-
-### Option A: Relay Server (Recommended for Remote Access)
-
-The relay server ([opencode-relay-server](https://github.com/zero469/opencode-relay-server)) provides secure remote access to your OpenCode instances with user authentication and device management.
-
-#### 1. Register Account (iOS App)
-
-Open the iOS app and register with email verification:
-1. Enter your email address
-2. Click "Send Code" - you'll receive a 6-digit verification code
-3. Enter the code and set your password
-
-#### 2. Setup Client on Your Computer
-
-Run the setup script on each computer you want to access remotely:
-
-```bash
-curl -sSL https://opencode-relay-server.fly.dev/install.sh -o /tmp/setup.sh && bash /tmp/setup.sh
-```
-
-The script will:
-- Install frpc (FRP client)
-- Log in with your account
-- Register the device
-- Configure auto-start
-
-#### 3. Connect from iOS App
-
-1. Open the app and log in
-2. Your devices will appear in the device list
-3. Tap a device to connect to its OpenCode instance
-
-Each device gets a unique subdomain (e.g., `device-abc123.liuyao16.dpdns.org`) with HTTP Basic Auth for security.
-
-### Option B: Cloudflare Tunnel (Recommended)
-
-Secure access from anywhere with Cloudflare Access authentication.
-
-#### 1. Install and Login
+For secure remote access without our relay server:
 
 ```bash
 # Install cloudflared
 brew install cloudflared
 
-# Login to Cloudflare (requires a domain hosted on Cloudflare)
-cloudflared tunnel login
+# Create and configure tunnel
+cloudflared tunnel create opencode
+cloudflared tunnel route dns opencode anywhere.yourdomain.com
+
+# Start tunnel
+cloudflared tunnel run opencode
 ```
 
-#### 2. Create Tunnel
-
-```bash
-# Create a tunnel
-cloudflared tunnel create opencode-anywhere
-
-# Note the tunnel ID from output, e.g.: eaed4628-ce9c-4be8-b6e0-6afd9ecd43bb
-```
-
-#### 3. Configure Tunnel
-
-Create `~/.cloudflared/config.yml`:
-
-```yaml
-tunnel: <YOUR_TUNNEL_ID>
-credentials-file: /Users/<YOUR_USERNAME>/.cloudflared/<YOUR_TUNNEL_ID>.json
-
-ingress:
-  - hostname: anywhere.yourdomain.com
-    service: http://localhost:3000
-  - service: http_status:404
-```
-
-> **Note**: Only expose the Anywhere frontend (port 3000). The OpenCode API (port 4096) stays local - Anywhere's server-side proxies requests to it securely.
-
-#### 4. Add DNS Route
-
-```bash
-cloudflared tunnel route dns opencode-anywhere anywhere.yourdomain.com
-```
-
-#### 5. Setup Cloudflare Access (Authentication)
-
-1. Go to [Cloudflare Zero Trust](https://one.dash.cloudflare.com/)
-2. Create a team (free plan works)
-3. **Settings** → **Authentication** → Add **GitHub** or **Google** login
-4. **Access** → **Applications** → Add application:
-   - Type: Self-hosted
-   - Domain: `anywhere.yourdomain.com`
-5. Add a policy to allow only your email/GitHub account
-
-#### 6. Start Tunnel
-
-```bash
-# Use http2 protocol if quic has issues
-cloudflared tunnel --protocol http2 run opencode-anywhere
-```
-
-#### 7. Auto-start on macOS
-
-Create `~/Library/LaunchAgents/com.cloudflare.cloudflared.plist`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.cloudflare.cloudflared</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/opt/homebrew/bin/cloudflared</string>
-        <string>tunnel</string>
-        <string>--protocol</string>
-        <string>http2</string>
-        <string>run</string>
-        <string>opencode-anywhere</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/cloudflared.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/cloudflared.log</string>
-</dict>
-</plist>
-```
-
-Load the service:
-
-```bash
-launchctl load ~/Library/LaunchAgents/com.cloudflare.cloudflared.plist
-```
-
-#### 8. Connect from Anywhere
-
-1. Open `https://anywhere.yourdomain.com`
-2. Login with GitHub/Google
-3. Server URL: `http://localhost:4096`
-
-Your OpenCode is now securely accessible from anywhere!
-
-## Architecture
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  iOS Native App │────▶│  Relay Server   │────▶│ OpenCode Server │
-│  or Mobile PWA  │◀────│  (Optional)     │◀────│   (Port 4096)   │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-        │                       │
-        │ SSE Events            │ Proxy + Auth
-        ▼                       ▼
-   Real-time UI          HTTPS with frp
-```
-
-- **iOS App**: Native Capacitor app with WKWebView for optimal performance
-- **PWA Client**: React UI with Zustand state management
-- **Relay Server**: Optional proxy for secure remote access (see [opencode-relay-server](https://github.com/anthropics/opencode-relay-server))
-- **SSE**: Server-Sent Events for real-time updates
-
-## Architecture Notes
-
-### Multi-Device Session Management
-
-When switching between devices, the app faces a race condition challenge:
-- HTTP requests to the old device may still be in-flight
-- These requests could return and overwrite the new device's cached data
-
-**Solution**: 
-1. Immediately clear the API client config when switching devices
-2. Check for valid config before making API calls
-3. Track `currentDeviceId` and discard stale responses
-
-### Cache Strategy
-
-- Sessions are cached per-device in `cachedSessionsByDevice[deviceId]`
-- Message cache uses composite keys: `${deviceId}:${sessionId}`
-- Pinned session IDs are stored per-device, not globally
-
-### Offline Handling
-
-- When API calls fail, device is marked offline in state
-- Cached sessions remain visible but disabled
-- Device list polls every 15 seconds to detect reconnection
-- "Tap to reconnect" banner allows manual retry
-
-## Project Structure
-
-```
-src/
-├── app/
-│   ├── api/opencode/      # API proxy routes
-│   │   ├── health/        # Connection check
-│   │   ├── sessions/      # Session CRUD + messages
-│   │   └── ...
-│   ├── page.tsx           # Main app (Connect/Chat views)
-│   └── layout.tsx         # PWA meta tags
-├── components/
-│   ├── ConnectionForm.tsx # Server URL input
-│   ├── SessionList.tsx    # Session sidebar
-│   ├── MessageList.tsx    # Chat messages with infinite scroll
-│   ├── MessageInput.tsx   # Message composer
-│   └── PermissionDialog.tsx # Permission modal
-├── hooks/
-│   ├── useSSE.ts          # Real-time event subscription
-│   └── usePWA.ts          # Install prompt handling
-├── lib/
-│   ├── opencode.ts        # HTTP client for OpenCode API
-│   ├── notifications.ts   # iOS native notifications
-│   └── relay.ts           # Relay server client
-├── store/
-│   └── index.ts           # Zustand store (persisted)
-└── types/
-    └── index.ts           # TypeScript definitions
-
-ios/                       # Capacitor iOS project
-├── App/
-│   ├── App.xcodeproj      # Xcode project
-│   └── App/public/        # Built web assets
-└── ...
-
-public/
-├── manifest.json          # PWA manifest
-├── sw.js                  # Service worker
-└── icon.svg               # App icon
-```
+Then set up [Cloudflare Access](https://one.dash.cloudflare.com/) for authentication.
 
 ## Development
 
@@ -325,14 +135,9 @@ npm run build:native
 
 # Open iOS project in Xcode
 npx cap open ios
-
-# Run tests
-npm test
 ```
 
-## iOS Development
-
-The native iOS app uses Capacitor to wrap the web app in a native shell.
+### iOS Development
 
 ```bash
 # Build web assets and sync to iOS
@@ -344,50 +149,15 @@ npx cap open ios
 # Build and run (Cmd+R in Xcode)
 ```
 
-### Requirements
+Requirements:
 - Xcode 15+
 - iOS 15+ device or simulator
 - Apple Developer account (for device testing)
 
-## PWA Installation
+## Related Projects
 
-### iOS
-1. Open in Safari
-2. Tap Share button
-3. "Add to Home Screen"
-
-### Android
-1. Open in Chrome
-2. Tap "Install" prompt (or menu → "Install app")
-
-## Configuration
-
-### Environment Variables
-
-The Next.js app doesn't require env vars - server URL is configured in the UI.
-
-For the relay server (`server/.env`):
-
-```env
-PORT=3001
-OPENCODE_URL=http://localhost:4096
-# Optional: AUTH_TOKEN=your-secret-token
-```
-
-## Troubleshooting
-
-### "Failed to connect"
-- Ensure OpenCode is running: `opencode serve --hostname 0.0.0.0 --port 4096`
-- Check firewall allows port 4096
-- Verify URL includes protocol: `http://` not just IP
-
-### SSE not working
-- Some corporate proxies block SSE
-- Try the relay server or Cloudflare tunnel
-
-### PWA not installing
-- Must be served over HTTPS (or localhost)
-- Check browser supports PWA (Safari iOS 11.3+, Chrome Android)
+- **[opencode-relay-server](https://github.com/zero469/opencode-relay-server)** - The relay server and tunnel-client
+- **[OpenCode](https://github.com/sst/opencode)** - The AI coding assistant
 
 ## License
 
@@ -401,311 +171,116 @@ Built for use with [OpenCode](https://github.com/sst/opencode) by SST.
 
 # 中文文档
 
-一个适配移动端的客户端，用于 [OpenCode](https://github.com/sst/opencode) —— 随时随地控制你的 AI 编程助手。
+<div align="center">
 
-类似于 Claude Code 的 Happy Coder，但专为 OpenCode 打造。
+**随时随地控制你的 AI 编程助手**
 
-**现已推出原生 iOS 应用！**
+一个为 [OpenCode](https://github.com/sst/opencode) 打造的原生 iOS 应用 - 类似 Claude Code 的 Happy Coder。
+
+</div>
+
+---
 
 ## 功能特性
 
-- **原生 iOS 应用**：基于 Capacitor 的完整原生体验 - 更流畅的滚动，更好的性能
-- **PWA 支持**：可安装到 iOS/Android 主屏幕，获得原生应用般的体验
-- **实时更新**：基于 SSE 的助手响应实时流式传输
-- **会话管理**：创建、切换和管理多个编程会话
-- **按需分页**：大型会话（2000+ 消息）增量加载消息
-- **权限处理**：远程批准/拒绝工具执行请求
-- **推送通知**：当助手需要你关注时收到通知（原生 iOS 通知）
-- **深色模式**：护眼设计，针对移动端优化
-- **中继服务器集成**：通过 opencode-relay-server 实现安全远程访问
+- **原生 iOS 应用** - 基于 Capacitor 的完整原生体验，已上架 TestFlight
+- **二维码配对** - 扫码即连，无需手动输入 URL
+- **端对端加密** - AES-256-GCM 加密，中继服务器只能看到加密数据
+- **实时更新** - 基于 SSE 的助手响应实时流式传输
+- **多设备管理** - 一个 App 管理多台电脑
+- **推送通知** - 当助手需要你关注时收到通知
+- **会话管理** - 创建、切换和管理多个编程会话
+- **权限处理** - 远程批准/拒绝工具执行请求
+- **深色模式** - 护眼设计，针对移动端优化
 
 ## 快速开始
 
-### 方案 1：原生 iOS 应用（推荐）
+### 第一步：下载 App
 
-1. 克隆仓库并安装依赖：
+<div align="center">
+
+**[在 TestFlight 下载 OpenCode Anywhere](https://testflight.apple.com/join/your-link)**
+
+</div>
+
+### 第二步：设置电脑
+
+在每台需要远程访问的电脑上运行 tunnel client：
+
 ```bash
-git clone https://github.com/anthropics/opencode-anywhere.git
-cd opencode-anywhere
-npm install
+# 下载并运行 (macOS/Linux)
+curl -L https://github.com/zero469/opencode-relay-server/releases/latest/download/tunnel-client-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') -o tunnel-client && chmod +x tunnel-client && ./tunnel-client
 ```
 
-2. 构建并同步到 iOS：
-```bash
-npm run build:native
+或从 [Releases](https://github.com/zero469/opencode-relay-server/releases) 手动下载。
+
+tunnel client 会：
+1. 提示你登录（先在 iOS App 中创建账号）
+2. 显示配对二维码
+3. 自动启动 OpenCode（如果没运行）
+4. 配置开机自启
+
+### 第三步：配对设备
+
+1. 打开 iOS App
+2. 点击"扫描二维码"
+3. 扫描终端中显示的二维码
+4. 完成！设备会出现在 App 中
+
+## 架构
+
+```
+┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+│                 │   E2E   │                 │   E2E   │                 │
+│    iOS App      │◄───────►│   中继服务器     │◄───────►│  tunnel-client  │
+│                 │   加密   │   (fly.io)      │   加密   │                 │
+└─────────────────┘         └─────────────────┘         └────────┬────────┘
+                                                                 │
+                                                                 │ HTTP
+                                                                 ▼
+                                                        ┌─────────────────┐
+                                                        │ OpenCode 服务器  │
+                                                        │   (本地)         │
+                                                        └─────────────────┘
 ```
 
-3. 在 Xcode 中打开并运行：
+### 安全模型
+
+- **端对端加密**：iOS App 与 tunnel-client 之间的数据使用 AES-256-GCM 加密
+- **密钥交换**：加密密钥嵌入二维码，从不发送到中继服务器
+- **零知识**：中继服务器只转发加密流量，无法读取你的代码
+- **设备认证**：每个设备有唯一凭证，可从 App 中撤销
+
+## 备选方案：本地网络 / Cloudflare Tunnel
+
+不想使用中继服务器？你也可以：
+
+### 方案 A：同一网络 (PWA)
+
 ```bash
-npx cap open ios
-# 在 Xcode 中按 Cmd+R 构建并运行到设备
-```
-
-### 方案 2：PWA（网页浏览器）
-
-### 1. 启动 OpenCode 服务器
-
-在你的开发机器上：
-
-```bash
-# 启动 OpenCode 并开启 HTTP 服务
+# 在你的电脑上
 opencode serve --hostname 0.0.0.0 --port 4096
+
+# 在手机上打开 http://你的IP:4096
 ```
 
-### 2. 将 CLI 连接到服务器（重要！）
+### 方案 B：Cloudflare Tunnel
 
-如果你希望在 CLI 中看到来自 Anywhere 的消息（反之亦然），请使用 `attach` 命令连接到同一服务器：
-
-```bash
-# 在另一个终端中，将 CLI 附加到运行中的服务器
-opencode attach http://localhost:4096
-```
-
-> **注意**：不使用 `attach` 直接运行 `opencode` 会启动一个独立的内部服务器。CLI 和 Anywhere 会共享相同的存储文件，但不会实时同步。使用 `attach` 可确保两个客户端连接到同一服务器并接收实时 SSE 更新。
-
-### 3. 运行客户端
-
-```bash
-cd opencode-anywhere
-npm install
-npm run dev
-```
-
-在手机上打开 [http://localhost:3000](http://localhost:3000)（需在同一网络）。
-
-### 4. 连接
-
-输入你的 OpenCode 服务器地址（例如：`http://192.168.1.100:4096`）并连接。
-
-## 远程访问（可选）
-
-如需在本地网络外访问，可使用内置的中继服务器：
-
-### 方案 A：中继服务器（推荐用于远程访问）
-
-中继服务器（[opencode-relay-server](https://github.com/zero469/opencode-relay-server)）提供安全的远程访问，支持用户认证和设备管理。
-
-#### 1. 注册账号（iOS 应用）
-
-在 iOS 应用中通过邮箱验证注册：
-1. 输入邮箱地址
-2. 点击"发送验证码" - 你会收到一个 6 位数验证码
-3. 输入验证码并设置密码
-
-#### 2. 在电脑上设置客户端
-
-在每台需要远程访问的电脑上运行安装脚本：
-
-```bash
-curl -sSL https://opencode-relay-server.fly.dev/install.sh -o /tmp/setup.sh && bash /tmp/setup.sh
-```
-
-脚本会：
-- 安装 frpc（FRP 客户端）
-- 使用你的账号登录
-- 注册设备
-- 配置开机自启
-
-#### 3. 从 iOS 应用连接
-
-1. 打开应用并登录
-2. 你的设备会出现在设备列表中
-3. 点击设备即可连接到其 OpenCode 实例
-
-每个设备都有唯一的子域名（如 `device-abc123.liuyao16.dpdns.org`），并使用 HTTP Basic Auth 保护安全。
-
-### 方案 B：Cloudflare Tunnel（推荐）
-
-通过 Cloudflare Access 认证实现安全的远程访问。
-
-#### 1. 安装并登录
+无需我们的中继服务器实现安全远程访问：
 
 ```bash
 # 安装 cloudflared
 brew install cloudflared
 
-# 登录 Cloudflare（需要有域名托管在 Cloudflare）
-cloudflared tunnel login
+# 创建并配置隧道
+cloudflared tunnel create opencode
+cloudflared tunnel route dns opencode anywhere.yourdomain.com
+
+# 启动隧道
+cloudflared tunnel run opencode
 ```
 
-#### 2. 创建隧道
-
-```bash
-# 创建隧道
-cloudflared tunnel create opencode-anywhere
-
-# 记录输出中的隧道 ID，例如：eaed4628-ce9c-4be8-b6e0-6afd9ecd43bb
-```
-
-#### 3. 配置隧道
-
-创建 `~/.cloudflared/config.yml`：
-
-```yaml
-tunnel: <你的隧道ID>
-credentials-file: /Users/<你的用户名>/.cloudflared/<你的隧道ID>.json
-
-ingress:
-  - hostname: anywhere.yourdomain.com
-    service: http://localhost:3000
-  - service: http_status:404
-```
-
-> **注意**：只暴露 Anywhere 前端（端口 3000）。OpenCode API（端口 4096）保持本地访问 - Anywhere 的服务端会安全地代理请求。
-
-#### 4. 添加 DNS 路由
-
-```bash
-cloudflared tunnel route dns opencode-anywhere anywhere.yourdomain.com
-```
-
-#### 5. 设置 Cloudflare Access（身份认证）
-
-1. 访问 [Cloudflare Zero Trust](https://one.dash.cloudflare.com/)
-2. 创建团队（免费计划即可）
-3. **设置** → **身份验证** → 添加 **GitHub** 或 **Google** 登录
-4. **访问控制** → **应用程序** → 添加应用：
-   - 类型：自托管
-   - 域名：`anywhere.yourdomain.com`
-5. 添加策略，只允许你的邮箱/GitHub 账号访问
-
-#### 6. 启动隧道
-
-```bash
-# 如果 quic 协议有问题，使用 http2
-cloudflared tunnel --protocol http2 run opencode-anywhere
-```
-
-#### 7. macOS 开机自启
-
-创建 `~/Library/LaunchAgents/com.cloudflare.cloudflared.plist`：
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.cloudflare.cloudflared</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/opt/homebrew/bin/cloudflared</string>
-        <string>tunnel</string>
-        <string>--protocol</string>
-        <string>http2</string>
-        <string>run</string>
-        <string>opencode-anywhere</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>StandardOutPath</key>
-    <string>/tmp/cloudflared.log</string>
-    <key>StandardErrorPath</key>
-    <string>/tmp/cloudflared.log</string>
-</dict>
-</plist>
-```
-
-加载服务：
-
-```bash
-launchctl load ~/Library/LaunchAgents/com.cloudflare.cloudflared.plist
-```
-
-#### 8. 随时随地连接
-
-1. 打开 `https://anywhere.yourdomain.com`
-2. 使用 GitHub/Google 登录
-3. Server URL 填：`http://localhost:4096`
-
-现在你可以从任何地方安全访问你的 OpenCode 了！
-
-## 架构
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  iOS 原生应用   │────▶│   中继服务器    │────▶│ OpenCode 服务器 │
-│  或移动端 PWA   │◀────│   (可选)        │◀────│   (端口 4096)   │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-        │                       │
-        │ SSE 事件              │ 代理 + 认证
-        ▼                       ▼
-    实时界面              HTTPS + frp
-```
-
-- **iOS 应用**：基于 Capacitor 的原生应用，使用 WKWebView 实现最佳性能
-- **PWA 客户端**：使用 Zustand 状态管理的 React 界面
-- **中继服务器**：可选的安全远程访问代理（见 [opencode-relay-server](https://github.com/anthropics/opencode-relay-server)）
-- **SSE**：用于实时更新的服务器发送事件
-
-## 架构说明
-
-### 多设备会话管理
-
-切换设备时，应用会面临竞态条件的挑战：
-- 发往旧设备的 HTTP 请求可能仍在进行中
-- 这些请求返回时可能会覆盖新设备的缓存数据
-
-**解决方案**：
-1. 切换设备时立即清空 API 客户端配置
-2. 发起 API 调用前检查配置是否有效
-3. 跟踪 `currentDeviceId` 并丢弃过期的响应
-
-### 缓存策略
-
-- 会话按设备缓存在 `cachedSessionsByDevice[deviceId]` 中
-- 消息缓存使用组合键：`${deviceId}:${sessionId}`
-- 置顶会话 ID 按设备存储，而非全局存储
-
-### 离线处理
-
-- API 调用失败时，设备在状态中被标记为离线
-- 缓存的会话保持可见但禁用交互
-- 设备列表每 15 秒轮询一次以检测重连
-- "点击重连"横幅允许手动重试
-
-## 项目结构
-
-```
-src/
-├── app/
-│   ├── api/opencode/      # API 代理路由
-│   │   ├── health/        # 连接检查
-│   │   ├── sessions/      # 会话增删改查 + 消息
-│   │   └── ...
-│   ├── page.tsx           # 主应用（连接/聊天视图）
-│   └── layout.tsx         # PWA meta 标签
-├── components/
-│   ├── ConnectionForm.tsx # 服务器 URL 输入
-│   ├── SessionList.tsx    # 会话侧边栏
-│   ├── MessageList.tsx    # 聊天消息（支持无限滚动）
-│   ├── MessageInput.tsx   # 消息编辑器
-│   └── PermissionDialog.tsx # 权限弹窗
-├── hooks/
-│   ├── useSSE.ts          # 实时事件订阅
-│   └── usePWA.ts          # 安装提示处理
-├── lib/
-│   ├── opencode.ts        # OpenCode API HTTP 客户端
-│   ├── notifications.ts   # iOS 原生通知
-│   └── relay.ts           # 中继服务器客户端
-├── store/
-│   └── index.ts           # Zustand store（持久化）
-└── types/
-    └── index.ts           # TypeScript 类型定义
-
-ios/                       # Capacitor iOS 项目
-├── App/
-│   ├── App.xcodeproj      # Xcode 项目
-│   └── App/public/        # 构建后的 web 资源
-└── ...
-
-public/
-├── manifest.json          # PWA 清单
-├── sw.js                  # Service Worker
-└── icon.svg               # 应用图标
-```
+然后设置 [Cloudflare Access](https://one.dash.cloudflare.com/) 进行身份验证。
 
 ## 开发
 
@@ -724,14 +299,9 @@ npm run build:native
 
 # 在 Xcode 中打开 iOS 项目
 npx cap open ios
-
-# 运行测试
-npm test
 ```
 
-## iOS 开发
-
-原生 iOS 应用使用 Capacitor 将 web 应用包装在原生外壳中。
+### iOS 开发
 
 ```bash
 # 构建 web 资源并同步到 iOS
@@ -743,50 +313,15 @@ npx cap open ios
 # 构建并运行（在 Xcode 中按 Cmd+R）
 ```
 
-### 要求
+要求：
 - Xcode 15+
 - iOS 15+ 设备或模拟器
 - Apple 开发者账号（设备测试需要）
 
-## PWA 安装
+## 相关项目
 
-### iOS
-1. 在 Safari 中打开
-2. 点击分享按钮
-3. 选择"添加到主屏幕"
-
-### Android
-1. 在 Chrome 中打开
-2. 点击"安装"提示（或菜单 → "安装应用"）
-
-## 配置
-
-### 环境变量
-
-Next.js 应用不需要环境变量 - 服务器 URL 在界面中配置。
-
-中继服务器配置（`server/.env`）：
-
-```env
-PORT=3001
-OPENCODE_URL=http://localhost:4096
-# 可选：AUTH_TOKEN=your-secret-token
-```
-
-## 常见问题
-
-### "连接失败"
-- 确保 OpenCode 正在运行：`opencode serve --hostname 0.0.0.0 --port 4096`
-- 检查防火墙是否允许 4096 端口
-- 确认 URL 包含协议：`http://` 而不仅仅是 IP
-
-### SSE 不工作
-- 某些企业代理会阻止 SSE
-- 尝试使用中继服务器或 Cloudflare 隧道
-
-### PWA 无法安装
-- 必须通过 HTTPS（或 localhost）提供服务
-- 检查浏览器是否支持 PWA（Safari iOS 11.3+，Chrome Android）
+- **[opencode-relay-server](https://github.com/zero469/opencode-relay-server)** - 中继服务器和 tunnel-client
+- **[OpenCode](https://github.com/sst/opencode)** - AI 编程助手
 
 ## 许可证
 
