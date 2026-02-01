@@ -185,6 +185,7 @@ describe('opencode client', () => {
     it('returns messages on success', async () => {
       const messages = [{ info: { id: 'msg-1' }, parts: [] }]
       mockFetch.mockResolvedValueOnce({
+        ok: true,
         json: () => Promise.resolve(messages),
       })
 
@@ -200,6 +201,7 @@ describe('opencode client', () => {
 
     it('returns empty array when response is empty array', async () => {
       mockFetch.mockResolvedValueOnce({
+        ok: true,
         json: () => Promise.resolve([]),
       })
 
@@ -212,7 +214,10 @@ describe('opencode client', () => {
 
   describe('sendMessageAsync', () => {
     it('sends message with text part', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: true })
+      mockFetch.mockResolvedValueOnce({ 
+        ok: true,
+        json: () => Promise.resolve(null),
+      })
 
       const result = await sendMessageAsync('session-1', 'Hello')
 
@@ -227,7 +232,10 @@ describe('opencode client', () => {
     })
 
     it('includes model and agent when provided', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: true })
+      mockFetch.mockResolvedValueOnce({ 
+        ok: true,
+        json: () => Promise.resolve(null),
+      })
 
       await sendMessageAsync('session-1', 'Hello', {
         model: { providerID: 'anthropic', modelID: 'claude-3' },
@@ -246,12 +254,13 @@ describe('opencode client', () => {
       )
     })
 
-    it('returns false on failed response', async () => {
-      mockFetch.mockResolvedValueOnce({ ok: false })
+    it('throws error on failed response', async () => {
+      mockFetch.mockResolvedValueOnce({ 
+        ok: false,
+        json: () => Promise.resolve({ error: 'Failed' }),
+      })
 
-      const result = await sendMessageAsync('session-1', 'Hello')
-
-      expect(result).toBe(false)
+      await expect(sendMessageAsync('session-1', 'Hello')).rejects.toThrow('Failed')
     })
   })
 
