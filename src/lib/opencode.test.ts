@@ -160,26 +160,66 @@ describe('opencode client', () => {
     })
   })
 
-  describe('getSessions', () => {
-    it('returns sessions on success', async () => {
-      const sessions = [{ id: 'session-1', title: 'Test' }]
-      mockFetch.mockResolvedValueOnce({
-        json: () => Promise.resolve(sessions),
-      })
-
-      const result = await getSessions()
-
-      expect(result).toEqual(sessions)
-    })
-
-    it('throws error on error response', async () => {
-      mockFetch.mockResolvedValueOnce({
-        json: () => Promise.resolve({ error: 'Not found' }),
-      })
-
-      await expect(getSessions()).rejects.toThrow('Not found')
-    })
-  })
+   describe('getSessions', () => {
+     it('returns sessions on success', async () => {
+       const sessions = [{ id: 'session-1', title: 'Test' }]
+       mockFetch.mockResolvedValueOnce({
+         json: () => Promise.resolve(sessions),
+       })
+ 
+       const result = await getSessions()
+ 
+       expect(result).toEqual(sessions)
+     })
+ 
+     it('throws error on error response', async () => {
+       mockFetch.mockResolvedValueOnce({
+         json: () => Promise.resolve({ error: 'Not found' }),
+       })
+ 
+       await expect(getSessions()).rejects.toThrow('Not found')
+     })
+ 
+     it('should include search param when provided', async () => {
+       const sessions = [{ id: 'session-1', title: 'Test' }]
+       mockFetch.mockResolvedValueOnce({
+         json: () => Promise.resolve(sessions),
+       })
+ 
+       await getSessions({ search: 'test query' })
+ 
+       const callUrl = mockFetch.mock.calls[0][0]
+       expect(callUrl).toContain('search=test')
+       expect(callUrl).toContain('query')
+     })
+ 
+     it('should include limit param when provided', async () => {
+       const sessions = [{ id: 'session-1', title: 'Test' }]
+       mockFetch.mockResolvedValueOnce({
+         json: () => Promise.resolve(sessions),
+       })
+ 
+       await getSessions({ limit: 10 })
+ 
+       expect(mockFetch).toHaveBeenCalledWith(
+         expect.stringContaining('limit=10'),
+         expect.any(Object)
+       )
+     })
+ 
+     it('should include both search and limit params', async () => {
+       const sessions = [{ id: 'session-1', title: 'Test' }]
+       mockFetch.mockResolvedValueOnce({
+         json: () => Promise.resolve(sessions),
+       })
+ 
+       await getSessions({ search: 'foo', limit: 5 })
+ 
+       const callUrl = mockFetch.mock.calls[0][0]
+       expect(callUrl).toContain('search=foo')
+       expect(callUrl).toContain('limit=5')
+     })
+   })
 
   describe('getSessionMessages', () => {
     it('returns messages on success', async () => {
