@@ -161,6 +161,8 @@ interface AppState {
   setDefaultAgent: (agent: string | null) => void;
   getSelectedAgent: () => string | null;
   fetchTodos: (sessionId?: string) => Promise<void>;
+  fetchPendingRequests: () => Promise<void>;
+  onAppResume: () => Promise<void>;
 
   sendVerification: (email: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -175,6 +177,7 @@ interface AppState {
   deselectDevice: () => void;
   clearAuthError: () => void;
   checkDeviceAndReconnect: () => Promise<void>;
+  setRelayToken: (token: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -228,6 +231,7 @@ export const useAppStore = create<AppState>()(
           set({ connectionStep: "loading_sessions" });
           await get().refreshSessions();
           await get().fetchProvidersAndAgents();
+          await get().fetchPendingRequests();
           set({ connectionStep: "ready", isLoading: false });
         } else {
           set({ connectionStep: "idle", isLoading: false });
@@ -437,6 +441,8 @@ export const useAppStore = create<AppState>()(
       },
       
       clearAuthError: () => set({ authError: null }),
+
+      setRelayToken: (token) => set({ relayToken: token }),
 
       checkDeviceAndReconnect: async () => {
         const { relayToken, selectedDevice, pinnedSessionIds, getDeviceEncryptionKey } = get();
@@ -973,6 +979,57 @@ export const useAppStore = create<AppState>()(
           }
         } catch (error) {
           console.error("Failed to fetch todos:", error);
+        }
+      },
+
+      fetchPendingRequests: async () => {
+        try {
+          const [questions, permissions] = await Promise.all([
+            opencode.getQuestions(),
+            opencode.getPermissions(),
+          ]);
+          
+          const { pendingQuestions, pendingPermissions, sessions } = get();
+          
+          const existingQuestionIds = new Set(pendingQuestions.map(q => q.id));
+          const newQuestions = questions.filter(q => !existingQuestionIds.has(q.id));
+          if (newQuestions.length > 0) {
+            set({ pendingQuestions: [...pendingQuestions, ...newQuestions] });
+            for (const question of newQuestions) {
+              const header = question.questions?.[0]?.header || "Question";
+              const session = sessions.find(s => s.id === question.sessionID);
+              notifyInputNeeded(header, session?.title);
+            }
+          }
+          
+          const existingPermissionIds = new Set(pendingPermissions.map(p => p.id));
+          const newPermissions = permissions.filter(p => !existingPermissionIds.has(p.id));
+          if (newPermissions.length > 0) {
+            set({ pendingPermissions: [...pendingPermissions, ...newPermissions] });
+            for (const permission of newPermissions) {
+              const session = sessions.find(s => s.id === permission.sessionID);
+              notifyApprovalNeeded(permission.permission, session?.title);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch pending requests:", error);
+        }
+      },
+
+      onAppResume: async () => {
+        const { currentSessionId, status } = get();
+        
+        if (!status.connected) return;
+        
+        // Refresh all data that may have changed while app was in background
+        await Promise.all([
+          get().refreshSessions(),
+          get().fetchPendingRequests(),
+        ]);
+        
+        if (currentSessionId) {
+          await get().refreshCurrentSession();
+          await get().fetchTodos(currentSessionId);
         }
       },
 

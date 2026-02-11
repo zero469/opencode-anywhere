@@ -17,7 +17,7 @@ import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 
 function ChatView() {
-  const { currentSessionId, deselectDevice, clearCurrentSession, refreshCurrentSession } = useAppStore();
+  const { currentSessionId, deselectDevice, clearCurrentSession } = useAppStore();
   const sessions = useAppStore((state) => state.sessions);
   const status = useAppStore((state) => state.status);
   const selectedDevice = useAppStore((state) => state.selectedDevice);
@@ -31,9 +31,7 @@ function ChatView() {
     const listener = App.addListener("appStateChange", ({ isActive }) => {
       if (isActive) {
         const state = useAppStore.getState();
-        if (state.currentSessionId) {
-          state.refreshCurrentSession();
-        }
+        state.onAppResume();
       }
     });
     

@@ -637,6 +637,15 @@ export async function getQuestions(): Promise<QuestionRequest[]> {
   return Array.isArray(data) ? data : [];
 }
 
+export async function getPermissions(): Promise<import("@/types").PermissionRequest[]> {
+  const url = isNative() ? `${getBaseUrl()}/permission` : "/api/opencode/permissions";
+  const response = await http(url, { headers: getHeaders() });
+  const data = await response.json();
+  
+  if (data.error) return [];
+  return Array.isArray(data) ? data : [];
+}
+
 export async function replyToQuestion(
   requestId: string,
   answers: string[][]
