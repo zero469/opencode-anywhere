@@ -119,14 +119,15 @@ interface AppState {
   isLoadingMore: boolean;
   runningSessions: string[];
   
-  providers: ProvidersResponse | null;
-  agents: Agent[];
-  selectedModel: ModelSelection | null;
-  sessionAgents: Record<string, string>;
-  defaultAgent: string | null;
-  todos: TodoItem[];
+   providers: ProvidersResponse | null;
+   agents: Agent[];
+   selectedModel: ModelSelection | null;
+   sessionAgents: Record<string, string>;
+   defaultAgent: string | null;
+   sessionSearchQuery: string;
+   todos: TodoItem[];
 
-  relayToken: string | null;
+   relayToken: string | null;
   user: User | null;
   devices: Device[];
   selectedDevice: Device | null;
@@ -158,13 +159,14 @@ interface AppState {
   fetchProvidersAndAgents: () => Promise<void>;
   setSelectedModel: (model: ModelSelection | null) => void;
   setSelectedAgent: (agent: string | null) => void;
-  setDefaultAgent: (agent: string | null) => void;
-  getSelectedAgent: () => string | null;
-  fetchTodos: (sessionId?: string) => Promise<void>;
-  fetchPendingRequests: () => Promise<void>;
-  onAppResume: () => Promise<void>;
+   setDefaultAgent: (agent: string | null) => void;
+   getSelectedAgent: () => string | null;
+   setSessionSearchQuery: (query: string) => void;
+   fetchTodos: (sessionId?: string) => Promise<void>;
+   fetchPendingRequests: () => Promise<void>;
+   onAppResume: () => Promise<void>;
 
-  sendVerification: (email: string) => Promise<void>;
+   sendVerification: (email: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, code: string) => Promise<void>;
   logout: () => void;
@@ -200,16 +202,17 @@ export const useAppStore = create<AppState>()(
       sendingSessionId: null,
       hasMoreMessages: false,
       isLoadingMore: false,
-      runningSessions: [],
-      
-      providers: null,
-      agents: [],
-      selectedModel: null,
-      sessionAgents: {},
-      defaultAgent: null,
-      todos: [],
+       runningSessions: [],
+       
+       providers: null,
+       agents: [],
+       selectedModel: null,
+       sessionAgents: {},
+       defaultAgent: null,
+       sessionSearchQuery: "",
+       todos: [],
 
-      relayToken: null,
+       relayToken: null,
       user: null,
       devices: [],
       selectedDevice: null,
@@ -499,12 +502,15 @@ export const useAppStore = create<AppState>()(
           return;
         }
         
-        try {
-          const sessions = await opencode.getSessions();
-          
-          if (currentDeviceId !== deviceIdAtStart) {
-            return;
-          }
+         try {
+           const { sessionSearchQuery } = get();
+           const sessions = await opencode.getSessions({
+             search: sessionSearchQuery || undefined
+           });
+           
+           if (currentDeviceId !== deviceIdAtStart) {
+             return;
+           }
           
           const sortedSessions = [...sessions].sort((a, b) => {
             const timeA = a.time?.updated || a.time?.created || 0;
@@ -962,13 +968,15 @@ export const useAppStore = create<AppState>()(
         });
       },
       setDefaultAgent: (agent) => set({ defaultAgent: agent }),
-      getSelectedAgent: () => {
-        const { currentSessionId, sessionAgents, defaultAgent } = get();
-        if (!currentSessionId) return defaultAgent;
-        return sessionAgents[currentSessionId] || defaultAgent;
-      },
-      
-      fetchTodos: async (sessionId) => {
+       getSelectedAgent: () => {
+         const { currentSessionId, sessionAgents, defaultAgent } = get();
+         if (!currentSessionId) return defaultAgent;
+         return sessionAgents[currentSessionId] || defaultAgent;
+       },
+       
+       setSessionSearchQuery: (query) => set({ sessionSearchQuery: query }),
+       
+       fetchTodos: async (sessionId) => {
         const id = sessionId || get().currentSessionId;
         if (!id) return;
         

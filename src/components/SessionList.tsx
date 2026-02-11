@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { usePWA } from "@/hooks/usePWA";
 import type { Session } from "@/types";
@@ -210,12 +210,26 @@ function RenameModal({ session, onClose, onRename }: RenameModalProps) {
 }
 
 export function SessionList({ onClose }: { onClose?: () => void }) {
-  const { sessions, currentSessionId, selectSession, createSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions, connectionStep, selectedDevice, checkDeviceAndReconnect, pendingPermissions, runningSessions } = useAppStore();
+  const { sessions, currentSessionId, selectSession, createSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions, connectionStep, selectedDevice, checkDeviceAndReconnect, pendingPermissions, runningSessions, sessionSearchQuery, setSessionSearchQuery } = useAppStore();
   const sessionsWithPermissions = new Set(pendingPermissions.map(p => p.sessionID));
   const [isCreating, setIsCreating] = useState(false);
   const [sessionToRename, setSessionToRename] = useState<Session | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const { isInstallable, install } = usePWA();
+  
+  const [searchInput, setSearchInput] = useState(sessionSearchQuery);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== sessionSearchQuery) {
+        setIsSearching(true);
+        setSessionSearchQuery(searchInput);
+        refreshSessions().finally(() => setIsSearching(false));
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, sessionSearchQuery, setSessionSearchQuery, refreshSessions]);
 
   const isOffline = connectionStep === "idle" && selectedDevice !== null;
   const hasStaleCache = isOffline && sessions.length > 0 && sessions.every(s => !s.title);
@@ -304,6 +318,42 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
 
+      <div className="px-4 py-2 border-b border-zinc-800">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search sessions..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors"
+          />
+          <div className="absolute left-3 top-2.5 text-zinc-500">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          {(isSearching || searchInput) && (
+            <div className="absolute right-3 top-2.5 flex items-center">
+              {isSearching ? (
+                <svg className="w-4 h-4 animate-spin text-zinc-500" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                <button
+                  onClick={() => setSearchInput("")}
+                  className="text-zinc-500 hover:text-zinc-300 focus:outline-none"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto p-3">
         {isOffline && (
           <button
@@ -337,7 +387,9 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
         {hasStaleCache ? (
           <p className="text-zinc-500 text-center py-8">Failed to load sessions</p>
         ) : sessions.length === 0 ? (
-          <p className="text-zinc-500 text-center py-8">No sessions yet</p>
+          <p className="text-zinc-500 text-center py-8">
+            {sessionSearchQuery ? "No sessions found" : "No sessions yet"}
+          </p>
         ) : (
           <>
             {pinnedSessions.length > 0 && (
