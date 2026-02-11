@@ -191,9 +191,23 @@ export async function getAgents(): Promise<Agent[]> {
   }
 }
 
-export async function getSessions(): Promise<Session[]> {
+export interface GetSessionsOptions {
+  search?: string;
+  limit?: number;
+}
+
+export async function getSessions(options?: GetSessionsOptions): Promise<Session[]> {
   const baseUrl = isNative() ? `${getBaseUrl()}/session` : "/api/opencode/sessions";
-  const url = `${baseUrl}?roots=true`;
+  const params = new URLSearchParams({ roots: 'true' });
+  
+  if (options?.search) {
+    params.set('search', options.search);
+  }
+  if (options?.limit) {
+    params.set('limit', options.limit.toString());
+  }
+  
+  const url = `${baseUrl}?${params.toString()}`;
   const response = await http(url, { headers: getHeaders() });
   const data = await response.json();
   
