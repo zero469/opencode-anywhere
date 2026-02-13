@@ -282,8 +282,7 @@ export async function sendMessageAsync(
   }
   
   if (options?.agent) {
-    // opencode requires lowercase agent names
-    body.agent = options.agent.toLowerCase();
+    body.agent = options.agent;
   }
 
   const url = isNative()
