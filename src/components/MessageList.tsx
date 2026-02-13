@@ -61,7 +61,7 @@ const markdownComponents: Components = {
     
     if (isInline) {
       return (
-        <code className="bg-zinc-700/50 px-1.5 py-0.5 rounded text-sm text-pink-400 break-all" {...props}>
+        <code className="bg-zinc-700/50 px-1.5 py-0.5 rounded text-sm text-cyan-400 break-all" {...props}>
           {children}
         </code>
       );
@@ -85,13 +85,13 @@ const markdownComponents: Components = {
     return <li className="text-zinc-200">{children}</li>;
   },
   h1({ children }) {
-    return <h1 className="text-xl font-bold mb-3 mt-4 first:mt-0 text-white">{children}</h1>;
+    return <h1 className="text-xl font-bold mb-3 mt-4 first:mt-0 text-amber-400">{children}</h1>;
   },
   h2({ children }) {
-    return <h2 className="text-lg font-bold mb-2 mt-3 first:mt-0 text-white">{children}</h2>;
+    return <h2 className="text-lg font-bold mb-2 mt-3 first:mt-0 text-amber-400">{children}</h2>;
   },
   h3({ children }) {
-    return <h3 className="text-base font-semibold mb-2 mt-3 first:mt-0 text-white">{children}</h3>;
+    return <h3 className="text-base font-semibold mb-2 mt-3 first:mt-0 text-amber-400">{children}</h3>;
   },
   blockquote({ children }) {
     return (
@@ -123,7 +123,7 @@ const markdownComponents: Components = {
   },
   th({ children }) {
     return (
-      <th className="border border-zinc-700 px-3 py-2 bg-zinc-800 text-left font-semibold">
+      <th className="border border-zinc-700 px-3 py-2 bg-zinc-800 text-left font-semibold text-amber-400">
         {children}
       </th>
     );
@@ -139,7 +139,7 @@ const markdownComponents: Components = {
     return <hr className="my-4 border-zinc-700" />;
   },
   strong({ children }) {
-    return <strong className="font-semibold text-white">{children}</strong>;
+    return <strong className="font-semibold text-amber-400">{children}</strong>;
   },
   em({ children }) {
     return <em className="italic text-zinc-300">{children}</em>;
