@@ -328,6 +328,24 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
   const textParts = message.parts.filter(p => p.type === "text" && p.text);
   const toolParts = message.parts.filter(p => p.type === "tool");
   const reasoningParts = message.parts.filter(p => p.type === "reasoning" && p.text);
+  const compactionParts = message.parts.filter(p => p.type === "compaction");
+  
+  if (compactionParts.length > 0) {
+    const isAuto = compactionParts[0]?.auto;
+    return (
+      <div className="flex justify-center my-4">
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/60 rounded-full text-xs text-zinc-400">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+          </svg>
+          <span>Session compacted{isAuto ? " (auto)" : ""}</span>
+          {createdTime && (
+            <span className="text-zinc-500">· {formatMessageTime(createdTime)}</span>
+          )}
+        </div>
+      </div>
+    );
+  }
   
   const hasVisibleContent = textParts.length > 0 || toolParts.length > 0 || reasoningParts.length > 0;
   

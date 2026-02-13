@@ -61,11 +61,12 @@ export interface MessagePart {
   id?: string;
   sessionID?: string;
   messageID?: string;
-  type: "text" | "tool" | "tool-invocation" | "tool-result" | "reasoning" | "file" | "step-start" | "step-finish";
+  type: "text" | "tool" | "tool-invocation" | "tool-result" | "reasoning" | "file" | "step-start" | "step-finish" | "compaction";
   text?: string;
   tool?: string;
   toolName?: string;
   callID?: string;
+  auto?: boolean;
   state?: {
     status?: "pending" | "running" | "completed" | "error";
     title?: string;

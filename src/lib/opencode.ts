@@ -687,3 +687,39 @@ export async function rejectQuestion(requestId: string): Promise<boolean> {
 
   return response.ok;
 }
+
+export interface SummarizeOptions {
+  providerID: string;
+  modelID: string;
+  auto?: boolean;
+}
+
+export async function summarizeSession(
+  sessionId: string,
+  options: SummarizeOptions
+): Promise<boolean> {
+  const url = isNative()
+    ? `${getBaseUrl()}/session/${sessionId}/summarize`
+    : `/api/opencode/sessions/${sessionId}/summarize`;
+  const response = await http(url, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(options),
+  });
+
+  return response.ok;
+}
+
+export interface SkillInfo {
+  name: string;
+  description: string;
+}
+
+export async function getSkills(): Promise<SkillInfo[]> {
+  const url = isNative() ? `${getBaseUrl()}/skill` : "/api/opencode/skills";
+  const response = await http(url, { headers: getHeaders() });
+  const data = await response.json();
+  
+  if (data.error || !Array.isArray(data)) return [];
+  return data;
+}

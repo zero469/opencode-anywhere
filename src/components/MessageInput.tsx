@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { ModelAgentSelector } from "./ModelAgentSelector";
 import { QuickActionsBar } from "./QuickActionsBar";
+import { SkillsModal } from "./SkillsModal";
 
 const isMobileDevice = () => {
   if (typeof window === "undefined") return false;
@@ -15,12 +16,17 @@ export function MessageInput() {
   const currentSessionId = useAppStore((state) => state.currentSessionId);
   const runningSessions = useAppStore((state) => state.runningSessions);
   const abortSession = useAppStore((state) => state.abortSession);
+  const summarizeCurrentSession = useAppStore((state) => state.summarizeCurrentSession);
+  const isCompacting = useAppStore((state) => state.isCompacting);
+  const fetchSkills = useAppStore((state) => state.fetchSkills);
+  const skills = useAppStore((state) => state.skills);
   
   const isSessionBusy = currentSessionId ? runningSessions.includes(currentSessionId) : false;
   
   const [text, setText] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showSkillsModal, setShowSkillsModal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -60,6 +66,31 @@ export function MessageInput() {
     }
   }, [isMobile, isComposing, handleSubmit]);
 
+  const handleCompact = useCallback(() => {
+    summarizeCurrentSession();
+  }, [summarizeCurrentSession]);
+
+  const handleSkills = useCallback(async () => {
+    await fetchSkills();
+    setShowSkillsModal(true);
+  }, [fetchSkills]);
+
+  const handleMore = useCallback(() => {
+  }, []);
+
+  const handleSelectSkill = useCallback((skillName: string) => {
+    setShowSkillsModal(false);
+    setText(`/${skillName} `);
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.selectionStart = textareaRef.current.value.length;
+        textareaRef.current.selectionEnd = textareaRef.current.value.length;
+        adjustHeight();
+      }
+    });
+  }, [adjustHeight]);
+
   if (!currentSessionId) {
     return (
       <div className="p-4 border-t border-zinc-800 text-center text-zinc-500">
@@ -75,8 +106,11 @@ export function MessageInput() {
       </div>
       <div className="px-4 pt-1">
         <QuickActionsBar 
-          onAction={(cmd) => sendMessage(cmd)}
+          onCompact={handleCompact}
+          onSkills={handleSkills}
+          onMore={handleMore}
           disabled={isSessionBusy}
+          isCompacting={isCompacting}
         />
       </div>
       <form onSubmit={handleSubmit} className="p-4 pt-2">
@@ -116,6 +150,12 @@ export function MessageInput() {
           )}
         </div>
       </form>
+      <SkillsModal
+        isOpen={showSkillsModal}
+        onClose={() => setShowSkillsModal(false)}
+        skills={skills}
+        onSelectSkill={handleSelectSkill}
+      />
     </div>
   );
 }

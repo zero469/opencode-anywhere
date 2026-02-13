@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
+import type { SkillInfo } from "@/lib/opencode";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
 import { notifyTaskComplete, notifyApprovalNeeded, notifyInputNeeded } from "@/lib/notifications";
@@ -126,6 +127,8 @@ interface AppState {
    defaultAgent: string | null;
    sessionSearchQuery: string;
    todos: TodoItem[];
+   skills: SkillInfo[];
+   isCompacting: boolean;
 
    relayToken: string | null;
   user: User | null;
@@ -163,6 +166,8 @@ interface AppState {
    getSelectedAgent: () => string | null;
    setSessionSearchQuery: (query: string) => void;
    fetchTodos: (sessionId?: string) => Promise<void>;
+   fetchSkills: () => Promise<void>;
+   summarizeCurrentSession: () => Promise<void>;
    fetchPendingRequests: () => Promise<void>;
    onAppResume: () => Promise<void>;
 
@@ -211,6 +216,8 @@ export const useAppStore = create<AppState>()(
        defaultAgent: null,
        sessionSearchQuery: "",
        todos: [],
+       skills: [],
+       isCompacting: false,
 
        relayToken: null,
       user: null,
@@ -987,6 +994,34 @@ export const useAppStore = create<AppState>()(
           }
         } catch (error) {
           console.error("Failed to fetch todos:", error);
+        }
+      },
+
+      fetchSkills: async () => {
+        try {
+          const skills = await opencode.getSkills();
+          set({ skills });
+        } catch (error) {
+          console.error("Failed to fetch skills:", error);
+        }
+      },
+
+      summarizeCurrentSession: async () => {
+        const { currentSessionId, selectedModel, isCompacting } = get();
+        if (!currentSessionId || !selectedModel || isCompacting) return;
+        
+        set({ isCompacting: true });
+        try {
+          await opencode.summarizeSession(currentSessionId, {
+            providerID: selectedModel.providerID,
+            modelID: selectedModel.modelID,
+          });
+          // Refresh session messages after compaction
+          await get().refreshCurrentSession();
+        } catch (error) {
+          console.error("Failed to summarize session:", error);
+        } finally {
+          set({ isCompacting: false });
         }
       },
 

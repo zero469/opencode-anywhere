@@ -3,6 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { QuickActionsBar } from './QuickActionsBar'
 
 describe('QuickActionsBar', () => {
+  const defaultProps = {
+    onCompact: vi.fn(),
+    onSkills: vi.fn(),
+    onMore: vi.fn(),
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
@@ -13,8 +19,7 @@ describe('QuickActionsBar', () => {
   })
 
   it('renders 3 action buttons', () => {
-    const mockOnAction = vi.fn()
-    render(<QuickActionsBar onAction={mockOnAction} />)
+    render(<QuickActionsBar {...defaultProps} />)
 
     const buttons = screen.getAllByRole('button')
     expect(buttons).toHaveLength(3)
@@ -24,38 +29,32 @@ describe('QuickActionsBar', () => {
     expect(screen.getByRole('button', { name: /more/i })).toBeInTheDocument()
   })
 
-  it('calls onAction with /compact when Compact button clicked', () => {
-    const mockOnAction = vi.fn()
-    render(<QuickActionsBar onAction={mockOnAction} />)
+  it('calls onCompact when Compact button clicked', () => {
+    render(<QuickActionsBar {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: /compact/i }))
 
-    expect(mockOnAction).toHaveBeenCalledWith('/compact')
-    expect(mockOnAction).toHaveBeenCalledTimes(1)
+    expect(defaultProps.onCompact).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onAction with /skills when Skills button clicked', () => {
-    const mockOnAction = vi.fn()
-    render(<QuickActionsBar onAction={mockOnAction} />)
+  it('calls onSkills when Skills button clicked', () => {
+    render(<QuickActionsBar {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: /skills/i }))
 
-    expect(mockOnAction).toHaveBeenCalledWith('/skills')
-    expect(mockOnAction).toHaveBeenCalledTimes(1)
+    expect(defaultProps.onSkills).toHaveBeenCalledTimes(1)
   })
 
-  it('does NOT call onAction when More button clicked (placeholder)', () => {
-    const mockOnAction = vi.fn()
-    render(<QuickActionsBar onAction={mockOnAction} />)
+  it('does NOT call onMore when More button clicked (placeholder)', () => {
+    render(<QuickActionsBar {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: /more/i }))
 
-    expect(mockOnAction).not.toHaveBeenCalled()
+    expect(defaultProps.onMore).not.toHaveBeenCalled()
   })
 
   it('disables buttons when disabled prop is true', () => {
-    const mockOnAction = vi.fn()
-    render(<QuickActionsBar onAction={mockOnAction} disabled />)
+    render(<QuickActionsBar {...defaultProps} disabled />)
 
     const compactButton = screen.getByRole('button', { name: /compact/i })
     const skillsButton = screen.getByRole('button', { name: /skills/i })
@@ -65,44 +64,47 @@ describe('QuickActionsBar', () => {
     expect(skillsButton).toBeDisabled()
     expect(moreButton).toBeDisabled()
 
-    // Verify clicking disabled button does not call onAction
     fireEvent.click(compactButton)
-    expect(mockOnAction).not.toHaveBeenCalled()
+    expect(defaultProps.onCompact).not.toHaveBeenCalled()
   })
 
   it('debounces rapid taps', () => {
-    const mockOnAction = vi.fn()
-    render(<QuickActionsBar onAction={mockOnAction} />)
+    render(<QuickActionsBar {...defaultProps} />)
 
     const compactButton = screen.getByRole('button', { name: /compact/i })
 
-    // Set initial time
     vi.setSystemTime(1000)
 
-    // First tap should fire
     fireEvent.click(compactButton)
-    expect(mockOnAction).toHaveBeenCalledTimes(1)
+    expect(defaultProps.onCompact).toHaveBeenCalledTimes(1)
 
-    // Rapid taps within 300ms should be ignored
     vi.setSystemTime(1100)
     fireEvent.click(compactButton)
-    expect(mockOnAction).toHaveBeenCalledTimes(1)
+    expect(defaultProps.onCompact).toHaveBeenCalledTimes(1)
 
     vi.setSystemTime(1200)
     fireEvent.click(compactButton)
-    expect(mockOnAction).toHaveBeenCalledTimes(1)
+    expect(defaultProps.onCompact).toHaveBeenCalledTimes(1)
 
-    // After 300ms debounce period, should fire again
     vi.setSystemTime(1400)
     fireEvent.click(compactButton)
-    expect(mockOnAction).toHaveBeenCalledTimes(2)
+    expect(defaultProps.onCompact).toHaveBeenCalledTimes(2)
   })
 
   it('More button is always disabled', () => {
-    const mockOnAction = vi.fn()
-    render(<QuickActionsBar onAction={mockOnAction} />)
+    render(<QuickActionsBar {...defaultProps} />)
 
     const moreButton = screen.getByRole('button', { name: /more/i })
     expect(moreButton).toBeDisabled()
+  })
+
+  it('shows spinner and disables Compact button when isCompacting is true', () => {
+    render(<QuickActionsBar {...defaultProps} isCompacting />)
+
+    const compactButton = screen.getByRole('button', { name: /compact/i })
+    expect(compactButton).toBeDisabled()
+    
+    const spinner = compactButton.querySelector('.animate-spin')
+    expect(spinner).toBeInTheDocument()
   })
 })
