@@ -5,6 +5,7 @@ import { useAppStore } from "@/store";
 import { ModelAgentSelector } from "./ModelAgentSelector";
 import { QuickActionsBar } from "./QuickActionsBar";
 import { SkillsModal } from "./SkillsModal";
+import { CommandsModal } from "./CommandsModal";
 
 const isMobileDevice = () => {
   if (typeof window === "undefined") return false;
@@ -20,6 +21,8 @@ export function MessageInput() {
   const isCompacting = useAppStore((state) => state.isCompacting);
   const fetchSkills = useAppStore((state) => state.fetchSkills);
   const skills = useAppStore((state) => state.skills);
+  const fetchCommands = useAppStore((state) => state.fetchCommands);
+  const commands = useAppStore((state) => state.commands);
   
   const isSessionBusy = currentSessionId ? runningSessions.includes(currentSessionId) : false;
   
@@ -27,6 +30,7 @@ export function MessageInput() {
   const [isComposing, setIsComposing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showSkillsModal, setShowSkillsModal] = useState(false);
+  const [showCommandsModal, setShowCommandsModal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -75,12 +79,27 @@ export function MessageInput() {
     setShowSkillsModal(true);
   }, [fetchSkills]);
 
-  const handleMore = useCallback(() => {
-  }, []);
+  const handleMore = useCallback(async () => {
+    await fetchCommands();
+    setShowCommandsModal(true);
+  }, [fetchCommands]);
 
   const handleSelectSkill = useCallback((skillName: string) => {
     setShowSkillsModal(false);
     setText(`/${skillName} `);
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.selectionStart = textareaRef.current.value.length;
+        textareaRef.current.selectionEnd = textareaRef.current.value.length;
+        adjustHeight();
+      }
+    });
+  }, [adjustHeight]);
+
+  const handleSelectCommand = useCallback((commandName: string) => {
+    setShowCommandsModal(false);
+    setText(`/${commandName} `);
     requestAnimationFrame(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -101,10 +120,8 @@ export function MessageInput() {
 
   return (
     <div className="border-t border-zinc-800">
-      <div className="px-4 pt-2">
+      <div className="px-4 pt-2 flex items-center justify-between gap-2">
         <ModelAgentSelector />
-      </div>
-      <div className="px-4 pt-1">
         <QuickActionsBar 
           onCompact={handleCompact}
           onSkills={handleSkills}
@@ -155,6 +172,12 @@ export function MessageInput() {
         onClose={() => setShowSkillsModal(false)}
         skills={skills}
         onSelectSkill={handleSelectSkill}
+      />
+      <CommandsModal
+        isOpen={showCommandsModal}
+        onClose={() => setShowCommandsModal(false)}
+        commands={commands}
+        onSelectCommand={handleSelectCommand}
       />
     </div>
   );

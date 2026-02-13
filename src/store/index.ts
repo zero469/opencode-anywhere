@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
-import type { SkillInfo } from "@/lib/opencode";
+import type { SkillInfo, CommandInfo } from "@/lib/opencode";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
 import { notifyTaskComplete, notifyApprovalNeeded, notifyInputNeeded } from "@/lib/notifications";
@@ -128,6 +128,7 @@ interface AppState {
    sessionSearchQuery: string;
    todos: TodoItem[];
    skills: SkillInfo[];
+   commands: CommandInfo[];
    isCompacting: boolean;
 
    relayToken: string | null;
@@ -167,6 +168,7 @@ interface AppState {
    setSessionSearchQuery: (query: string) => void;
    fetchTodos: (sessionId?: string) => Promise<void>;
    fetchSkills: () => Promise<void>;
+   fetchCommands: () => Promise<void>;
    summarizeCurrentSession: () => Promise<void>;
    fetchPendingRequests: () => Promise<void>;
    onAppResume: () => Promise<void>;
@@ -217,6 +219,7 @@ export const useAppStore = create<AppState>()(
        sessionSearchQuery: "",
        todos: [],
        skills: [],
+       commands: [],
        isCompacting: false,
 
        relayToken: null,
@@ -1003,6 +1006,15 @@ export const useAppStore = create<AppState>()(
           set({ skills });
         } catch (error) {
           console.error("Failed to fetch skills:", error);
+        }
+      },
+
+      fetchCommands: async () => {
+        try {
+          const commands = await opencode.getCommands();
+          set({ commands });
+        } catch (error) {
+          console.error("Failed to fetch commands:", error);
         }
       },
 

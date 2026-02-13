@@ -110,7 +110,7 @@ export function QuickActionsBar({ onCompact, onSkills, onMore, disabled, isCompa
   const actions: QuickAction[] = [
     { id: "compact", label: "Compact", icon: isCompacting ? SpinnerIcon : CompactIcon, onClick: onCompact, disabled: isCompacting },
     { id: "skills", label: "Skills", icon: SkillsIcon, onClick: onSkills },
-    { id: "more", label: "More", icon: MoreIcon, onClick: onMore, disabled: true },
+    { id: "more", label: "More", icon: MoreIcon, onClick: onMore },
   ];
 
   return (
