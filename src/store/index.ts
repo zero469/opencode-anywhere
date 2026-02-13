@@ -1326,6 +1326,8 @@ export const useAppStore = create<AppState>()(
         cachedSessionsByDevice: state.cachedSessionsByDevice,
         pinnedSessionIds: state.pinnedSessionIds,
         deviceEncryptionKeys: state.deviceEncryptionKeys,
+        providers: state.providers,
+        agents: state.agents,
       }),
     }
   )
