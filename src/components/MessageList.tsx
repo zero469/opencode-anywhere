@@ -6,6 +6,7 @@ import type { SessionMessage, MessagePart } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
+import { getAgentColor } from "@/lib/agentColors";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -321,6 +322,7 @@ const MarkdownContent = memo(function MarkdownContent({ text }: { text: string }
 });
 
 const MessageBubble = memo(function MessageBubble({ message }: { message: SessionMessage }) {
+  const agents = useAppStore((state) => state.agents);
   const isUser = message.info.role === "user";
   const createdTime = message.info.time?.created;
   const hasError = !!message.info.error;
@@ -366,6 +368,10 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
             ? hasError ? "bg-red-600/80 text-white" : "bg-blue-600 text-white"
             : "bg-zinc-800 text-zinc-100"
         }`}
+        style={!isUser && message.info.agent ? {
+          borderLeftWidth: 3,
+          borderLeftColor: getAgentColor(message.info.agent, agents),
+        } : undefined}
       >
         {reasoningParts.map((part, i) => (
           <details key={`reasoning-${i}`} className="my-2">

@@ -123,6 +123,7 @@ export interface Agent {
   description?: string;
   mode?: "primary" | "subagent" | "all";
   hidden?: boolean;
+  color?: string; // hex color like "#3b82f6"
   model?: {
     modelID: string;
     providerID: string;
