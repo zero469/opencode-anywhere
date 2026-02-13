@@ -101,7 +101,8 @@ function getApiUrl(path: string): string {
     .replace(/^\/session\/([^/]+)\/prompt_async$/, "/api/opencode/sessions/$1/messages")
     .replace(/^\/session\/([^/]+)\/abort$/, "/api/opencode/sessions/$1/abort")
     .replace(/^\/session\/([^/]+)\/todo$/, "/api/opencode/sessions/$1/todo")
-    .replace(/^\/session\/([^/]+)$/, "/api/opencode/sessions/$1");
+    .replace(/^\/session\/([^/]+)$/, "/api/opencode/sessions/$1")
+    .replace(/^\/command$/, "/api/opencode/commands");
   return proxyPath;
 }
 
@@ -715,8 +716,23 @@ export interface SkillInfo {
   description: string;
 }
 
+export interface CommandInfo {
+  name: string;
+  description?: string;
+  hints: string[];
+}
+
 export async function getSkills(): Promise<SkillInfo[]> {
   const url = isNative() ? `${getBaseUrl()}/skill` : "/api/opencode/skills";
+  const response = await http(url, { headers: getHeaders() });
+  const data = await response.json();
+  
+  if (data.error || !Array.isArray(data)) return [];
+  return data;
+}
+
+export async function getCommands(): Promise<CommandInfo[]> {
+  const url = isNative() ? `${getBaseUrl()}/command` : "/api/opencode/commands";
   const response = await http(url, { headers: getHeaders() });
   const data = await response.json();
   
