@@ -277,38 +277,36 @@ function getFinishStatusText(reason: string): string | null {
 }
 
 function MessageFooter({ message }: { message: SessionMessage }) {
+  const agents = useAppStore((state) => state.agents);
   const { modelID, agent, finish, time } = message.info;
   
   if (!finish && !modelID && !agent) {
     return null;
   }
 
-  const parts: string[] = [];
-  
-  if (agent) {
-    parts.push(agent);
-  }
-  
-  if (modelID) {
-    parts.push(modelID);
-  }
-  
+  let durationText: string | null = null;
   if (finish) {
     const statusText = getFinishStatusText(finish);
     if (statusText) {
-      parts.push(statusText);
+      durationText = statusText;
     } else if (time?.created && time?.completed) {
-      parts.push(formatDuration(time.created, time.completed));
+      durationText = formatDuration(time.created, time.completed);
     }
   }
 
-  if (parts.length === 0) {
+  if (!agent && !modelID && !durationText) {
     return null;
   }
 
   return (
     <div className="mt-2 pt-2 border-t border-zinc-700/50 text-xs text-zinc-500">
-      {parts.join(" · ")}
+      {agent && (
+        <span style={{ color: getAgentColor(agent, agents) }}>{agent}</span>
+      )}
+      {agent && (modelID || durationText) && <span> · </span>}
+      {modelID && <span>{modelID}</span>}
+      {modelID && durationText && <span> · </span>}
+      {durationText && <span>{durationText}</span>}
     </div>
   );
 }
