@@ -2,26 +2,29 @@
 
 import { useState, FormEvent, useEffect } from "react";
 import { useAppStore } from "@/store";
+import { QRScanner } from "@/components/QRScanner";
 
 type RegisterStep = "email" | "code" | "password";
+type AuthView = "welcome" | "login" | "register";
 
 export function AuthForm() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [authView, setAuthView] = useState<AuthView>("welcome");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [registerStep, setRegisterStep] = useState<RegisterStep>("email");
   const [countdown, setCountdown] = useState(0);
+  const [showScanner, setShowScanner] = useState(false);
   
-  const { login, register, sendVerification, isLoading, authError, clearAuthError } = useAppStore();
+  const { login, register, sendVerification, isLoading, authError, clearAuthError, relayToken } = useAppStore();
 
   useEffect(() => {
     clearAuthError();
-    if (isLogin) {
+    if (authView === "login") {
       setRegisterStep("email");
       setCode("");
     }
-  }, [isLogin, clearAuthError]);
+  }, [authView, clearAuthError]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -42,7 +45,7 @@ export function AuthForm() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    if (isLogin) {
+    if (authView === "login") {
       await login(email, password);
       return;
     }
@@ -57,6 +60,72 @@ export function AuthForm() {
       await register(email, password, code);
     }
   };
+
+  const handleScanSuccess = () => {
+    setShowScanner(false);
+  };
+
+  // Welcome screen - main entry point
+  if (authView === "welcome") {
+    return (
+      <div 
+        className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 text-white p-6"
+        style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}
+      >
+        <div className="w-full max-w-sm flex flex-col items-center">
+          {/* Logo */}
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mb-6">
+            <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+            </svg>
+          </div>
+          
+          <h1 className="text-2xl font-bold text-center mb-2">OpenCode Anywhere</h1>
+          <p className="text-zinc-400 text-center mb-10">Control your AI coding assistant from anywhere</p>
+          
+          {/* Primary action - Scan QR */}
+          <button
+            onClick={() => setShowScanner(true)}
+            className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold transition-colors flex items-center justify-center gap-3"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+            </svg>
+            Scan QR Code to Connect
+          </button>
+          
+          <p className="text-xs text-zinc-500 text-center mt-3 mb-4">
+            Run <code className="text-green-400 bg-zinc-800 px-1.5 py-0.5 rounded">tunnel-client</code> on your computer to get the QR code
+          </p>
+          
+          {/* Secondary - Cloud service login */}
+          <div className="w-full border-t border-zinc-800 pt-6 mt-4">
+            <p className="text-xs text-zinc-500 text-center mb-4">Using official cloud service?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setAuthView("login")}
+                className="flex-1 py-3 px-4 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium transition-colors"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => setAuthView("register")}
+                className="flex-1 py-3 px-4 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium transition-colors"
+              >
+                Register
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <QRScanner 
+          isOpen={showScanner} 
+          onClose={() => setShowScanner(false)} 
+          onSuccess={handleScanSuccess}
+        />
+      </div>
+    );
+  }
 
   const renderRegisterForm = () => {
     if (registerStep === "email") {
@@ -208,19 +277,40 @@ export function AuthForm() {
   );
 
   const getTitle = () => {
-    if (isLogin) return "Welcome Back";
+    if (authView === "login") return "Welcome Back";
     if (registerStep === "email") return "Create Account";
     if (registerStep === "code") return "Verify Email";
     return "Set Password";
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-zinc-950 text-white p-4">
+    <div 
+      className="relative flex flex-col items-center justify-center min-h-screen bg-zinc-950 text-white p-4"
+      style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}
+    >
+      <button
+        onClick={() => {
+          setAuthView("welcome");
+          setRegisterStep("email");
+          setEmail("");
+          setPassword("");
+          setCode("");
+        }}
+        className="absolute left-4 flex items-center gap-2 text-zinc-400 hover:text-white"
+        style={{ top: 'calc(var(--safe-area-top) + 16px)' }}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m15 18-6-6 6-6"/>
+        </svg>
+        Back
+      </button>
+
       <div className="w-full max-w-sm">
+        
         <h1 className="text-3xl font-bold text-center mb-8">{getTitle()}</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {isLogin ? renderLoginForm() : renderRegisterForm()}
+          {authView === "login" ? renderLoginForm() : renderRegisterForm()}
           
           {authError && (
             <p className="text-sm text-red-500 text-center">{authError}</p>
@@ -229,10 +319,13 @@ export function AuthForm() {
 
         <div className="text-center mt-6">
           <button
-            onClick={() => setIsLogin(!isLogin)}
+            onClick={() => {
+              setAuthView(authView === "login" ? "register" : "login");
+              setRegisterStep("email");
+            }}
             className="text-sm text-zinc-400 hover:text-white"
           >
-            {isLogin
+            {authView === "login"
               ? "Don't have an account? Register"
               : "Already have an account? Login"}
           </button>

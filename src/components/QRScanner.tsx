@@ -17,12 +17,14 @@ interface QRScannerProps {
 }
 
 export function QRScanner({ isOpen, onClose, onSuccess }: QRScannerProps) {
-  const { relayToken, fetchDevices, devices, saveDeviceEncryptionKey } = useAppStore();
+  const { relayToken, fetchDevices, devices, saveDeviceEncryptionKey, setRelayToken } = useAppStore();
   const [error, setError] = useState<string | null>(null);
   const [isPairing, setIsPairing] = useState(false);
   const [showNameInput, setShowNameInput] = useState(false);
   const [deviceName, setDeviceName] = useState("");
   const [pendingQRData, setPendingQRData] = useState<QRCodeData | null>(null);
+  const [pendingToken, setPendingToken] = useState<string | null>(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -32,11 +34,6 @@ export function QRScanner({ isOpen, onClose, onSuccess }: QRScannerProps) {
   }, [showNameInput]);
 
   const processQRCode = useCallback(async (content: string) => {
-    if (!relayToken) {
-      setError("Not logged in");
-      return;
-    }
-
     let data: QRCodeData;
     try {
       data = JSON.parse(content);
@@ -50,13 +47,30 @@ export function QRScanner({ isOpen, onClose, onSuccess }: QRScannerProps) {
       return;
     }
 
+    let tokenToUse = relayToken;
+
+    // If not logged in, try auto-login (works for self-hosted single-user mode)
+    if (!tokenToUse) {
+      try {
+        const { token } = await relay.autoLogin(data.r);
+        // Auto-login succeeded - this is a self-hosted server
+        tokenToUse = token;
+        setPendingToken(token);
+      } catch {
+        // Auto-login failed - this is a multi-user server, need to login first
+        setNeedsLogin(true);
+        return;
+      }
+    }
+
     setPendingQRData(data);
     setDeviceName(data.h || `My Mac ${new Date().toLocaleDateString()}`);
     setShowNameInput(true);
   }, [relayToken]);
 
   const confirmPairing = useCallback(async () => {
-    if (!relayToken || !pendingQRData) return;
+    const tokenToUse = pendingToken || relayToken;
+    if (!tokenToUse || !pendingQRData) return;
 
     const name = deviceName.trim() || pendingQRData.h || `My Mac ${new Date().toLocaleDateString()}`;
     
@@ -67,11 +81,15 @@ export function QRScanner({ isOpen, onClose, onSuccess }: QRScannerProps) {
     try {
       await relay.completePairing(
         pendingQRData.r,
-        relayToken,
+        tokenToUse,
         pendingQRData.p,
         pendingQRData.c,
         name
       );
+
+      if (pendingToken) {
+        setRelayToken(pendingToken);
+      }
 
       const previousDeviceIds = new Set(devices.map(d => d.id));
       await fetchDevices();
@@ -86,22 +104,25 @@ export function QRScanner({ isOpen, onClose, onSuccess }: QRScannerProps) {
       
       setIsPairing(false);
       setPendingQRData(null);
+      setPendingToken(null);
       setDeviceName("");
       onSuccess();
     } catch (err) {
       setIsPairing(false);
       setError(err instanceof Error ? err.message : "Failed to pair device");
     }
-  }, [relayToken, pendingQRData, deviceName, devices, fetchDevices, saveDeviceEncryptionKey, onSuccess]);
+  }, [relayToken, pendingToken, pendingQRData, deviceName, devices, fetchDevices, saveDeviceEncryptionKey, setRelayToken, onSuccess]);
 
   const cancelNameInput = useCallback(() => {
     setShowNameInput(false);
     setPendingQRData(null);
+    setPendingToken(null);
     setDeviceName("");
   }, []);
 
   const startScanning = useCallback(async () => {
     setError(null);
+    setNeedsLogin(false);
     
     try {
       const result = await CapacitorBarcodeScanner.scanBarcode({
@@ -126,6 +147,42 @@ export function QRScanner({ isOpen, onClose, onSuccess }: QRScannerProps) {
   }, [processQRCode, onClose]);
 
   if (!isOpen) return null;
+
+  // Show "needs login" message for multi-user servers
+  if (needsLogin) {
+    return (
+      <div className="fixed inset-0 z-50 bg-zinc-950 flex flex-col items-center justify-center" style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
+        <div className="absolute top-0 left-0 right-0 p-4" style={{ paddingTop: 'calc(var(--safe-area-top) + 16px)' }}>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-white"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center justify-center px-8 text-center">
+          <div className="w-16 h-16 rounded-full bg-yellow-600/20 flex items-center justify-center mb-6">
+            <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-white mb-2">Login Required</h2>
+          <p className="text-zinc-400 mb-6">
+            This server requires authentication. Please go back and login or register first.
+          </p>
+          <button
+            onClick={onClose}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-medium transition-colors"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (showNameInput) {
     return (

@@ -28,6 +28,20 @@ export interface User {
 }
 
 export const relay = {
+  async autoLogin(relayUrl: string): Promise<{ token: string; user: User }> {
+    const response = await fetch(`${relayUrl}/api/auto-login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Auto login failed');
+    }
+    return response.json();
+  },
+
   async sendVerification(email: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/api/send-verification`, {
       method: 'POST',
