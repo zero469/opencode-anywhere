@@ -243,12 +243,12 @@ export const useAppStore = create<AppState>()(
         if (status.connected) {
           set({ connectionStep: "loading_sessions" });
           await get().refreshSessions();
-          await Promise.all([
-            get().fetchProvidersAndAgents(),
-            get().fetchCommands(),
-            get().fetchPendingRequests(),
-          ]);
-          set({ connectionStep: "ready", isLoading: false });
+          await get().fetchProvidersAndAgents();  // Critical - wait for this
+          set({ connectionStep: "ready", isLoading: false });  // UI ready now
+          
+          // Fire and forget - non-blocking background fetches
+          get().fetchCommands().catch(err => console.error('Failed to fetch commands:', err));
+          get().fetchPendingRequests().catch(err => console.error('Failed to fetch pending requests:', err));
         } else {
           set({ connectionStep: "idle", isLoading: false });
         }
