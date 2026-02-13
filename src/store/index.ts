@@ -243,8 +243,11 @@ export const useAppStore = create<AppState>()(
         if (status.connected) {
           set({ connectionStep: "loading_sessions" });
           await get().refreshSessions();
-          await get().fetchProvidersAndAgents();
-          await get().fetchPendingRequests();
+          await Promise.all([
+            get().fetchProvidersAndAgents(),
+            get().fetchCommands(),
+            get().fetchPendingRequests(),
+          ]);
           set({ connectionStep: "ready", isLoading: false });
         } else {
           set({ connectionStep: "idle", isLoading: false });

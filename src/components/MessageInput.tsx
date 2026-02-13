@@ -31,6 +31,7 @@ export function MessageInput() {
   const [isMobile, setIsMobile] = useState(false);
   const [showSkillsModal, setShowSkillsModal] = useState(false);
   const [showCommandsModal, setShowCommandsModal] = useState(false);
+  const [isLoadingCommands, setIsLoadingCommands] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -79,10 +80,13 @@ export function MessageInput() {
     setShowSkillsModal(true);
   }, [fetchSkills]);
 
-  const handleMore = useCallback(async () => {
-    await fetchCommands();
+  const handleMore = useCallback(() => {
     setShowCommandsModal(true);
-  }, [fetchCommands]);
+    if (commands.length === 0) {
+      setIsLoadingCommands(true);
+      fetchCommands().finally(() => setIsLoadingCommands(false));
+    }
+  }, [commands.length, fetchCommands]);
 
   const handleSelectSkill = useCallback((skillName: string) => {
     setShowSkillsModal(false);
@@ -178,6 +182,7 @@ export function MessageInput() {
         onClose={() => setShowCommandsModal(false)}
         commands={commands}
         onSelectCommand={handleSelectCommand}
+        loading={isLoadingCommands}
       />
     </div>
   );
