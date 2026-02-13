@@ -3,9 +3,8 @@
 import React, { useRef } from "react";
 
 const QUICK_ACTIONS = [
-  { id: "undo", label: "Undo", command: "/undo" },
-  { id: "redo", label: "Redo", command: "/redo" },
-  { id: "attach", label: "Attach", command: "/attach" },
+  { id: "compact", label: "Compact", command: "/compact" },
+  { id: "skills", label: "Skills", command: "/skills" },
   { id: "more", label: "More", command: null },
 ] as const;
 
@@ -14,7 +13,7 @@ interface QuickActionsBarProps {
   disabled?: boolean;
 }
 
-function UndoIcon() {
+function CompactIcon() {
   return (
     <svg
       className="w-5 h-5"
@@ -26,13 +25,13 @@ function UndoIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
-        d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+        d="M4 6h16M4 12h16m-7 6h7"
       />
     </svg>
   );
 }
 
-function RedoIcon() {
+function SkillsIcon() {
   return (
     <svg
       className="w-5 h-5"
@@ -44,25 +43,7 @@ function RedoIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
-        d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6"
-      />
-    </svg>
-  );
-}
-
-function AttachIcon() {
-  return (
-    <svg
-      className="w-5 h-5"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+        d="M13 10V3L4 14h7v7l9-11h-7z"
       />
     </svg>
   );
@@ -87,9 +68,8 @@ function MoreIcon() {
 }
 
 const iconMap: Record<string, React.FC> = {
-  undo: UndoIcon,
-  redo: RedoIcon,
-  attach: AttachIcon,
+  compact: CompactIcon,
+  skills: SkillsIcon,
   more: MoreIcon,
 };
 
