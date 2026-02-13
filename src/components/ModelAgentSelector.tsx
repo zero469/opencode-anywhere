@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/store";
-import { getAgentColor } from "@/lib/agentColors";
+import { getAgentColor, capitalizeAgentName } from "@/lib/agentColors";
 
 export function ModelAgentSelector() {
   const {
@@ -76,7 +76,7 @@ export function ModelAgentSelector() {
         ?.models[selectedModel.modelID]?.name || selectedModel.modelID
     : "Default";
 
-  const currentAgentName = selectedAgent || "Default";
+  const currentAgentName = capitalizeAgentName(selectedAgent);
 
   return (
     <div className="relative">
@@ -129,7 +129,7 @@ export function ModelAgentSelector() {
                         className="font-medium"
                         style={{ color: selectedAgent === agent.name ? undefined : getAgentColor(agent.name, agents) }}
                       >
-                        {agent.name}
+                        {capitalizeAgentName(agent.name)}
                       </div>
                       {agent.description && (
                         <div className="text-xs text-zinc-400 truncate">

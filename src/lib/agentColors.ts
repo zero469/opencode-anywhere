@@ -32,4 +32,10 @@ export function getAgentColor(
   return AGENT_COLORS[index];
 }
 
+export function capitalizeAgentName(name: string | null | undefined): string {
+  if (!name) return "Default";
+  // Capitalize first letter of each word (e.g., "atlas" -> "Atlas", "my-agent" -> "My-Agent")
+  return name.replace(/\b\w/g, char => char.toUpperCase());
+}
+
 export { AGENT_COLORS };

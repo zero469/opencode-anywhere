@@ -6,7 +6,7 @@ import type { SessionMessage, MessagePart } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
-import { getAgentColor } from "@/lib/agentColors";
+import { getAgentColor, capitalizeAgentName } from "@/lib/agentColors";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -301,7 +301,7 @@ function MessageFooter({ message }: { message: SessionMessage }) {
   return (
     <div className="mt-2 pt-2 border-t border-zinc-700/50 text-xs text-zinc-500">
       {agent && (
-        <span style={{ color: getAgentColor(agent, agents) }}>{agent}</span>
+        <span style={{ color: getAgentColor(agent, agents) }}>{capitalizeAgentName(agent)}</span>
       )}
       {agent && (modelID || durationText) && <span> · </span>}
       {modelID && <span>{modelID}</span>}
