@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { ModelAgentSelector } from "./ModelAgentSelector";
+import { QuickActionsBar } from "./QuickActionsBar";
 
 const isMobileDevice = () => {
   if (typeof window === "undefined") return false;
@@ -71,6 +72,12 @@ export function MessageInput() {
     <div className="border-t border-zinc-800">
       <div className="px-4 pt-2">
         <ModelAgentSelector />
+      </div>
+      <div className="px-4 pt-1">
+        <QuickActionsBar 
+          onAction={(cmd) => sendMessage(cmd)}
+          disabled={isSessionBusy}
+        />
       </div>
       <form onSubmit={handleSubmit} className="p-4 pt-2">
         <div className="flex gap-2 items-end">
