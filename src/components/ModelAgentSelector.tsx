@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAppStore } from "@/store";
+import { getAgentColor } from "@/lib/agentColors";
 
 export function ModelAgentSelector() {
   const {
@@ -83,6 +84,10 @@ export function ModelAgentSelector() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors"
       >
+        <span 
+          className="w-2 h-2 rounded-full flex-shrink-0" 
+          style={{ backgroundColor: getAgentColor(selectedAgent || undefined, agents) }}
+        />
         <span className="truncate max-w-[120px]">{currentAgentName}</span>
         <span className="text-zinc-600">·</span>
         <span className="truncate max-w-[120px]">{currentModelName}</span>
@@ -119,7 +124,13 @@ export function ModelAgentSelector() {
                           : "text-zinc-300 hover:bg-zinc-800"
                       }`}
                     >
-                      <div className="font-medium">{agent.name}</div>
+                      <div className="font-medium flex items-center gap-2">
+                        <span 
+                          className="w-2 h-2 rounded-full flex-shrink-0" 
+                          style={{ backgroundColor: getAgentColor(agent.name, agents) }}
+                        />
+                        {agent.name}
+                      </div>
                       {agent.description && (
                         <div className="text-xs text-zinc-400 truncate">
                           {agent.description}
