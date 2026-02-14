@@ -517,7 +517,11 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
 
     const handleScroll = () => {
       const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-      userScrolledUpRef.current = distanceFromBottom > 150;
+      if (distanceFromBottom > 100) {
+        userScrolledUpRef.current = true;
+      } else if (distanceFromBottom < 20) {
+        userScrolledUpRef.current = false;
+      }
     };
 
     container.addEventListener("scroll", handleScroll);
@@ -549,8 +553,12 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
           bottomRef.current?.scrollIntoView({ behavior: "instant" });
         });
       });
-    } else if (!userScrolledUpRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      const isNearBottom = distanceFromBottom < 100;
+      if (isNearBottom) {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
     }
     
     prevSessionIdRef.current = currentSessionId;
@@ -559,8 +567,14 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
   }, [messages, currentSessionId]);
 
   useEffect(() => {
-    if (isSessionRunning && !userScrolledUpRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = containerRef.current;
+    if (!container) return;
+    if (isSessionRunning) {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      const isNearBottom = distanceFromBottom < 100;
+      if (isNearBottom) {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
     }
   }, [isSessionRunning]);
 
