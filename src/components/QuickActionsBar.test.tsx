@@ -45,12 +45,12 @@ describe('QuickActionsBar', () => {
     expect(defaultProps.onSkills).toHaveBeenCalledTimes(1)
   })
 
-  it('does NOT call onMore when More button clicked (placeholder)', () => {
+  it('calls onMore when More button clicked', () => {
     render(<QuickActionsBar {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: /more/i }))
 
-    expect(defaultProps.onMore).not.toHaveBeenCalled()
+    expect(defaultProps.onMore).toHaveBeenCalledTimes(1)
   })
 
   it('disables buttons when disabled prop is true', () => {
@@ -91,11 +91,11 @@ describe('QuickActionsBar', () => {
     expect(defaultProps.onCompact).toHaveBeenCalledTimes(2)
   })
 
-  it('More button is always disabled', () => {
+  it('More button is enabled and clickable', () => {
     render(<QuickActionsBar {...defaultProps} />)
 
     const moreButton = screen.getByRole('button', { name: /more/i })
-    expect(moreButton).toBeDisabled()
+    expect(moreButton).not.toBeDisabled()
   })
 
   it('shows spinner and disables Compact button when isCompacting is true', () => {
