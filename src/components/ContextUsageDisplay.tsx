@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { calculateContextUsage } from "@/lib/context";
 
@@ -8,11 +8,28 @@ export function ContextUsageDisplay() {
   const messages = useAppStore((state) => state.messages);
   const providers = useAppStore((state) => state.providers);
   const currentSessionId = useAppStore((state) => state.currentSessionId);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const contextUsage = useMemo(
     () => calculateContextUsage(messages, providers),
     [messages, providers]
   );
+
+  useEffect(() => {
+    if (!showTooltip) return;
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowTooltip(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [showTooltip]);
 
   if (!currentSessionId || !contextUsage) {
     return null;
@@ -37,11 +54,12 @@ export function ContextUsageDisplay() {
   const color = hasPercentage ? getContextColor(percentage) : "var(--foreground-muted)";
 
   return (
-    <div
-      className="flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg shrink-0"
-      style={{ backgroundColor: "var(--background-element)" }}
-      title={`${contextUsage.formatted} tokens${hasPercentage ? ` (${percentage}% of context window)` : ""}`}
-    >
+    <div ref={containerRef} className="relative">
+      <div
+        className="flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg shrink-0 cursor-pointer"
+        style={{ backgroundColor: "var(--background-element)" }}
+        onClick={() => setShowTooltip(!showTooltip)}
+      >
       <svg
         width={size}
         height={size}
@@ -73,6 +91,19 @@ export function ContextUsageDisplay() {
       <span style={{ color }}>
         {hasPercentage ? `${percentage}%` : contextUsage.formatted}
       </span>
+      </div>
+      {showTooltip && (
+        <div
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded-lg whitespace-nowrap z-50"
+          style={{ 
+            backgroundColor: "var(--background-panel)", 
+            color: "var(--foreground)",
+            border: "1px solid var(--border)"
+          }}
+        >
+          {contextUsage.formatted} tokens
+        </div>
+      )}
     </div>
   );
 }
