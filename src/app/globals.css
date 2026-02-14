@@ -39,16 +39,16 @@
 
 .light {
   --oc-step1: #ffffff;
-  --oc-step2: #fafafa;
-  --oc-step3: #f5f5f5;
-  --oc-step4: #ebebeb;
-  --oc-step5: #e1e1e1;
+  --oc-step2: #f5f5f5;
+  --oc-step3: #fcfcfc;
+  --oc-step4: #f0f0f0;
+  --oc-step5: #e8e8e8;
   --oc-step6: #d4d4d4;
   --oc-step7: #b8b8b8;
   --oc-step8: #a0a0a0;
   --oc-step9: #3b7dd8;
   --oc-step10: #2968c3;
-  --oc-step11: #8a8a8a;
+  --oc-step11: #666666;
   --oc-step12: #1a1a1a;
   --oc-secondary: #7b5bb6;
   --oc-accent: #d68c27;

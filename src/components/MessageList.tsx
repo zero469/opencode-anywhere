@@ -438,6 +438,9 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
         style={isUser ? undefined : {
           backgroundColor: 'var(--background-element)',
           color: 'var(--foreground)',
+          borderWidth: 1,
+          borderStyle: 'solid',
+          borderColor: 'var(--border-subtle)',
           ...(message.info.agent ? {
             borderLeftWidth: 3,
             borderLeftColor: getAgentColor(message.info.agent, agents),

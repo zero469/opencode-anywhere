@@ -12,9 +12,15 @@ const APP_VERSION = "1.1.0";
 const GITHUB_URL = "https://github.com/code-yeongyu/opencode-anywhere";
 
 function OpenCodeLogo({ width = 160 }: { width?: number }) {
+  const { resolvedTheme } = useTheme();
+  // Dark mode uses dark logo (white text), light mode uses light logo (black text)
+  const logoSrc = resolvedTheme === 'dark' 
+    ? '/opencode-anywhere-dark.png'
+    : '/opencode-anywhere-light.png';
+  
   return (
     <img 
-      src="/code-anywhere.svg" 
+      src={logoSrc}
       alt="OpenCode Anywhere" 
       style={{ width: `${width}px`, height: 'auto' }}
     />
@@ -665,7 +671,7 @@ export function DeviceList() {
 
       <footer className="py-4 px-6 flex items-center justify-between shrink-0">
         <SettingsButton onClick={() => setShowSettings(true)} />
-        <OpenCodeLogo width={182} />
+        <OpenCodeLogo width={220} />
         <button
           onClick={() => fetchDevices()}
           disabled={isLoading}
