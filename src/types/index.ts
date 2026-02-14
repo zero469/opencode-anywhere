@@ -104,6 +104,11 @@ export interface Model {
   attachment?: boolean;
   reasoning?: boolean;
   temperature?: boolean;
+  limit?: {
+    context: number;
+    input?: number;
+    output: number;
+  };
 }
 
 export interface Provider {

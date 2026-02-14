@@ -6,6 +6,7 @@ import { ModelAgentSelector } from "./ModelAgentSelector";
 import { QuickActionsBar } from "./QuickActionsBar";
 import { SkillsModal } from "./SkillsModal";
 import { CommandsModal } from "./CommandsModal";
+import { ContextUsageDisplay } from "./ContextUsageDisplay";
 
 const isMobileDevice = () => {
   if (typeof window === "undefined") return false;
@@ -128,7 +129,10 @@ export function MessageInput() {
   return (
     <div className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
       <div className="px-4 pt-2 flex items-center justify-between gap-2">
-        <ModelAgentSelector />
+        <div className="flex items-center gap-2">
+          <ModelAgentSelector />
+          <ContextUsageDisplay />
+        </div>
         <QuickActionsBar 
           onCompact={handleCompact}
           onSkills={handleSkills}
