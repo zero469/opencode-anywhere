@@ -18,7 +18,6 @@ const lastCheckedSessionTimes = new Map<string, number>();
 // Request tracking to prevent stale responses from overwriting newer data
 let selectSessionRequestId = 0;
 let sessionUpdatedRequestId = 0;
-let refreshSessionsRequestId = 0;
 
 let storeGetRef: (() => AppState) | null = null;
 let storeSetRef: ((partial: Partial<AppState>) => void) | null = null;
@@ -126,7 +125,6 @@ interface AppState {
    selectedModel: ModelSelection | null;
    sessionAgents: Record<string, string>;
    defaultAgent: string | null;
-   sessionSearchQuery: string;
    todos: TodoItem[];
    skills: SkillInfo[];
    commands: CommandInfo[];
@@ -166,7 +164,6 @@ interface AppState {
   setSelectedAgent: (agent: string | null) => void;
    setDefaultAgent: (agent: string | null) => void;
    getSelectedAgent: () => string | null;
-   setSessionSearchQuery: (query: string) => void;
    fetchTodos: (sessionId?: string) => Promise<void>;
    fetchSkills: () => Promise<void>;
    fetchCommands: () => Promise<void>;
@@ -217,7 +214,6 @@ export const useAppStore = create<AppState>()(
        selectedModel: null,
        sessionAgents: {},
        defaultAgent: null,
-       sessionSearchQuery: "",
        todos: [],
        skills: [],
        commands: [],
@@ -509,7 +505,6 @@ export const useAppStore = create<AppState>()(
       },
 
       refreshSessions: async () => {
-        const thisRequestId = ++refreshSessionsRequestId;
         const deviceIdAtStart = currentDeviceId;
         
         const config = opencode.getConfig();
@@ -518,16 +513,7 @@ export const useAppStore = create<AppState>()(
         }
         
          try {
-           const { sessionSearchQuery } = get();
-           const sessions = await opencode.getSessions({
-             search: sessionSearchQuery || undefined
-           });
-           
-           // Discard if a newer request was made
-           if (thisRequestId !== refreshSessionsRequestId) {
-             console.log('[refreshSessions] Stale response discarded');
-             return;
-           }
+           const sessions = await opencode.getSessions();
            
            if (currentDeviceId !== deviceIdAtStart) {
              return;
@@ -1013,8 +999,6 @@ export const useAppStore = create<AppState>()(
          return null;
        },
        
-       setSessionSearchQuery: (query) => set({ sessionSearchQuery: query }),
-       
        fetchTodos: async (sessionId) => {
         const id = sessionId || get().currentSessionId;
         if (!id) return;
@@ -1165,10 +1149,7 @@ export const useAppStore = create<AppState>()(
                 }).catch(console.error);
               }
             } else {
-              const { sessionSearchQuery } = get();
-              if (!sessionSearchQuery) {
-                get().refreshSessions();
-              }
+              get().refreshSessions();
             }
             break;
           }
@@ -1261,10 +1242,6 @@ export const useAppStore = create<AppState>()(
 
           case "session.created": {
             const sessionData = event.properties.info as Session | undefined;
-            const { sessionSearchQuery } = get();
-            if (sessionSearchQuery) {
-              break;
-            }
             if (sessionData?.id && !sessions.find(s => s.id === sessionData.id)) {
               set({ sessions: [sessionData, ...sessions] });
             }

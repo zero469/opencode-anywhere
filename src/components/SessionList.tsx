@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useAppStore } from "@/store";
 import { usePWA } from "@/hooks/usePWA";
 import type { Session } from "@/types";
@@ -214,32 +214,29 @@ function RenameModal({ session, onClose, onRename }: RenameModalProps) {
 }
 
 export function SessionList({ onClose }: { onClose?: () => void }) {
-  const { sessions, currentSessionId, selectSession, createSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions, connectionStep, selectedDevice, checkDeviceAndReconnect, pendingPermissions, runningSessions, sessionSearchQuery, setSessionSearchQuery } = useAppStore();
+  const { sessions, currentSessionId, selectSession, createSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions, connectionStep, selectedDevice, checkDeviceAndReconnect, pendingPermissions, runningSessions } = useAppStore();
   const sessionsWithPermissions = new Set(pendingPermissions.map(p => p.sessionID));
   const [isCreating, setIsCreating] = useState(false);
   const [sessionToRename, setSessionToRename] = useState<Session | null>(null);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const { isInstallable, install } = usePWA();
   
-  const [searchInput, setSearchInput] = useState(sessionSearchQuery);
-  const [isSearching, setIsSearching] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchInput !== sessionSearchQuery) {
-        setIsSearching(true);
-        setSessionSearchQuery(searchInput);
-        refreshSessions().finally(() => setIsSearching(false));
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchInput, sessionSearchQuery, setSessionSearchQuery, refreshSessions]);
+  const [searchInput, setSearchInput] = useState('');
 
   const isOffline = connectionStep === "idle" && selectedDevice !== null;
   const hasStaleCache = isOffline && sessions.length > 0 && sessions.every(s => !s.title);
 
-  const pinnedSessions = sessions.filter(s => pinnedSessionIds.includes(s.id));
-  const unpinnedSessions = sessions.filter(s => !pinnedSessionIds.includes(s.id));
+  const matchesSearch = (session: Session) => {
+    if (!searchInput.trim()) return true;
+    const query = searchInput.toLowerCase();
+    const title = (session.title || '').toLowerCase();
+    const id = session.id.toLowerCase();
+    return title.includes(query) || id.includes(query);
+  };
+
+  const filteredSessions = sessions.filter(matchesSearch);
+  const pinnedSessions = filteredSessions.filter(s => pinnedSessionIds.includes(s.id));
+  const unpinnedSessions = filteredSessions.filter(s => !pinnedSessionIds.includes(s.id));
 
   const handleReconnect = async () => {
     if (isReconnecting) return;
@@ -339,24 +336,17 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          {(isSearching || searchInput) && (
+          {searchInput && (
             <div className="absolute right-3 top-2.5 flex items-center">
-              {isSearching ? (
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" style={{ color: 'var(--foreground-muted)' }}>
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <button
+                onClick={() => setSearchInput("")}
+                className="focus:outline-none hover:opacity-80"
+                style={{ color: 'var(--foreground-muted)' }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              ) : (
-                <button
-                  onClick={() => setSearchInput("")}
-                  className="focus:outline-none hover:opacity-80"
-                  style={{ color: 'var(--foreground-muted)' }}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+              </button>
             </div>
           )}
         </div>
@@ -396,7 +386,11 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
           <p className="text-center py-8" style={{ color: 'var(--foreground-muted)' }}>Failed to load sessions</p>
         ) : sessions.length === 0 ? (
           <p className="text-center py-8" style={{ color: 'var(--foreground-muted)' }}>
-            {sessionSearchQuery ? "No sessions found" : "No sessions yet"}
+            No sessions yet
+          </p>
+        ) : filteredSessions.length === 0 ? (
+          <p className="text-center py-8" style={{ color: 'var(--foreground-muted)' }}>
+            No sessions found
           </p>
         ) : (
           <>
