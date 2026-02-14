@@ -5,6 +5,7 @@ import { useAppStore } from "@/store";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Device } from "@/lib/relay";
 import { QRScanner } from "./QRScanner";
+import { getAgentColor, capitalizeAgentName } from "@/lib/agentColors";
 
 const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay.azurewebsites.net/install.sh | bash";
 const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay.azurewebsites.net/install.ps1 | iex";
@@ -316,11 +317,6 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
     setSelectedModel({ providerID, modelID });
   };
 
-  const handleAgentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    setDefaultAgent(value || null);
-  };
-
   const currentModelValue = selectedModel ? `${selectedModel.providerID}:${selectedModel.modelID}` : "";
 
   if (!isOpen) return null;
@@ -375,22 +371,28 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
               {agents.length > 0 && (
                 <div className="p-3">
                   <label className="block text-sm mb-2" style={{ color: 'var(--foreground-muted)' }}>Default Agent</label>
-                  <select
-                    value={defaultAgent || ""}
-                    onChange={handleAgentChange}
-                    className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                    style={{ 
-                      backgroundColor: 'var(--background-panel)', 
-                      border: '1px solid var(--border)', 
-                      color: 'var(--foreground)' 
-                    }}
-                  >
-                    {agents.map(a => (
-                      <option key={a.name} value={a.name}>
-                        {a.name}
-                      </option>
+                  <div className="space-y-1">
+                    {agents.map(agent => (
+                      <button
+                        key={agent.name}
+                        onClick={() => setDefaultAgent(agent.name)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                          defaultAgent === agent.name ? 'bg-blue-600 text-white' : ''
+                        }`}
+                        style={defaultAgent === agent.name ? undefined : { 
+                          backgroundColor: 'var(--background-panel)', 
+                          color: 'var(--foreground)' 
+                        }}
+                      >
+                        <span 
+                          className="font-medium"
+                          style={{ color: defaultAgent === agent.name ? undefined : getAgentColor(agent.name, agents) }}
+                        >
+                          {capitalizeAgentName(agent.name)}
+                        </span>
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
               )}
             </div>

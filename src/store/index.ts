@@ -633,6 +633,17 @@ export const useAppStore = create<AppState>()(
           sessionLastUpdated.set(cacheKey, sessionUpdatedTime);
           
           if (get().currentSessionId === id) {
+            // Extract agent from most recent assistant message to set session agent
+            const lastAssistantMessage = messages.slice().reverse().find(m => m.info.role === 'assistant' && m.info.agent);
+            if (lastAssistantMessage?.info.agent) {
+              const { sessionAgents } = get();
+              if (!sessionAgents[id]) {
+                set({ 
+                  sessionAgents: { ...sessionAgents, [id]: lastAssistantMessage.info.agent }
+                });
+              }
+            }
+            
             set({ messages, isLoading: false, hasMoreMessages: hasMore, sessionLoadingStep: "loading_todos" });
             await get().fetchTodos(id);
             if (get().currentSessionId === id && thisRequestId === selectSessionRequestId) {
@@ -982,9 +993,16 @@ export const useAppStore = create<AppState>()(
       },
       setDefaultAgent: (agent) => set({ defaultAgent: agent }),
        getSelectedAgent: () => {
-         const { currentSessionId, sessionAgents, defaultAgent } = get();
+         const { currentSessionId, sessionAgents, defaultAgent, agents } = get();
          if (!currentSessionId) return defaultAgent;
-         return sessionAgents[currentSessionId] || defaultAgent;
+         const sessionAgent = sessionAgents[currentSessionId];
+         if (sessionAgent) return sessionAgent;
+         if (defaultAgent) return defaultAgent;
+         if (agents.length > 0) {
+           const buildAgent = agents.find(a => a.name === 'build');
+           return buildAgent?.name || agents[0].name;
+         }
+         return null;
        },
        
        setSessionSearchQuery: (query) => set({ sessionSearchQuery: query }),
