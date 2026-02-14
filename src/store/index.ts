@@ -18,6 +18,7 @@ const lastCheckedSessionTimes = new Map<string, number>();
 // Request tracking to prevent stale responses from overwriting newer data
 let selectSessionRequestId = 0;
 let sessionUpdatedRequestId = 0;
+let refreshSessionsRequestId = 0;
 
 let storeGetRef: (() => AppState) | null = null;
 let storeSetRef: ((partial: Partial<AppState>) => void) | null = null;
@@ -508,6 +509,7 @@ export const useAppStore = create<AppState>()(
       },
 
       refreshSessions: async () => {
+        const thisRequestId = ++refreshSessionsRequestId;
         const deviceIdAtStart = currentDeviceId;
         
         const config = opencode.getConfig();
@@ -520,6 +522,12 @@ export const useAppStore = create<AppState>()(
            const sessions = await opencode.getSessions({
              search: sessionSearchQuery || undefined
            });
+           
+           // Discard if a newer request was made
+           if (thisRequestId !== refreshSessionsRequestId) {
+             console.log('[refreshSessions] Stale response discarded');
+             return;
+           }
            
            if (currentDeviceId !== deviceIdAtStart) {
              return;
@@ -1157,7 +1165,10 @@ export const useAppStore = create<AppState>()(
                 }).catch(console.error);
               }
             } else {
-              get().refreshSessions();
+              const { sessionSearchQuery } = get();
+              if (!sessionSearchQuery) {
+                get().refreshSessions();
+              }
             }
             break;
           }
@@ -1250,6 +1261,10 @@ export const useAppStore = create<AppState>()(
 
           case "session.created": {
             const sessionData = event.properties.info as Session | undefined;
+            const { sessionSearchQuery } = get();
+            if (sessionSearchQuery) {
+              break;
+            }
             if (sessionData?.id && !sessions.find(s => s.id === sessionData.id)) {
               set({ sessions: [sessionData, ...sessions] });
             }
