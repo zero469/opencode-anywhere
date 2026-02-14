@@ -6,10 +6,10 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { Device } from "@/lib/relay";
 import { QRScanner } from "./QRScanner";
 import { getAgentColor, capitalizeAgentName } from "@/lib/agentColors";
+import { APP_VERSION } from "@/lib/version";
 
 const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay.azurewebsites.net/install.sh | bash";
 const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay.azurewebsites.net/install.ps1 | iex";
-const APP_VERSION = "1.1.0";
 const GITHUB_URL = "https://github.com/code-yeongyu/opencode-anywhere";
 
 function OpenCodeLogo({ width = 160 }: { width?: number }) {

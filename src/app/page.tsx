@@ -13,6 +13,7 @@ import { PermissionDialog } from "@/components/PermissionDialog";
 import { QuestionDialog } from "@/components/QuestionDialog";
 import { TodoCard } from "@/components/TodoCard";
 import { requestNotificationPermission } from "@/lib/notifications";
+import { APP_VERSION } from "@/lib/version";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
 
@@ -81,7 +82,7 @@ function ChatView() {
           <div className="flex items-center gap-2">
             <span className={`w-2 h-2 rounded-full ${status.connected ? "bg-green-500" : "bg-red-500"}`} />
             <span className="text-xs" style={{ color: 'var(--foreground-muted)' }}>
-              {status.connected ? `v${status.serverVersion}` : "Offline"}
+              {status.connected ? `v${APP_VERSION}` : "Offline"}
             </span>
           </div>
         </header>
