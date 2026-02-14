@@ -116,14 +116,17 @@ export function MessageInput() {
 
   if (!currentSessionId) {
     return (
-      <div className="p-4 border-t border-zinc-800 text-center text-zinc-500">
+      <div 
+        className="p-4 border-t text-center"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--foreground-muted)' }}
+      >
         Select a session to start chatting
       </div>
     );
   }
 
   return (
-    <div className="border-t border-zinc-800">
+    <div className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
       <div className="px-4 pt-2 flex items-center justify-between gap-2">
         <ModelAgentSelector />
         <QuickActionsBar 
@@ -145,14 +148,20 @@ export function MessageInput() {
             onCompositionEnd={() => setIsComposing(false)}
             placeholder="Message..."
             rows={1}
-            className="flex-1 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[42px] max-h-[200px] overflow-y-auto"
+            className="flex-1 px-4 py-2 border rounded-xl placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[42px] max-h-[200px] overflow-y-auto"
+            style={{ 
+              backgroundColor: 'var(--background-element)', 
+              borderColor: 'var(--border)', 
+              color: 'var(--foreground)' 
+            }}
             disabled={isSessionBusy}
           />
           {isSessionBusy ? (
             <button
               type="button"
               onClick={() => abortSession()}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-xl text-white font-medium transition-colors h-[42px]"
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-xl font-medium transition-colors h-[42px]"
+              style={{ color: 'var(--foreground)' }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -162,7 +171,11 @@ export function MessageInput() {
             <button
               type="submit"
               disabled={!text.trim()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-xl text-white font-medium transition-colors h-[42px]"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed rounded-xl font-medium transition-colors h-[42px]"
+              style={{ 
+                color: 'var(--foreground)',
+                backgroundColor: !text.trim() ? 'var(--background-element)' : undefined
+              }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

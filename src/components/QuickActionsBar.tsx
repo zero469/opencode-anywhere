@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 
 interface QuickActionsBarProps {
   onCompact: () => void;
@@ -98,6 +98,7 @@ interface QuickAction {
 
 export function QuickActionsBar({ onCompact, onSkills, onMore, disabled, isCompacting }: QuickActionsBarProps) {
   const lastTapRef = useRef<number>(0);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const handleTap = (action: QuickAction) => {
     if (action.disabled || disabled) return;
@@ -120,14 +121,21 @@ export function QuickActionsBar({ onCompact, onSkills, onMore, disabled, isCompa
     >
       {actions.map((action) => {
         const Icon = action.icon;
+        const isHovered = hoveredId === action.id;
         return (
           <button
             key={action.id}
             type="button"
             onClick={() => handleTap(action)}
+            onMouseEnter={() => setHoveredId(action.id)}
+            onMouseLeave={() => setHoveredId(null)}
             disabled={disabled || action.disabled}
             aria-label={action.label}
-            className="flex items-center justify-center min-w-[44px] min-h-[44px] px-3 py-2 text-zinc-400 hover:text-zinc-200 bg-zinc-800/50 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+            className="flex items-center justify-center min-w-[44px] min-h-[44px] px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+            style={{
+              color: isHovered ? 'var(--foreground)' : 'var(--foreground-muted)',
+              backgroundColor: 'var(--background-element)',
+            }}
           >
             <Icon />
           </button>

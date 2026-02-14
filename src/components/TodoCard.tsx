@@ -5,27 +5,37 @@ import { useAppStore } from "@/store";
 import type { TodoItem } from "@/types";
 
 const statusConfig: Record<TodoItem["status"], { icon: string; color: string; bg: string }> = {
-  pending: { icon: "○", color: "text-zinc-400", bg: "bg-zinc-400/10" },
+  pending: { icon: "○", color: "var(--foreground-muted)", bg: "bg-zinc-400/10" },
   in_progress: { icon: "◐", color: "text-blue-400", bg: "bg-blue-400/10" },
   completed: { icon: "✓", color: "text-green-400", bg: "bg-green-400/10" },
-  cancelled: { icon: "✗", color: "text-zinc-500", bg: "bg-zinc-500/10" },
+  cancelled: { icon: "✗", color: "var(--foreground-muted)", bg: "bg-zinc-500/10" },
 };
 
 const priorityConfig: Record<TodoItem["priority"], { color: string }> = {
   high: { color: "text-red-400" },
   medium: { color: "text-yellow-400" },
-  low: { color: "text-zinc-500" },
+  low: { color: "var(--foreground-muted)" },
 };
 
 function TodoItemRow({ item }: { item: TodoItem }) {
   const status = statusConfig[item.status] || statusConfig.pending;
   const priority = priorityConfig[item.priority] || priorityConfig.medium;
   const isFinished = item.status === "completed" || item.status === "cancelled";
+  
+  const isColorVar = status.color.startsWith("var(");
 
   return (
     <div className={`flex items-start gap-2 py-1.5 ${isFinished ? "opacity-50" : ""}`}>
-      <span className={`${status.color} text-sm flex-shrink-0 w-4`}>{status.icon}</span>
-      <span className={`text-sm flex-1 ${isFinished ? "line-through text-zinc-500" : "text-zinc-200"}`}>
+      <span 
+        className={`text-sm flex-shrink-0 w-4 ${isColorVar ? "" : status.color}`}
+        style={isColorVar ? { color: status.color } : undefined}
+      >
+        {status.icon}
+      </span>
+      <span 
+        className={`text-sm flex-1 ${isFinished ? "line-through" : ""}`}
+        style={{ color: isFinished ? "var(--foreground-muted)" : "var(--foreground)" }}
+      >
         {item.content}
       </span>
       {item.priority === "high" && !isFinished && (
@@ -51,16 +61,22 @@ export function TodoCard() {
   const progress = total > 0 ? (completed / total) * 100 : 0;
 
   return (
-    <div className="mx-4 mt-2 mb-1 bg-zinc-800/80 rounded-lg border border-zinc-700/50 overflow-hidden">
+    <div 
+      className="mx-4 mt-2 mb-1 rounded-lg overflow-hidden"
+      style={{ backgroundColor: "var(--background-element)", borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)" }}
+    >
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-3 px-3 py-2 hover:bg-zinc-700/30 transition-colors"
       >
         <div className="flex-1 flex items-center gap-3 min-w-0">
-          <span className="text-sm font-medium text-zinc-300">
+          <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
             {completed}/{total} tasks
           </span>
-          <div className="flex-1 h-1.5 bg-zinc-700 rounded-full overflow-hidden max-w-32">
+          <div 
+            className="flex-1 h-1.5 rounded-full overflow-hidden max-w-32"
+            style={{ backgroundColor: "var(--border)" }}
+          >
             <div
               className="h-full bg-green-500 transition-all duration-300"
               style={{ width: `${progress}%` }}
@@ -72,13 +88,13 @@ export function TodoCard() {
             </span>
           )}
         </div>
-        <span className="text-zinc-500 text-xs flex-shrink-0">
+        <span className="text-xs flex-shrink-0" style={{ color: "var(--foreground-muted)" }}>
           {expanded ? "▼" : "▶"}
         </span>
       </button>
 
       {expanded && (
-        <div className="px-3 pb-2 border-t border-zinc-700/50">
+        <div className="px-3 pb-2" style={{ borderTopWidth: 1, borderTopStyle: "solid", borderTopColor: "var(--border)" }}>
           <div className="max-h-48 overflow-y-auto">
             {todos.map((item) => (
               <TodoItemRow key={item.id} item={item} />

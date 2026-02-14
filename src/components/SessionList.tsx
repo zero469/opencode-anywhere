@@ -116,14 +116,15 @@ function SwipeableSession({ session, isActive, isPinned, hasPermission, isRunnin
       </div>
       
       <div
-        className={`relative p-3 ${
+        className={`relative p-3 border ${
           isActive
-            ? "bg-zinc-800 border border-blue-500/50"
-            : "bg-zinc-900 border border-transparent"
+            ? "border-blue-500/50"
+            : "border-transparent"
         }`}
         style={{ 
           transform: `translateX(${translateX}px)`,
-          transition: isDraggingRef.current ? 'none' : 'transform 0.2s ease-out'
+          transition: isDraggingRef.current ? 'none' : 'transform 0.2s ease-out',
+          backgroundColor: isActive ? 'var(--background-element)' : 'var(--background-panel)'
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -138,18 +139,18 @@ function SwipeableSession({ session, isActive, isPinned, hasPermission, isRunnin
             {isRunning && !hasPermission && (
               <span className="w-2.5 h-2.5 bg-blue-500 rounded-full flex-shrink-0 animate-pulse" />
             )}
-            <span className="text-sm font-medium text-white truncate">
+            <span className="text-sm font-medium truncate" style={{ color: 'var(--foreground)' }}>
               {session.title || "Untitled Session"}
             </span>
           </div>
           {timeValue > 0 && (
-            <span className="text-xs text-zinc-500 ml-2 flex-shrink-0">
+            <span className="text-xs ml-2 flex-shrink-0" style={{ color: 'var(--foreground-muted)' }}>
               {formatTime(timeValue)}
             </span>
           )}
         </div>
         {dirName && (
-          <div className="text-xs text-zinc-500 mt-1 truncate">
+          <div className="text-xs mt-1 truncate" style={{ color: 'var(--foreground-muted)' }}>
             {dirName}
           </div>
         )}
@@ -176,8 +177,8 @@ function RenameModal({ session, onClose, onRename }: RenameModalProps) {
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-zinc-900 rounded-xl p-4 w-full max-w-sm" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold text-white mb-4">Rename Session</h3>
+      <div className="rounded-xl p-4 w-full max-w-sm" style={{ backgroundColor: 'var(--background-panel)' }} onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--foreground)' }}>Rename Session</h3>
         <form onSubmit={handleSubmit}>
           <input
             type="text"
@@ -185,20 +186,23 @@ function RenameModal({ session, onClose, onRename }: RenameModalProps) {
             onChange={e => setTitle(e.target.value)}
             placeholder="Session title"
             autoFocus
-            className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+            className="w-full px-4 py-2 rounded-lg placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+            style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)', color: 'var(--foreground)' }}
           />
           <div className="flex gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2 px-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-white transition-colors"
+              className="flex-1 py-2 px-4 hover:opacity-80 rounded-lg transition-colors"
+              style={{ backgroundColor: 'var(--background-element)', color: 'var(--foreground)' }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!title.trim()}
-              className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-lg text-white transition-colors"
+              className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-lg transition-colors"
+              style={{ color: 'var(--foreground)' }}
             >
               Save
             </button>
@@ -286,13 +290,14 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-        <h2 className="text-lg font-semibold text-white">Sessions</h2>
+      <div className="flex items-center justify-between p-4" style={{ borderBottomWidth: '1px', borderBottomStyle: 'solid', borderBottomColor: 'var(--border-subtle)' }}>
+        <h2 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>Sessions</h2>
         <div className="flex gap-2">
           <button
             onClick={() => refreshSessions()}
-            className="p-2 text-zinc-400 hover:text-white transition-colors"
+            className="p-2 transition-colors hover:opacity-80"
             title="Refresh"
+            style={{ color: 'var(--foreground-muted)' }}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -301,8 +306,9 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
           <button
             onClick={handleNewSession}
             disabled={isCreating}
-            className={`p-2 transition-colors ${isCreating ? "text-zinc-600 cursor-not-allowed" : "text-zinc-400 hover:text-white"}`}
+            className={`p-2 transition-colors ${isCreating ? "cursor-not-allowed opacity-50" : "hover:opacity-80"}`}
             title="New Session"
+            style={{ color: 'var(--foreground-muted)' }}
           >
             {isCreating ? (
               <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -318,16 +324,17 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
 
-      <div className="px-4 py-2 border-b border-zinc-800">
+      <div className="px-4 py-2" style={{ borderBottomWidth: '1px', borderBottomStyle: 'solid', borderBottomColor: 'var(--border-subtle)' }}>
         <div className="relative">
           <input
             type="text"
             placeholder="Search sessions..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-600 transition-colors"
+            className="w-full pl-9 pr-8 py-2 rounded-lg text-sm placeholder-zinc-500 focus:outline-none transition-colors"
+            style={{ backgroundColor: 'var(--background-panel)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)', color: 'var(--foreground)' }}
           />
-          <div className="absolute left-3 top-2.5 text-zinc-500">
+          <div className="absolute left-3 top-2.5" style={{ color: 'var(--foreground-muted)' }}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -335,14 +342,15 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
           {(isSearching || searchInput) && (
             <div className="absolute right-3 top-2.5 flex items-center">
               {isSearching ? (
-                <svg className="w-4 h-4 animate-spin text-zinc-500" fill="none" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" style={{ color: 'var(--foreground-muted)' }}>
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
               ) : (
                 <button
                   onClick={() => setSearchInput("")}
-                  className="text-zinc-500 hover:text-zinc-300 focus:outline-none"
+                  className="focus:outline-none hover:opacity-80"
+                  style={{ color: 'var(--foreground-muted)' }}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -380,21 +388,21 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
               )}
             </div>
             {!isReconnecting && (
-              <p className="text-xs text-zinc-500 mt-1">Tap to reconnect</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--foreground-muted)' }}>Tap to reconnect</p>
             )}
           </button>
         )}
         {hasStaleCache ? (
-          <p className="text-zinc-500 text-center py-8">Failed to load sessions</p>
+          <p className="text-center py-8" style={{ color: 'var(--foreground-muted)' }}>Failed to load sessions</p>
         ) : sessions.length === 0 ? (
-          <p className="text-zinc-500 text-center py-8">
+          <p className="text-center py-8" style={{ color: 'var(--foreground-muted)' }}>
             {sessionSearchQuery ? "No sessions found" : "No sessions yet"}
           </p>
         ) : (
           <>
             {pinnedSessions.length > 0 && (
               <div className="mb-4">
-                <div className="text-xs text-zinc-500 uppercase tracking-wider mb-2 px-1">Pinned</div>
+                <div className="text-xs uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--foreground-muted)' }}>Pinned</div>
                 <div className="space-y-2">
                   {pinnedSessions.map(renderSession)}
                 </div>
@@ -403,7 +411,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
             {unpinnedSessions.length > 0 && (
               <div>
                 {pinnedSessions.length > 0 && (
-                  <div className="text-xs text-zinc-500 uppercase tracking-wider mb-2 px-1">Recent</div>
+                  <div className="text-xs uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--foreground-muted)' }}>Recent</div>
                 )}
                 <div className="space-y-2">
                   {unpinnedSessions.map(renderSession)}
@@ -415,7 +423,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
       </div>
 
       {isInstallable && (
-        <div className="p-4 border-t border-zinc-800">
+        <div className="p-4" style={{ borderTopWidth: '1px', borderTopStyle: 'solid', borderTopColor: 'var(--border-subtle)' }}>
           <button
             onClick={install}
             className="w-full py-2 px-4 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors text-sm flex items-center justify-center gap-2"

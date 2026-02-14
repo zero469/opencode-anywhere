@@ -69,8 +69,8 @@ export function AuthForm() {
   if (authView === "welcome") {
     return (
       <div 
-        className="flex flex-col items-center justify-center min-h-screen bg-zinc-950 text-white p-6"
-        style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}
+        className="flex flex-col items-center justify-center min-h-screen p-6"
+        style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)', backgroundColor: 'var(--background)', color: 'var(--foreground)' }}
       >
         <div className="w-full max-w-sm flex flex-col items-center">
           {/* Logo */}
@@ -81,7 +81,7 @@ export function AuthForm() {
           </div>
           
           <h1 className="text-2xl font-bold text-center mb-2">OpenCode Anywhere</h1>
-          <p className="text-zinc-400 text-center mb-10">Control your AI coding assistant from anywhere</p>
+          <p className="text-center mb-10" style={{ color: 'var(--foreground-muted)' }}>Control your AI coding assistant from anywhere</p>
           
           {/* Primary action - Scan QR */}
           <button
@@ -94,23 +94,25 @@ export function AuthForm() {
             Scan QR Code to Connect
           </button>
           
-          <p className="text-xs text-zinc-500 text-center mt-3 mb-4">
-            Run <code className="text-green-400 bg-zinc-800 px-1.5 py-0.5 rounded">tunnel-client</code> on your computer to get the QR code
+          <p className="text-xs text-center mt-3 mb-4" style={{ color: 'var(--foreground-muted)' }}>
+            Run <code className="text-green-400 px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--background-element)' }}>tunnel-client</code> on your computer to get the QR code
           </p>
           
           {/* Secondary - Cloud service login */}
-          <div className="w-full border-t border-zinc-800 pt-6 mt-4">
-            <p className="text-xs text-zinc-500 text-center mb-4">Using official cloud service?</p>
+          <div className="w-full pt-6 mt-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+            <p className="text-xs text-center mb-4" style={{ color: 'var(--foreground-muted)' }}>Using official cloud service?</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setAuthView("login")}
-                className="flex-1 py-3 px-4 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium transition-colors"
+                className="flex-1 py-3 px-4 rounded-xl font-medium transition-colors hover:opacity-80"
+                style={{ backgroundColor: 'var(--background-element)' }}
               >
                 Login
               </button>
               <button
                 onClick={() => setAuthView("register")}
-                className="flex-1 py-3 px-4 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium transition-colors"
+                className="flex-1 py-3 px-4 rounded-xl font-medium transition-colors hover:opacity-80"
+                style={{ backgroundColor: 'var(--background-element)' }}
               >
                 Register
               </button>
@@ -132,7 +134,7 @@ export function AuthForm() {
       return (
         <>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-zinc-400 mb-1">
+            <label htmlFor="email" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground-muted)' }}>
               Email
             </label>
             <input
@@ -143,14 +145,16 @@ export function AuthForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+              className="w-full px-3 py-2 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+              style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
               placeholder="you@example.com"
             />
           </div>
           <button
             type="submit"
             disabled={isLoading || !email}
-            className="w-full py-2 px-4 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600 rounded-md font-semibold transition-colors"
+            className="w-full py-2 px-4 rounded-md font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
+            style={{ backgroundColor: 'var(--background-element)' }}
           >
             {isLoading ? "Sending..." : "Send Verification Code"}
           </button>
@@ -161,11 +165,11 @@ export function AuthForm() {
     if (registerStep === "code") {
       return (
         <>
-          <p className="text-sm text-zinc-400 text-center mb-4">
-            Verification code sent to <span className="text-white">{email}</span>
+          <p className="text-sm text-center mb-4" style={{ color: 'var(--foreground-muted)' }}>
+            Verification code sent to <span style={{ color: 'var(--foreground)' }}>{email}</span>
           </p>
           <div>
-            <label htmlFor="code" className="block text-sm font-medium text-zinc-400 mb-1">
+            <label htmlFor="code" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground-muted)' }}>
               Verification Code
             </label>
             <input
@@ -177,14 +181,16 @@ export function AuthForm() {
               required
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 text-center text-2xl tracking-widest"
+              className="w-full px-3 py-2 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 text-center text-2xl tracking-widest"
+              style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
               placeholder="000000"
             />
           </div>
           <button
             type="submit"
             disabled={code.length !== 6}
-            className="w-full py-2 px-4 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600 rounded-md font-semibold transition-colors"
+            className="w-full py-2 px-4 rounded-md font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
+            style={{ backgroundColor: 'var(--background-element)' }}
           >
             Continue
           </button>
@@ -192,7 +198,8 @@ export function AuthForm() {
             type="button"
             onClick={handleSendCode}
             disabled={countdown > 0 || isLoading}
-            className="w-full py-2 text-sm text-zinc-400 hover:text-white disabled:text-zinc-600"
+            className="w-full py-2 text-sm hover:opacity-80 disabled:opacity-50"
+            style={{ color: 'var(--foreground-muted)' }}
           >
             {countdown > 0 ? `Resend in ${countdown}s` : "Resend Code"}
           </button>
@@ -202,11 +209,11 @@ export function AuthForm() {
 
     return (
       <>
-        <p className="text-sm text-zinc-400 text-center mb-4">
-          Set password for <span className="text-white">{email}</span>
+        <p className="text-sm text-center mb-4" style={{ color: 'var(--foreground-muted)' }}>
+          Set password for <span style={{ color: 'var(--foreground)' }}>{email}</span>
         </p>
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-zinc-400 mb-1">
+          <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground-muted)' }}>
             Password
           </label>
           <input
@@ -217,14 +224,16 @@ export function AuthForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+            className="w-full px-3 py-2 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+            style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
             placeholder="At least 6 characters"
           />
         </div>
         <button
           type="submit"
           disabled={isLoading || password.length < 6}
-          className="w-full py-2 px-4 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600 rounded-md font-semibold transition-colors"
+          className="w-full py-2 px-4 rounded-md font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
+          style={{ backgroundColor: 'var(--background-element)' }}
         >
           {isLoading ? "Creating Account..." : "Create Account"}
         </button>
@@ -235,7 +244,7 @@ export function AuthForm() {
   const renderLoginForm = () => (
     <>
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-zinc-400 mb-1">
+        <label htmlFor="email" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground-muted)' }}>
           Email
         </label>
         <input
@@ -246,12 +255,13 @@ export function AuthForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+          className="w-full px-3 py-2 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+          style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
           placeholder="you@example.com"
         />
       </div>
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-zinc-400 mb-1">
+        <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: 'var(--foreground-muted)' }}>
           Password
         </label>
         <input
@@ -262,14 +272,16 @@ export function AuthForm() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+          className="w-full px-3 py-2 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+          style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
           placeholder="••••••••"
         />
       </div>
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full py-2 px-4 bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600 rounded-md font-semibold transition-colors"
+        className="w-full py-2 px-4 rounded-md font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
+        style={{ backgroundColor: 'var(--background-element)' }}
       >
         {isLoading ? "Loading..." : "Login"}
       </button>
@@ -285,8 +297,8 @@ export function AuthForm() {
 
   return (
     <div 
-      className="relative flex flex-col items-center justify-center min-h-screen bg-zinc-950 text-white p-4"
-      style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}
+      className="relative flex flex-col items-center justify-center min-h-screen p-4"
+      style={{ paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)', backgroundColor: 'var(--background)', color: 'var(--foreground)' }}
     >
       <button
         onClick={() => {
@@ -296,8 +308,8 @@ export function AuthForm() {
           setPassword("");
           setCode("");
         }}
-        className="absolute left-4 flex items-center gap-2 text-zinc-400 hover:text-white"
-        style={{ top: 'calc(var(--safe-area-top) + 16px)' }}
+        className="absolute left-4 flex items-center gap-2 hover:opacity-80"
+        style={{ top: 'calc(var(--safe-area-top) + 16px)', color: 'var(--foreground-muted)' }}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m15 18-6-6 6-6"/>
@@ -323,7 +335,8 @@ export function AuthForm() {
               setAuthView(authView === "login" ? "register" : "login");
               setRegisterStep("email");
             }}
-            className="text-sm text-zinc-400 hover:text-white"
+            className="text-sm hover:opacity-80"
+            style={{ color: 'var(--foreground-muted)' }}
           >
             {authView === "login"
               ? "Don't have an account? Register"

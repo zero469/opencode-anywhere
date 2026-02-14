@@ -1,12 +1,62 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
+  --oc-step1: #0a0a0a;
+  --oc-step2: #141414;
+  --oc-step3: #1e1e1e;
+  --oc-step4: #282828;
+  --oc-step5: #323232;
+  --oc-step6: #3c3c3c;
+  --oc-step7: #484848;
+  --oc-step8: #606060;
+  --oc-step9: #fab283;
+  --oc-step10: #ffc09f;
+  --oc-step11: #808080;
+  --oc-step12: #eeeeee;
+  --oc-secondary: #5c9cf5;
+  --oc-accent: #9d7cd8;
+  --oc-red: #e06c75;
+  --oc-orange: #f5a742;
+  --oc-green: #7fd88f;
+  --oc-cyan: #56b6c2;
+  --oc-yellow: #e5c07b;
+  
+  --background: var(--oc-step1);
+  --background-panel: var(--oc-step2);
+  --background-element: var(--oc-step3);
+  --foreground: var(--oc-step12);
+  --foreground-muted: var(--oc-step11);
+  --border: var(--oc-step7);
+  --border-subtle: var(--oc-step6);
+  --primary: var(--oc-step9);
+  --accent: var(--oc-accent);
+  
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --safe-area-left: env(safe-area-inset-left, 0px);
   --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+.light {
+  --oc-step1: #ffffff;
+  --oc-step2: #fafafa;
+  --oc-step3: #f5f5f5;
+  --oc-step4: #ebebeb;
+  --oc-step5: #e1e1e1;
+  --oc-step6: #d4d4d4;
+  --oc-step7: #b8b8b8;
+  --oc-step8: #a0a0a0;
+  --oc-step9: #3b7dd8;
+  --oc-step10: #2968c3;
+  --oc-step11: #8a8a8a;
+  --oc-step12: #1a1a1a;
+  --oc-secondary: #7b5bb6;
+  --oc-accent: #d68c27;
+  --oc-red: #d1383d;
+  --oc-orange: #d68c27;
+  --oc-green: #3d9a57;
+  --oc-cyan: #318795;
+  --oc-yellow: #b0851f;
 }
 
 @theme inline {
@@ -45,12 +95,12 @@ input, textarea, button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
+  background: var(--oc-step6);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #52525b;
+  background: var(--oc-step7);
 }
 
 body.scanner-active {

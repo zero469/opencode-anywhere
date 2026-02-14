@@ -20,14 +20,18 @@ export function CommandsModal({ isOpen, onClose, commands, onSelectCommand, load
       onClick={onClose}
     >
       <div 
-        className="bg-zinc-900 w-full sm:max-w-md sm:rounded-xl rounded-t-xl max-h-[70vh] flex flex-col"
+        className="w-full sm:max-w-md sm:rounded-xl rounded-t-xl max-h-[70vh] flex flex-col"
+        style={{ backgroundColor: 'var(--background-panel)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-zinc-800">
-          <h2 className="text-lg font-semibold text-white">Available Commands</h2>
+        <div className="flex items-center justify-between p-4" style={{ borderBottomWidth: '1px', borderBottomStyle: 'solid', borderBottomColor: 'var(--border-subtle)' }}>
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>Available Commands</h2>
           <button
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors"
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: 'var(--foreground-muted)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--foreground)'; e.currentTarget.style.backgroundColor = 'var(--background-element)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--foreground-muted)'; e.currentTarget.style.backgroundColor = 'transparent'; }}
             aria-label="Close"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -39,23 +43,25 @@ export function CommandsModal({ isOpen, onClose, commands, onSelectCommand, load
         <div className="flex-1 overflow-y-auto p-2">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <svg className="w-6 h-6 text-zinc-500 animate-spin" fill="none" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 animate-spin" style={{ color: 'var(--foreground-muted)' }} fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
             </div>
           ) : commands.length === 0 ? (
-            <div className="text-center py-8 text-zinc-500">
+            <div className="text-center py-8" style={{ color: 'var(--foreground-muted)' }}>
               No commands available
             </div>
           ) : (
             <div className="space-y-1">
               {commands.map((command) => (
-                <button
-                  key={command.name}
-                  onClick={() => onSelectCommand(command.name)}
-                  className="w-full text-left p-3 rounded-lg hover:bg-zinc-800 transition-colors group"
-                >
+                  <button
+                    key={command.name}
+                    onClick={() => onSelectCommand(command.name)}
+                    className="w-full text-left p-3 rounded-lg transition-colors group"
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--background-element)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
                   <div className="flex items-start gap-3">
                     <div className="flex-shrink-0 w-8 h-8 bg-green-600/20 rounded-lg flex items-center justify-center">
                       <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -63,11 +69,11 @@ export function CommandsModal({ isOpen, onClose, commands, onSelectCommand, load
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white group-hover:text-green-400 transition-colors">
+                      <div className="text-sm font-medium group-hover:text-green-400 transition-colors" style={{ color: 'var(--foreground)' }}>
                         {command.name}
                       </div>
                       {command.description && (
-                        <div className="text-xs text-zinc-500 line-clamp-2 mt-0.5">
+                        <div className="text-xs line-clamp-2 mt-0.5" style={{ color: 'var(--foreground-muted)' }}>
                           {command.description}
                         </div>
                       )}
@@ -79,10 +85,13 @@ export function CommandsModal({ isOpen, onClose, commands, onSelectCommand, load
           )}
         </div>
         
-        <div className="p-4 border-t border-zinc-800">
+        <div className="p-4" style={{ borderTopWidth: '1px', borderTopStyle: 'solid', borderTopColor: 'var(--border-subtle)' }}>
           <button
             onClick={onClose}
-            className="w-full py-2.5 text-sm font-medium text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+            className="w-full py-2.5 text-sm font-medium rounded-lg transition-colors"
+            style={{ color: 'var(--foreground-muted)', backgroundColor: 'var(--background-element)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--foreground)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--foreground-muted)'; }}
           >
             Cancel
           </button>

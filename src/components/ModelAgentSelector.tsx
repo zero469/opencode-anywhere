@@ -25,7 +25,10 @@ export function ModelAgentSelector() {
 
   if (hasNoData && isConnectionInProgress) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-500 bg-zinc-800/50 rounded-lg">
+      <div 
+        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg"
+        style={{ color: "var(--foreground-muted)", backgroundColor: "var(--background-element)" }}
+      >
         <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -44,7 +47,8 @@ export function ModelAgentSelector() {
           setIsRetrying(false);
         }}
         disabled={isRetrying}
-        className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-300 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors"
+        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors hover:opacity-80"
+        style={{ color: "var(--foreground-muted)", backgroundColor: "var(--background-element)" }}
       >
         {isRetrying ? (
           <>
@@ -82,7 +86,8 @@ export function ModelAgentSelector() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800/50 hover:bg-zinc-800 rounded-lg transition-colors"
+        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors hover:opacity-80"
+        style={{ color: "var(--foreground-muted)", backgroundColor: "var(--background-element)" }}
       >
         <span 
           className="truncate max-w-[120px]" 
@@ -90,7 +95,7 @@ export function ModelAgentSelector() {
         >
           {currentAgentName}
         </span>
-        <span className="text-zinc-600">·</span>
+        <span style={{ color: "var(--foreground-muted)" }}>·</span>
         <span className="truncate max-w-[120px]">{currentModelName}</span>
         <svg
           className={`w-3 h-3 transition-transform ${isOpen ? "rotate-180" : ""}`}
@@ -108,10 +113,13 @@ export function ModelAgentSelector() {
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute bottom-full left-0 mb-2 w-72 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 overflow-hidden">
+          <div 
+            className="absolute bottom-full left-0 mb-2 w-72 rounded-lg shadow-xl z-50 overflow-hidden"
+            style={{ backgroundColor: "var(--background-panel)", borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)" }}
+          >
             {agents.length > 0 && (
-              <div className="p-2 border-b border-zinc-800">
-                <div className="text-xs text-zinc-500 px-2 py-1">Agent</div>
+              <div className="p-2" style={{ borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: "var(--border)" }}>
+                <div className="text-xs px-2 py-1" style={{ color: "var(--foreground-muted)" }}>Agent</div>
                 <div className="space-y-0.5">
                   {agents.map((agent) => (
                     <button
@@ -122,8 +130,9 @@ export function ModelAgentSelector() {
                       className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
                         selectedAgent === agent.name
                           ? "bg-blue-600 text-white"
-                          : "text-zinc-300 hover:bg-zinc-800"
+                          : "hover:bg-zinc-800"
                       }`}
+                      style={selectedAgent === agent.name ? undefined : { color: "var(--foreground)" }}
                     >
                       <div 
                         className="font-medium"
@@ -132,7 +141,7 @@ export function ModelAgentSelector() {
                         {capitalizeAgentName(agent.name)}
                       </div>
                       {agent.description && (
-                        <div className="text-xs text-zinc-400 truncate">
+                        <div className="text-xs truncate" style={{ color: "var(--foreground-muted)" }}>
                           {agent.description}
                         </div>
                       )}
@@ -144,10 +153,10 @@ export function ModelAgentSelector() {
 
             {connectedProviders.length > 0 && (
               <div className="p-2 max-h-64 overflow-y-auto">
-                <div className="text-xs text-zinc-500 px-2 py-1">Model</div>
+                <div className="text-xs px-2 py-1" style={{ color: "var(--foreground-muted)" }}>Model</div>
                 {connectedProviders.map((provider) => (
                   <div key={provider.id} className="mb-2">
-                    <div className="text-xs text-zinc-600 px-2 py-1 uppercase tracking-wider">
+                    <div className="text-xs px-2 py-1 uppercase tracking-wider" style={{ color: "var(--foreground-muted)" }}>
                       {provider.name}
                     </div>
                     <div className="space-y-0.5">
@@ -164,8 +173,14 @@ export function ModelAgentSelector() {
                             selectedModel?.providerID === provider.id &&
                             selectedModel?.modelID === model.id
                               ? "bg-blue-600 text-white"
-                              : "text-zinc-300 hover:bg-zinc-800"
+                              : "hover:bg-zinc-800"
                           }`}
+                          style={
+                            selectedModel?.providerID === provider.id &&
+                            selectedModel?.modelID === model.id
+                              ? undefined
+                              : { color: "var(--foreground)" }
+                          }
                         >
                           {model.name}
                         </button>

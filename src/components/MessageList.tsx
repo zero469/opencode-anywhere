@@ -20,7 +20,11 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="absolute top-2 right-2 px-2 py-1 text-xs bg-zinc-700 hover:bg-zinc-600 rounded text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity"
+      className="absolute top-2 right-2 px-2 py-1 text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity"
+      style={{
+        backgroundColor: 'var(--oc-step6)',
+        color: 'var(--foreground-muted)',
+      }}
     >
       {copied ? "Copied!" : "Copy"}
     </button>
@@ -41,13 +45,25 @@ const CodeBlock = memo(function CodeBlock({
   return (
     <div className="group relative my-3">
       {language && (
-        <div className="absolute top-0 left-0 px-2 py-1 text-xs text-zinc-500 bg-zinc-800 rounded-tl rounded-br">
+        <div 
+          className="absolute top-0 left-0 px-2 py-1 text-xs rounded-tl rounded-br"
+          style={{
+            color: 'var(--foreground-muted)',
+            backgroundColor: 'var(--background-element)',
+          }}
+        >
           {language}
         </div>
       )}
       <CopyButton text={code} />
-      <pre className="bg-zinc-900 rounded-lg p-4 pt-8 overflow-x-auto text-sm">
-        <code className={`${className || ""} text-zinc-300`}>
+      <pre 
+        className="rounded-lg p-4 pt-8 overflow-x-auto text-sm"
+        style={{ backgroundColor: 'var(--background-panel)' }}
+      >
+        <code 
+          className={className || ""}
+          style={{ color: 'var(--foreground-muted)' }}
+        >
           {children}
         </code>
       </pre>
@@ -61,7 +77,11 @@ const markdownComponents: Components = {
     
     if (isInline) {
       return (
-        <code className="bg-zinc-700/50 px-1.5 py-0.5 rounded text-sm break-all" style={{ color: "#7fd88f" }} {...props}>
+        <code 
+          className="px-1.5 py-0.5 rounded text-sm break-all" 
+          style={{ backgroundColor: 'var(--oc-step4)', color: 'var(--oc-green)' }} 
+          {...props}
+        >
           {children}
         </code>
       );
@@ -82,20 +102,23 @@ const markdownComponents: Components = {
     return <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>;
   },
   li({ children }) {
-    return <li className="text-zinc-200">{children}</li>;
+    return <li style={{ color: 'var(--foreground)' }}>{children}</li>;
   },
   h1({ children }) {
-    return <h1 className="text-xl font-bold mb-3 mt-4 first:mt-0" style={{ color: "#9d7cd8" }}>{children}</h1>;
+    return <h1 className="text-xl font-bold mb-3 mt-4 first:mt-0" style={{ color: 'var(--oc-accent)' }}>{children}</h1>;
   },
   h2({ children }) {
-    return <h2 className="text-lg font-bold mb-2 mt-3 first:mt-0" style={{ color: "#9d7cd8" }}>{children}</h2>;
+    return <h2 className="text-lg font-bold mb-2 mt-3 first:mt-0" style={{ color: 'var(--oc-accent)' }}>{children}</h2>;
   },
   h3({ children }) {
-    return <h3 className="text-base font-semibold mb-2 mt-3 first:mt-0" style={{ color: "#9d7cd8" }}>{children}</h3>;
+    return <h3 className="text-base font-semibold mb-2 mt-3 first:mt-0" style={{ color: 'var(--oc-accent)' }}>{children}</h3>;
   },
   blockquote({ children }) {
     return (
-      <blockquote className="border-l-4 border-zinc-600 pl-4 my-3 italic" style={{ color: "#e5c07b" }}>
+      <blockquote 
+        className="pl-4 my-3 italic" 
+        style={{ borderLeft: '4px solid var(--border)', color: 'var(--oc-yellow)' }}
+      >
         {children}
       </blockquote>
     );
@@ -107,7 +130,7 @@ const markdownComponents: Components = {
         target="_blank" 
         rel="noopener noreferrer"
         className="hover:opacity-80 underline"
-        style={{ color: "#fab283" }}
+        style={{ color: 'var(--oc-step9)' }}
       >
         {children}
       </a>
@@ -116,7 +139,10 @@ const markdownComponents: Components = {
   table({ children }) {
     return (
       <div className="overflow-x-auto my-3">
-        <table className="min-w-full border-collapse border border-zinc-700">
+        <table 
+          className="min-w-full border-collapse"
+          style={{ border: '1px solid var(--border)' }}
+        >
           {children}
         </table>
       </div>
@@ -124,26 +150,36 @@ const markdownComponents: Components = {
   },
   th({ children }) {
     return (
-      <th className="border border-zinc-700 px-3 py-2 bg-zinc-800 text-left font-semibold" style={{ color: "#9d7cd8" }}>
+      <th 
+        className="px-3 py-2 text-left font-semibold" 
+        style={{ 
+          border: '1px solid var(--border)', 
+          backgroundColor: 'var(--background-element)', 
+          color: 'var(--oc-accent)' 
+        }}
+      >
         {children}
       </th>
     );
   },
   td({ children }) {
     return (
-      <td className="border border-zinc-700 px-3 py-2">
+      <td 
+        className="px-3 py-2"
+        style={{ border: '1px solid var(--border)' }}
+      >
         {children}
       </td>
     );
   },
   hr() {
-    return <hr className="my-4 border-zinc-700" />;
+    return <hr className="my-4" style={{ borderColor: 'var(--border)' }} />;
   },
   strong({ children }) {
-    return <strong className="font-semibold" style={{ color: "#f5a742" }}>{children}</strong>;
+    return <strong className="font-semibold" style={{ color: 'var(--oc-orange)' }}>{children}</strong>;
   },
   em({ children }) {
-    return <em className="italic" style={{ color: "#e5c07b" }}>{children}</em>;
+    return <em className="italic" style={{ color: 'var(--oc-yellow)' }}>{children}</em>;
   },
 };
 
@@ -173,19 +209,30 @@ function ToolInvocation({ part }: { part: MessagePart }) {
   const hasContent = input != null || output != null || error != null;
 
   return (
-    <div className="bg-zinc-800/50 rounded-lg my-2 overflow-hidden">
+    <div 
+      className="rounded-lg my-2 overflow-hidden"
+      style={{ backgroundColor: 'color-mix(in srgb, var(--background-element) 50%, transparent)' }}
+    >
       <button
         onClick={() => hasContent && setExpanded(!expanded)}
-        className={`w-full flex items-center gap-2 px-3 py-2 ${hasContent ? "cursor-pointer hover:bg-zinc-700/50" : "cursor-default"}`}
+        className={`w-full flex items-center gap-2 px-3 py-2 ${hasContent ? "cursor-pointer" : "cursor-default"}`}
+        style={hasContent ? { 
+          ['--hover-bg' as string]: 'color-mix(in srgb, var(--oc-step6) 50%, transparent)'
+        } : undefined}
+        onMouseEnter={(e) => hasContent && (e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--oc-step6) 50%, transparent)')}
+        onMouseLeave={(e) => hasContent && (e.currentTarget.style.backgroundColor = 'transparent')}
       >
         <span className={`text-xs px-1.5 py-0.5 rounded ${statusColors[status] || statusColors.pending}`}>
           {statusIcons[status] || statusIcons.pending}
         </span>
-        <span className="text-sm font-mono text-zinc-300 flex-1 text-left truncate">
+        <span 
+          className="text-sm font-mono flex-1 text-left truncate"
+          style={{ color: 'var(--foreground-muted)' }}
+        >
           {title}
         </span>
         {hasContent && (
-          <span className="text-zinc-500 text-xs">
+          <span className="text-xs" style={{ color: 'var(--foreground-muted)' }}>
             {expanded ? "▼" : "▶"}
           </span>
         )}
@@ -195,16 +242,22 @@ function ToolInvocation({ part }: { part: MessagePart }) {
         <div className="px-3 pb-3 space-y-2">
           {input != null && (
             <div>
-              <div className="text-xs text-zinc-500 mb-1">Input:</div>
-              <pre className="text-xs text-zinc-400 bg-zinc-900 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto">
+              <div className="text-xs mb-1" style={{ color: 'var(--foreground-muted)' }}>Input:</div>
+              <pre 
+                className="text-xs rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
+                style={{ color: 'var(--foreground-muted)', backgroundColor: 'var(--background-panel)' }}
+              >
                 {typeof input === "string" ? input : JSON.stringify(input, null, 2)}
               </pre>
             </div>
           )}
           {output != null && (
             <div>
-              <div className="text-xs text-zinc-500 mb-1">Output:</div>
-              <pre className="text-xs text-zinc-400 bg-zinc-900 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto">
+              <div className="text-xs mb-1" style={{ color: 'var(--foreground-muted)' }}>Output:</div>
+              <pre 
+                className="text-xs rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
+                style={{ color: 'var(--foreground-muted)', backgroundColor: 'var(--background-panel)' }}
+              >
                 {typeof output === "string" ? output : JSON.stringify(output, null, 2)}
               </pre>
             </div>
@@ -212,7 +265,10 @@ function ToolInvocation({ part }: { part: MessagePart }) {
           {error != null && (
             <div>
               <div className="text-xs text-red-500 mb-1">Error:</div>
-              <pre className="text-xs text-red-400 bg-zinc-900 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto">
+              <pre 
+                className="text-xs text-red-400 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
+                style={{ backgroundColor: 'var(--background-panel)' }}
+              >
                 {error}
               </pre>
             </div>
@@ -300,7 +356,13 @@ function MessageFooter({ message }: { message: SessionMessage }) {
   }
 
   return (
-    <div className="mt-2 pt-2 border-t border-zinc-700/50 text-xs text-zinc-500">
+    <div 
+      className="mt-2 pt-2 text-xs"
+      style={{ 
+        borderTop: '1px solid color-mix(in srgb, var(--border) 50%, transparent)',
+        color: 'var(--foreground-muted)'
+      }}
+    >
       {agent && (
         <span style={{ color: getAgentColor(agent, agents) }}>{capitalizeAgentName(agent)}</span>
       )}
@@ -335,13 +397,19 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
     const isAuto = compactionParts[0]?.auto;
     return (
       <div className="flex justify-center my-4">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/60 rounded-full text-xs text-zinc-400">
+        <div 
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
+          style={{ 
+            backgroundColor: 'color-mix(in srgb, var(--background-element) 60%, transparent)',
+            color: 'var(--foreground-muted)'
+          }}
+        >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
           </svg>
           <span>Session compacted{isAuto ? " (auto)" : ""}</span>
           {createdTime && (
-            <span className="text-zinc-500">· {formatMessageTime(createdTime)}</span>
+            <span style={{ color: 'var(--foreground-muted)' }}>· {formatMessageTime(createdTime)}</span>
           )}
         </div>
       </div>
@@ -357,7 +425,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
   return (
     <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} mb-4`}>
       {createdTime && (
-        <div className="text-xs text-zinc-500 mb-1 px-2">
+        <div className="text-xs mb-1 px-2" style={{ color: 'var(--foreground-muted)' }}>
           {formatMessageTime(createdTime)}
         </div>
       )}
@@ -365,19 +433,29 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
         className={`max-w-[90%] lg:max-w-[80%] rounded-2xl px-4 py-3 overflow-hidden break-words ${
           isUser
             ? hasError ? "bg-red-600/80 text-white" : "bg-blue-600 text-white"
-            : "bg-zinc-800 text-zinc-100"
+            : ""
         }`}
-        style={!isUser && message.info.agent ? {
-          borderLeftWidth: 3,
-          borderLeftColor: getAgentColor(message.info.agent, agents),
-        } : undefined}
+        style={isUser ? undefined : {
+          backgroundColor: 'var(--background-element)',
+          color: 'var(--foreground)',
+          ...(message.info.agent ? {
+            borderLeftWidth: 3,
+            borderLeftColor: getAgentColor(message.info.agent, agents),
+          } : {})
+        }}
       >
         {reasoningParts.map((part, i) => (
           <details key={`reasoning-${i}`} className="my-2">
-            <summary className="text-zinc-400 text-sm cursor-pointer hover:text-zinc-300">
+            <summary 
+              className="text-sm cursor-pointer"
+              style={{ color: 'var(--foreground-muted)' }}
+            >
               Thinking...
             </summary>
-            <div className="text-zinc-400 text-sm border-l-2 border-zinc-600 pl-3 mt-2 italic">
+            <div 
+              className="text-sm pl-3 mt-2 italic"
+              style={{ color: 'var(--foreground-muted)', borderLeft: '2px solid var(--border)' }}
+            >
               {part.text}
             </div>
           </details>
@@ -515,14 +593,14 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
-        {stepLabel && <span className="text-sm text-zinc-400">{stepLabel}</span>}
+        {stepLabel && <span className="text-sm" style={{ color: 'var(--foreground-muted)' }}>{stepLabel}</span>}
       </div>
     );
   }
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-500">
+      <div className="flex-1 flex items-center justify-center" style={{ color: 'var(--foreground-muted)' }}>
         No messages yet. Start a conversation!
       </div>
     );
@@ -534,8 +612,11 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
       
       {isLoadingMore && (
         <div className="flex justify-center mb-4">
-          <span className="flex items-center gap-2 text-sm text-zinc-400">
-            <span className="animate-spin h-4 w-4 border-2 border-zinc-500 border-t-zinc-200 rounded-full" />
+          <span className="flex items-center gap-2 text-sm" style={{ color: 'var(--foreground-muted)' }}>
+            <span 
+              className="animate-spin h-4 w-4 border-2 rounded-full"
+              style={{ borderColor: 'var(--border)', borderTopColor: 'var(--foreground)' }}
+            />
             Loading earlier messages...
           </span>
         </div>

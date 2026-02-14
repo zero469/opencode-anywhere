@@ -15,16 +15,16 @@ export function PermissionDialog() {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 rounded-2xl p-6 max-w-sm w-full border border-zinc-700">
-        <h3 className="text-lg font-semibold text-white mb-2">Permission Request</h3>
-        <p className="text-zinc-400 text-sm mb-4">
+      <div className="rounded-2xl p-6 max-w-sm w-full" style={{ backgroundColor: 'var(--background-panel)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}>
+        <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--foreground)' }}>Permission Request</h3>
+        <p className="text-sm mb-4" style={{ color: 'var(--foreground-muted)' }}>
           OpenCode wants to use the following tool:
         </p>
         
-        <div className="bg-zinc-800 rounded-lg p-3 mb-4">
+        <div className="rounded-lg p-3 mb-4" style={{ backgroundColor: 'var(--background-element)' }}>
           <code className="text-blue-400 font-mono text-sm">{permission.permission}</code>
           {permission.patterns && permission.patterns.length > 0 && (
-            <pre className="text-xs text-zinc-500 mt-2 overflow-x-auto max-h-32 overflow-y-auto">
+            <pre className="text-xs mt-2 overflow-x-auto max-h-32 overflow-y-auto" style={{ color: 'var(--foreground-muted)' }}>
               {permission.patterns.join(", ")}
             </pre>
           )}
@@ -33,7 +33,8 @@ export function PermissionDialog() {
         <div className="flex gap-3">
           <button
             onClick={() => respondPermission(permission.id, false)}
-            className="flex-1 py-2 px-4 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-white font-medium transition-colors"
+            className="flex-1 py-2 px-4 rounded-lg font-medium transition-colors hover:opacity-80"
+            style={{ backgroundColor: 'var(--background-element)', color: 'var(--foreground)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
           >
             Deny
           </button>

@@ -60,10 +60,10 @@ export function QuestionDialog() {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 rounded-2xl p-6 max-w-md w-full border border-zinc-700 max-h-[80vh] overflow-y-auto">
+      <div className="rounded-2xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto" style={{ backgroundColor: 'var(--background-panel)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}>
         {/* Header with count indicator */}
         {totalPendingRequests > 1 && (
-          <div className="text-xs text-zinc-500 mb-3">
+          <div className="text-xs mb-3" style={{ color: 'var(--foreground-muted)' }}>
             Question set 1 of {totalPendingRequests}
           </div>
         )}
@@ -75,16 +75,16 @@ export function QuestionDialog() {
           const isLastQuestion = questionIndex === questions.length - 1;
 
           return (
-            <div key={questionIndex} className={!isLastQuestion ? "mb-6 pb-6 border-b border-zinc-700" : ""}>
-              <h3 className="text-lg font-semibold text-white mb-1">
+            <div key={questionIndex} className={!isLastQuestion ? "mb-6 pb-6" : ""} style={!isLastQuestion ? { borderBottomWidth: '1px', borderBottomStyle: 'solid', borderBottomColor: 'var(--border)' } : {}}>
+              <h3 className="text-lg font-semibold mb-1" style={{ color: 'var(--foreground)' }}>
                 {questionItem.header}
                 {questions.length > 1 && (
-                  <span className="text-zinc-500 text-sm font-normal ml-2">
+                  <span className="text-sm font-normal ml-2" style={{ color: 'var(--foreground-muted)' }}>
                     ({questionIndex + 1}/{questions.length})
                   </span>
                 )}
               </h3>
-              <p className="text-zinc-400 text-sm mb-4">
+              <p className="text-sm mb-4" style={{ color: 'var(--foreground-muted)' }}>
                 {questionItem.question}
               </p>
               
@@ -94,7 +94,7 @@ export function QuestionDialog() {
 
               <div className="space-y-2">
                 {options.length === 0 ? (
-                  <p className="text-zinc-500 text-sm">No options available</p>
+                  <p className="text-sm" style={{ color: 'var(--foreground-muted)' }}>No options available</p>
                 ) : (
                   options.map((option, optionIndex) => {
                     const isSelected = currentSelection.includes(option.label);
@@ -105,14 +105,16 @@ export function QuestionDialog() {
                         className={`w-full text-left p-3 rounded-lg border transition-colors ${
                           isSelected
                             ? "border-blue-500 bg-blue-500/10"
-                            : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
+                            : "hover:opacity-80"
                         }`}
+                        style={isSelected ? {} : { borderColor: 'var(--border)', backgroundColor: 'var(--background-element)' }}
                       >
                         <div className="flex items-center gap-3">
                           <div
                             className={`w-5 h-5 flex-shrink-0 ${questionItem.multiple ? "rounded" : "rounded-full"} border-2 flex items-center justify-center ${
-                              isSelected ? "border-blue-500" : "border-zinc-600"
+                              isSelected ? "border-blue-500" : ""
                             }`}
+                            style={isSelected ? {} : { borderColor: 'var(--foreground-muted)' }}
                           >
                             {isSelected && (
                               questionItem.multiple ? (
@@ -125,11 +127,11 @@ export function QuestionDialog() {
                             )}
                           </div>
                           <div>
-                            <div className="text-white font-medium text-sm">
+                            <div className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>
                               {option.label}
                             </div>
                             {option.description && (
-                              <div className="text-zinc-500 text-xs mt-0.5">
+                              <div className="text-xs mt-0.5" style={{ color: 'var(--foreground-muted)' }}>
                                 {option.description}
                               </div>
                             )}
@@ -147,7 +149,8 @@ export function QuestionDialog() {
         <div className="flex gap-3 mt-4">
           <button
             onClick={handleReject}
-            className="flex-1 py-2 px-4 bg-zinc-700 hover:bg-zinc-600 rounded-lg text-white font-medium transition-colors"
+            className="flex-1 py-2 px-4 rounded-lg font-medium transition-colors hover:opacity-80"
+            style={{ backgroundColor: 'var(--background-element)', color: 'var(--foreground)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
           >
             Dismiss
           </button>
@@ -157,8 +160,9 @@ export function QuestionDialog() {
             className={`flex-1 py-2 px-4 rounded-lg text-white font-medium transition-colors ${
               allQuestionsAnswered
                 ? "bg-blue-600 hover:bg-blue-700"
-                : "bg-zinc-700 opacity-50 cursor-not-allowed"
+                : "opacity-50 cursor-not-allowed"
             }`}
+            style={allQuestionsAnswered ? {} : { backgroundColor: 'var(--background-element)' }}
           >
             Confirm
           </button>
