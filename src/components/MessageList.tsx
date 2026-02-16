@@ -18,6 +18,11 @@ function ImagePreviewModal({
   onClose: () => void 
 }) {
   const [mounted, setMounted] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const lastDistance = useRef<number | null>(null);
+  const lastPosition = useRef({ x: 0, y: 0 });
+  const lastTapTime = useRef<number>(0);
   
   useEffect(() => {
     setMounted(true);
@@ -32,11 +37,78 @@ function ImagePreviewModal({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
+  const resetZoom = () => {
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  };
+
   const handleBackdropClick = (e: React.MouseEvent) => {
-    // Only close if clicking the backdrop itself, not children
-    if (e.target === e.currentTarget) {
+    // Only close if clicking the backdrop itself, not children, and not zoomed
+    if (e.target === e.currentTarget && scale === 1) {
       onClose();
     }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      lastPosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      
+      // Double-tap detection
+      const now = Date.now();
+      if (now - lastTapTime.current < 300) {
+        resetZoom();
+        lastTapTime.current = 0;
+      } else {
+        lastTapTime.current = now;
+      }
+    } else if (e.touches.length === 2) {
+      // Initialize pinch distance
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      lastDistance.current = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      // Pinch zoom
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.hypot(
+        touch2.clientX - touch1.clientX,
+        touch2.clientY - touch1.clientY
+      );
+      
+      if (lastDistance.current !== null) {
+        const delta = distance / lastDistance.current;
+        setScale(prev => Math.min(Math.max(prev * delta, 0.5), 4));
+      }
+      lastDistance.current = distance;
+    } else if (e.touches.length === 1 && scale > 1) {
+      // Pan when zoomed
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - lastPosition.current.x;
+      const deltaY = touch.clientY - lastPosition.current.y;
+      setPosition(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
+      lastPosition.current = { x: touch.clientX, y: touch.clientY };
+    }
+  };
+
+  const handleTouchEnd = () => {
+    lastDistance.current = null;
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setScale(prev => Math.min(Math.max(prev * delta, 0.5), 4));
+  };
+
+  const handleDoubleClick = () => {
+    resetZoom();
   };
 
   const modalContent = (
@@ -50,22 +122,38 @@ function ImagePreviewModal({
           e.stopPropagation();
           onClose();
         }}
-        className="absolute top-12 right-4 z-10 p-3 rounded-full transition-all duration-200 active:scale-95"
+        className="absolute z-10 p-3 rounded-full transition-all duration-200 active:scale-95 backdrop-blur-sm"
         style={{ 
-          color: 'rgba(255, 255, 255, 0.9)',
-          backgroundColor: 'rgba(255, 255, 255, 0.2)'
+          top: 'calc(env(safe-area-inset-top, 12px) + 16px)',
+          right: 'calc(env(safe-area-inset-right, 0px) + 16px)',
+          color: 'rgba(255, 255, 255, 0.95)',
+          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
         }}
       >
-        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
-      <div className="flex items-center justify-center p-4 pt-20">
+      <div 
+        className="flex items-center justify-center w-full h-full overflow-hidden"
+        onWheel={handleWheel}
+      >
         <img
           src={imageUrl}
           alt="Preview"
-          className="max-w-[85vw] max-h-[75vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
+          className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200 select-none"
+          style={{ 
+            transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+            transition: scale === 1 ? 'transform 0.2s ease-out' : 'none',
+            touchAction: 'none'
+          }}
+          draggable={false}
           onClick={(e) => e.stopPropagation()}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onDoubleClick={handleDoubleClick}
         />
       </div>
     </div>
