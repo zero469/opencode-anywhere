@@ -1333,6 +1333,45 @@ export const useAppStore = create<AppState>()(
             break;
           }
 
+          case "session.error": {
+            const sessionId = event.properties.sessionID as string | undefined;
+            const errorObj = event.properties.error as { type?: string; message?: string } | undefined;
+            
+            if (sessionId) {
+              // Mark session as no longer running
+              const { runningSessions } = get();
+              if (runningSessions.includes(sessionId)) {
+                markSessionComplete(sessionId, sessions);
+              }
+              
+              // If this is the current session, show error on the last message
+              if (sessionId === currentSessionId) {
+                const errorMessage = errorObj?.message || errorObj?.type || "Unknown error";
+                const currentMessages = get().messages;
+                
+                if (currentMessages.length > 0) {
+                  const lastMsgIndex = currentMessages.length - 1;
+                  const lastMsg = currentMessages[lastMsgIndex];
+                  
+                  // Only add error if it's a user message without an error already
+                  if (lastMsg.info.role === 'user' && !lastMsg.info.error) {
+                    const newMessages = [...currentMessages];
+                    newMessages[lastMsgIndex] = {
+                      ...lastMsg,
+                      info: {
+                        ...lastMsg.info,
+                        error: errorMessage,
+                      },
+                    };
+                    set({ messages: newMessages });
+                    messageCache.set(getCacheKey(currentSessionId), newMessages);
+                  }
+                }
+              }
+            }
+            break;
+          }
+
           default:
             break;
         }

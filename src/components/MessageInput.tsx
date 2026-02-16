@@ -8,6 +8,7 @@ import { SkillsModal } from "./SkillsModal";
 import { CommandsModal } from "./CommandsModal";
 import { ContextUsageDisplay } from "./ContextUsageDisplay";
 import type { Attachment } from "@/lib/opencode";
+import { compressImage } from "@/lib/imageUtils";
 
 interface PendingAttachment {
   previewUrl: string;     // URL.createObjectURL() result for instant display
@@ -182,17 +183,28 @@ export function MessageInput() {
       
       setAttachments(prev => [...prev, pendingAttachment]);
       
-      scheduleIdleTask(() => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const dataUrl = ev.target?.result as string;
+      scheduleIdleTask(async () => {
+        try {
+          const dataUrl = await compressImage(file);
           setAttachments(prev => prev.map(att => 
             att.previewUrl === previewUrl 
-              ? { ...att, uri: dataUrl, isLoading: false }
+              ? { ...att, uri: dataUrl, mimeType: 'image/jpeg', isLoading: false }
               : att
           ));
-        };
-        reader.readAsDataURL(file);
+        } catch (err) {
+          console.error('Failed to compress image:', err);
+          // Fallback to original file if compression fails
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const dataUrl = ev.target?.result as string;
+            setAttachments(prev => prev.map(att => 
+              att.previewUrl === previewUrl 
+                ? { ...att, uri: dataUrl, isLoading: false }
+                : att
+            ));
+          };
+          reader.readAsDataURL(file);
+        }
       });
     });
     e.target.value = '';
