@@ -507,38 +507,39 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
   const prevSessionIdRef = useRef<string | null>(null);
   const firstMessageIdRef = useRef<string | null>(null);
   const prevScrollHeightRef = useRef<number>(0);
-  const userScrolledUpRef = useRef(false);
-  const isAutoScrollingRef = useRef(false);
+  // Touch-based scroll detection (more reliable on mobile than scroll events)
+  const isTouchingRef = useRef(false);
+  const shouldAutoScrollRef = useRef(true);
 
   const isSessionRunning = currentSessionId ? runningSessions.includes(currentSessionId) : false;
 
+  // Touch events for detecting user scroll intent (more reliable on mobile)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const handleScroll = () => {
-      // Ignore scroll events triggered by programmatic scrolling
-      if (isAutoScrollingRef.current) return;
-      
-      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-      if (distanceFromBottom > 100) {
-        userScrolledUpRef.current = true;
-      } else if (distanceFromBottom < 20) {
-        userScrolledUpRef.current = false;
-      }
+    const handleTouchStart = () => {
+      isTouchingRef.current = true;
     };
 
-    container.addEventListener("scroll", handleScroll);
-    return () => container.removeEventListener("scroll", handleScroll);
+    const handleTouchEnd = () => {
+      isTouchingRef.current = false;
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      shouldAutoScrollRef.current = distanceFromBottom < 50;
+    };
+
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+    
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchend", handleTouchEnd);
+    };
   }, []);
 
   useEffect(() => {
     if (keyboardHeight > 0) {
-      isAutoScrollingRef.current = true;
       bottomRef.current?.scrollIntoView({ behavior: "instant" });
-      setTimeout(() => {
-        isAutoScrollingRef.current = false;
-      }, 100);
     }
   }, [keyboardHeight]);
 
@@ -555,22 +556,14 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
       const scrollDiff = newScrollHeight - prevScrollHeightRef.current;
       container.scrollTop = scrollDiff;
     } else if (isNewSession) {
-      userScrolledUpRef.current = false;
-      isAutoScrollingRef.current = true;
+      shouldAutoScrollRef.current = true;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           bottomRef.current?.scrollIntoView({ behavior: "instant" });
-          setTimeout(() => {
-            isAutoScrollingRef.current = false;
-          }, 100);
         });
       });
-    } else if (!userScrolledUpRef.current) {
-      isAutoScrollingRef.current = true;
+    } else if (!isTouchingRef.current && shouldAutoScrollRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      setTimeout(() => {
-        isAutoScrollingRef.current = false;
-      }, 500);
     }
     
     prevSessionIdRef.current = currentSessionId;
@@ -581,15 +574,12 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    if (isSessionRunning) {
+    if (isSessionRunning && !isTouchingRef.current) {
       const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
       const isNearBottom = distanceFromBottom < 100;
       if (isNearBottom) {
-        isAutoScrollingRef.current = true;
+        shouldAutoScrollRef.current = true;
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-        setTimeout(() => {
-          isAutoScrollingRef.current = false;
-        }, 500);
       }
     }
   }, [isSessionRunning]);
