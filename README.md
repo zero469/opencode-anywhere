@@ -39,6 +39,7 @@
 | 💬 **Full Session Control** | Create, switch, pin, and manage coding sessions |
 | ✅ **Remote Permissions** | Approve or deny tool executions from your phone |
 | 🖼️ **Image Preview** | View images in messages with tap-to-preview and pinch-to-zoom |
+| 📤 **Image Sending** | Attach and send images with your messages to vision-capable models |
 | 🎨 **Dark Mode** | Easy on the eyes, day or night |
 
 ---
@@ -145,6 +146,7 @@ cloudflared tunnel run opencode
 | 💬 **完整会话控制** | 创建、切换、置顶、管理编程会话 |
 | ✅ **远程权限审批** | 在手机上批准或拒绝工具执行 |
 | 🖼️ **图片预览** | 查看消息中的图片，支持点击预览和双指缩放 |
+| 📤 **发送图片** | 附加并发送图片到支持视觉的模型 |
 | 🎨 **深色模式** | 护眼设计，昼夜皆宜 |
 
 ---

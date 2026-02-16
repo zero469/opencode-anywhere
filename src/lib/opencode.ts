@@ -5,6 +5,12 @@ import { encrypt, decrypt } from "./crypto";
 
 export type { Session };
 
+export interface Attachment {
+  uri: string;
+  mimeType: string;
+  fileName?: string;
+}
+
 let currentConfig: ConnectionConfig | null = null;
 let currentEncryptionKey: string | null = null;
 
@@ -257,10 +263,29 @@ export async function sendMessageAsync(
   options?: {
     model?: ModelSelection;
     agent?: string;
+    attachments?: Attachment[];
   }
 ): Promise<boolean> {
+  // Build parts array: file attachments first, then text
+  const parts: Array<{ type: string; text?: string; mime?: string; url?: string; filename?: string }> = [];
+  
+  // Add file parts from attachments (prepend before text)
+  if (options?.attachments?.length) {
+    for (const attachment of options.attachments) {
+      parts.push({
+        type: "file",
+        mime: attachment.mimeType,
+        url: attachment.uri,
+        ...(attachment.fileName && { filename: attachment.fileName }),
+      });
+    }
+  }
+  
+  // Add text part last
+  parts.push({ type: "text", text });
+  
   const body: Record<string, unknown> = {
-    parts: [{ type: "text", text }],
+    parts,
   };
   
   if (options?.model) {

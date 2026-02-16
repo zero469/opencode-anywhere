@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
-import type { SkillInfo, CommandInfo } from "@/lib/opencode";
+import type { SkillInfo, CommandInfo, Attachment } from "@/lib/opencode";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
 import { notifyTaskComplete, notifyApprovalNeeded, notifyInputNeeded } from "@/lib/notifications";
@@ -150,7 +150,7 @@ interface AppState {
   refreshCurrentSession: () => Promise<void>;
   loadMoreMessages: () => Promise<void>;
   clearCurrentSession: () => void;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, attachments?: Attachment[]) => Promise<void>;
   createSession: (title?: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<boolean>;
   renameSession: (sessionId: string, title: string) => Promise<boolean>;
@@ -759,7 +759,7 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      sendMessage: async (text) => {
+      sendMessage: async (text, attachments) => {
         const { currentSessionId, selectedModel, sessionAgents, defaultAgent, messages } = get();
         if (!currentSessionId || !text.trim()) return;
 
@@ -772,7 +772,18 @@ export const useAppStore = create<AppState>()(
             role: "user",
             time: { created: Date.now() },
           },
-          parts: [{ type: "text", text, id: `prt_temp_${Date.now()}` }],
+          parts: [
+            // File parts first (if any)
+            ...(attachments?.map((a, i) => ({
+              type: "file" as const,
+              id: `prt_temp_${Date.now()}_file_${i}`,
+              url: a.uri,
+              mime: a.mimeType,
+              filename: a.fileName,
+            })) || []),
+            // Text part last
+            { type: "text" as const, text, id: `prt_temp_${Date.now()}` }
+          ],
         };
         sendingSessions.add(currentSessionId);
         set({ 
@@ -788,6 +799,7 @@ export const useAppStore = create<AppState>()(
           await opencode.sendMessageAsync(sessionId, text, {
             model: selectedModel || undefined,
             agent: selectedAgent || undefined,
+            attachments,
           });
           sendingSessions.delete(sessionId);
           if (get().sendingSessionId === sessionId) {

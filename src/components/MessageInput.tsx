@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useAppStore } from "@/store";
 import { ModelAgentSelector } from "./ModelAgentSelector";
 import { QuickActionsBar } from "./QuickActionsBar";
 import { SkillsModal } from "./SkillsModal";
 import { CommandsModal } from "./CommandsModal";
 import { ContextUsageDisplay } from "./ContextUsageDisplay";
+import type { Attachment } from "@/lib/opencode";
 
 const isMobileDevice = () => {
   if (typeof window === "undefined") return false;
@@ -24,9 +25,19 @@ export function MessageInput() {
   const skills = useAppStore((state) => state.skills);
   const fetchCommands = useAppStore((state) => state.fetchCommands);
   const commands = useAppStore((state) => state.commands);
+  const providers = useAppStore((state) => state.providers);
+  const selectedModel = useAppStore((state) => state.selectedModel);
   
   const isSessionBusy = currentSessionId ? runningSessions.includes(currentSessionId) : false;
   const isCompacting = currentSessionId ? compactingSessions.includes(currentSessionId) : false;
+
+  // Check if current model supports attachments
+  const currentModelSupportsAttachments = useMemo(() => {
+    if (!providers || !selectedModel) return true; // Assume yes if unknown
+    const provider = providers.all.find(p => p.id === selectedModel.providerID);
+    const model = provider?.models[selectedModel.modelID];
+    return model?.attachment ?? true; // Default to true if not specified
+  }, [providers, selectedModel]);
   
   const [text, setText] = useState("");
   const [isComposing, setIsComposing] = useState(false);
@@ -34,7 +45,9 @@ export function MessageInput() {
   const [showSkillsModal, setShowSkillsModal] = useState(false);
   const [showCommandsModal, setShowCommandsModal] = useState(false);
   const [isLoadingCommands, setIsLoadingCommands] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsMobile(isMobileDevice());
@@ -56,14 +69,19 @@ export function MessageInput() {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = text.trim();
-    if (!trimmed || isSessionBusy) return;
+    if ((!trimmed && attachments.length === 0) || isSessionBusy) return;
     
+    const currentAttachments = attachments;
     setText("");
+    setAttachments([]);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-    await sendMessage(trimmed);
-  }, [text, isSessionBusy, sendMessage]);
+    await sendMessage(
+      trimmed || "What's in this image?",
+      currentAttachments.length > 0 ? currentAttachments : undefined
+    );
+  }, [text, attachments, isSessionBusy, sendMessage]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (isMobile) return;
@@ -116,6 +134,34 @@ export function MessageInput() {
     });
   }, [adjustHeight]);
 
+  const handleImagePick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string;
+        setAttachments(prev => [...prev, {
+          uri: dataUrl,
+          mimeType: file.type,
+          fileName: file.name,
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    // Reset input for re-selection
+    e.target.value = '';
+  }, []);
+
+  const handleRemoveAttachment = useCallback((index: number) => {
+    setAttachments(prev => prev.filter((_, idx) => idx !== index));
+  }, []);
+
   if (!currentSessionId) {
     return (
       <div 
@@ -145,7 +191,62 @@ export function MessageInput() {
         </div>
       </div>
       <form onSubmit={handleSubmit} className="p-4 pt-2">
+        {attachments.length > 0 && (
+          <div className="flex gap-2 pb-2 flex-wrap">
+            {attachments.map((att, i) => (
+              <div key={i} className="relative group">
+                <img 
+                  src={att.uri} 
+                  alt={att.fileName || `Image ${i + 1}`}
+                  className="w-16 h-16 object-cover rounded-lg border"
+                  style={{ borderColor: 'var(--border)' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveAttachment(i)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {attachments.length > 0 && !currentModelSupportsAttachments && (
+          <div 
+            className="flex items-center gap-2 pb-2 text-xs"
+            style={{ color: 'var(--warning, #f59e0b)' }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Current model may not support images</span>
+          </div>
+        )}
         <div className="flex gap-2 items-end">
+          <button
+            type="button"
+            onClick={handleImagePick}
+            disabled={isSessionBusy}
+            className="p-2 rounded-lg transition-colors h-[42px] flex items-center justify-center"
+            style={{ 
+              color: 'var(--foreground-muted)',
+              backgroundColor: 'var(--background-element)',
+            }}
+            title="Attach image"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileChange}
+            className="hidden"
+          />
           <textarea
             ref={textareaRef}
             value={text}
@@ -177,11 +278,11 @@ export function MessageInput() {
           ) : (
             <button
               type="submit"
-              disabled={!text.trim()}
+              disabled={!text.trim() && attachments.length === 0}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed rounded-xl font-medium transition-colors h-[42px]"
               style={{ 
                 color: 'var(--foreground)',
-                backgroundColor: !text.trim() ? 'var(--background-element)' : undefined
+                backgroundColor: (!text.trim() && attachments.length === 0) ? 'var(--background-element)' : undefined
               }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
