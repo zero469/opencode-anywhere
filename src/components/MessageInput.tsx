@@ -22,6 +22,16 @@ const isMobileDevice = () => {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 };
 
+// Polyfill for Safari/iOS which doesn't support requestIdleCallback
+const scheduleIdleTask = (callback: () => void) => {
+  if (typeof requestIdleCallback !== "undefined") {
+    requestIdleCallback(callback);
+  } else {
+    // Fallback: use setTimeout to defer to next event loop tick
+    setTimeout(callback, 1);
+  }
+};
+
 export function MessageInput() {
   const sendMessage = useAppStore((state) => state.sendMessage);
   const currentSessionId = useAppStore((state) => state.currentSessionId);
@@ -172,7 +182,7 @@ export function MessageInput() {
       
       setAttachments(prev => [...prev, pendingAttachment]);
       
-      requestIdleCallback(() => {
+      scheduleIdleTask(() => {
         const reader = new FileReader();
         reader.onload = (ev) => {
           const dataUrl = ev.target?.result as string;
