@@ -128,7 +128,7 @@ interface AppState {
    todos: TodoItem[];
    skills: SkillInfo[];
    commands: CommandInfo[];
-   isCompacting: boolean;
+   compactingSessionId: string | null;
 
    relayToken: string | null;
   user: User | null;
@@ -217,7 +217,7 @@ export const useAppStore = create<AppState>()(
        todos: [],
        skills: [],
        commands: [],
-       isCompacting: false,
+       compactingSessionId: null,
 
        relayToken: null,
       user: null,
@@ -1032,10 +1032,10 @@ export const useAppStore = create<AppState>()(
       },
 
       summarizeCurrentSession: async () => {
-        const { currentSessionId, selectedModel, isCompacting } = get();
-        if (!currentSessionId || !selectedModel || isCompacting) return;
+        const { currentSessionId, selectedModel, compactingSessionId } = get();
+        if (!currentSessionId || !selectedModel || compactingSessionId) return;
         
-        set({ isCompacting: true });
+        set({ compactingSessionId: currentSessionId });
         try {
           await opencode.summarizeSession(currentSessionId, {
             providerID: selectedModel.providerID,
@@ -1046,7 +1046,7 @@ export const useAppStore = create<AppState>()(
         } catch (error) {
           console.error("Failed to summarize session:", error);
         } finally {
-          set({ isCompacting: false });
+          set({ compactingSessionId: null });
         }
       },
 

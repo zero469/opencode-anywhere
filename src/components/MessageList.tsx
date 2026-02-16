@@ -676,7 +676,7 @@ function ScrollToBottomButton() {
   return (
     <button
       onClick={() => scrollToBottom("smooth")}
-      className="fixed bottom-24 right-4 z-10 p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+      className="sticky bottom-4 left-1/2 -translate-x-1/2 z-10 p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
       style={{
         backgroundColor: "var(--oc-accent)",
         color: "var(--background)",
@@ -684,7 +684,7 @@ function ScrollToBottomButton() {
       aria-label="Scroll to bottom"
     >
       <svg
-        className="w-5 h-5"
+        className="w-4 h-4"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
