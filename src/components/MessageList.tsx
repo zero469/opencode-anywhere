@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import { getAgentColor, capitalizeAgentName } from "@/lib/agentColors";
+import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -500,109 +501,11 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
   const isLoadingMore = useAppStore((state) => state.isLoadingMore);
   const loadMoreMessages = useAppStore((state) => state.loadMoreMessages);
   const currentSessionId = useAppStore((state) => state.currentSessionId);
-  const runningSessions = useAppStore((state) => state.runningSessions);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
   const prevSessionIdRef = useRef<string | null>(null);
   const firstMessageIdRef = useRef<string | null>(null);
   const prevScrollHeightRef = useRef<number>(0);
-  // Touch-based scroll detection (more reliable on mobile than scroll events)
-  const isTouchingRef = useRef(false);
-  const shouldAutoScrollRef = useRef(true);
-
-  const isSessionRunning = currentSessionId ? runningSessions.includes(currentSessionId) : false;
-
-  // Touch events for detecting user scroll intent (more reliable on mobile)
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleTouchStart = () => {
-      isTouchingRef.current = true;
-    };
-
-    const handleTouchEnd = () => {
-      isTouchingRef.current = false;
-      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-      shouldAutoScrollRef.current = distanceFromBottom < 50;
-    };
-
-    container.addEventListener("touchstart", handleTouchStart, { passive: true });
-    container.addEventListener("touchend", handleTouchEnd, { passive: true });
-    
-    return () => {
-      container.removeEventListener("touchstart", handleTouchStart);
-      container.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (keyboardHeight > 0) {
-      bottomRef.current?.scrollIntoView({ behavior: "instant" });
-    }
-  }, [keyboardHeight]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || messages.length === 0) return;
-    
-    const isNewSession = prevSessionIdRef.current !== currentSessionId;
-    const currentFirstMessageId = messages[0]?.info.id;
-    const hasOlderMessagesLoaded = currentFirstMessageId !== firstMessageIdRef.current && !isNewSession;
-    
-    if (hasOlderMessagesLoaded && prevScrollHeightRef.current > 0) {
-      const newScrollHeight = container.scrollHeight;
-      const scrollDiff = newScrollHeight - prevScrollHeightRef.current;
-      container.scrollTop = scrollDiff;
-    } else if (isNewSession) {
-      shouldAutoScrollRef.current = true;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          bottomRef.current?.scrollIntoView({ behavior: "instant" });
-        });
-      });
-    } else if (!isTouchingRef.current && shouldAutoScrollRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-    
-    prevSessionIdRef.current = currentSessionId;
-    firstMessageIdRef.current = currentFirstMessageId;
-    prevScrollHeightRef.current = container.scrollHeight;
-  }, [messages, currentSessionId]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    if (isSessionRunning && !isTouchingRef.current) {
-      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-      const isNearBottom = distanceFromBottom < 100;
-      if (isNearBottom) {
-        shouldAutoScrollRef.current = true;
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  }, [isSessionRunning]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    const sentinel = topSentinelRef.current;
-    if (!container || !sentinel) return;
-    
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting && hasMoreMessages && !isLoadingMore) {
-          prevScrollHeightRef.current = container.scrollHeight;
-          loadMoreMessages();
-        }
-      },
-      { root: container, threshold: 0.1 }
-    );
-    
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMoreMessages, isLoadingMore, loadMoreMessages]);
 
   const SESSION_LOADING_STEP_LABELS: Record<string, string> = {
     idle: "",
@@ -630,25 +533,169 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
   }
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+    <StickToBottom
+      className="flex-1 overflow-y-auto overflow-x-hidden"
+      resize="smooth"
+      initial="smooth"
+    >
+      <MessageListContent
+        messages={messages}
+        hasMoreMessages={hasMoreMessages}
+        isLoadingMore={isLoadingMore}
+        loadMoreMessages={loadMoreMessages}
+        currentSessionId={currentSessionId}
+        keyboardHeight={keyboardHeight}
+        bottomRef={bottomRef}
+        topSentinelRef={topSentinelRef}
+        prevSessionIdRef={prevSessionIdRef}
+        firstMessageIdRef={firstMessageIdRef}
+        prevScrollHeightRef={prevScrollHeightRef}
+      />
+    </StickToBottom>
+  );
+}
+
+interface MessageListContentProps {
+  messages: SessionMessage[];
+  hasMoreMessages: boolean;
+  isLoadingMore: boolean;
+  loadMoreMessages: () => void;
+  currentSessionId: string | null;
+  keyboardHeight: number;
+  bottomRef: React.RefObject<HTMLDivElement | null>;
+  topSentinelRef: React.RefObject<HTMLDivElement | null>;
+  prevSessionIdRef: React.RefObject<string | null>;
+  firstMessageIdRef: React.RefObject<string | null>;
+  prevScrollHeightRef: React.RefObject<number>;
+}
+
+function MessageListContent({
+  messages,
+  hasMoreMessages,
+  isLoadingMore,
+  loadMoreMessages,
+  currentSessionId,
+  keyboardHeight,
+  bottomRef,
+  topSentinelRef,
+  prevSessionIdRef,
+  firstMessageIdRef,
+  prevScrollHeightRef,
+}: MessageListContentProps) {
+  const { scrollToBottom, scrollRef } = useStickToBottomContext();
+
+  useEffect(() => {
+    if (keyboardHeight > 0) {
+      scrollToBottom("instant");
+    }
+  }, [keyboardHeight, scrollToBottom]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || messages.length === 0) return;
+
+    const isNewSession = prevSessionIdRef.current !== currentSessionId;
+    const currentFirstMessageId = messages[0]?.info.id;
+    const hasOlderMessagesLoaded =
+      currentFirstMessageId !== firstMessageIdRef.current && !isNewSession;
+
+    if (hasOlderMessagesLoaded && prevScrollHeightRef.current > 0) {
+      const newScrollHeight = container.scrollHeight;
+      const scrollDiff = newScrollHeight - prevScrollHeightRef.current;
+      container.scrollTop = scrollDiff;
+    } else if (isNewSession) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToBottom("instant");
+        });
+      });
+    }
+
+    prevSessionIdRef.current = currentSessionId;
+    firstMessageIdRef.current = currentFirstMessageId;
+    prevScrollHeightRef.current = container.scrollHeight;
+  }, [messages, currentSessionId, scrollToBottom, scrollRef, prevSessionIdRef, firstMessageIdRef, prevScrollHeightRef]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    const sentinel = topSentinelRef.current;
+    if (!container || !sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasMoreMessages && !isLoadingMore) {
+          prevScrollHeightRef.current = container.scrollHeight;
+          loadMoreMessages();
+        }
+      },
+      { root: container, threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreMessages, isLoadingMore, loadMoreMessages, scrollRef, topSentinelRef, prevScrollHeightRef]);
+
+  return (
+    <StickToBottom.Content className="flex flex-col p-4">
       <div ref={topSentinelRef} className="h-1" />
-      
+
       {isLoadingMore && (
         <div className="flex justify-center mb-4">
-          <span className="flex items-center gap-2 text-sm" style={{ color: 'var(--foreground-muted)' }}>
-            <span 
+          <span
+            className="flex items-center gap-2 text-sm"
+            style={{ color: "var(--foreground-muted)" }}
+          >
+            <span
               className="animate-spin h-4 w-4 border-2 rounded-full"
-              style={{ borderColor: 'var(--border)', borderTopColor: 'var(--foreground)' }}
+              style={{
+                borderColor: "var(--border)",
+                borderTopColor: "var(--foreground)",
+              }}
             />
             Loading earlier messages...
           </span>
         </div>
       )}
-      
+
       {messages.map((msg) => (
         <MessageBubble key={msg.info.id} message={msg} />
       ))}
       <div ref={bottomRef} />
-    </div>
+
+      <ScrollToBottomButton />
+    </StickToBottom.Content>
+  );
+}
+
+function ScrollToBottomButton() {
+  const { isAtBottom, scrollToBottom } = useStickToBottomContext();
+
+  if (isAtBottom) return null;
+
+  return (
+    <button
+      onClick={() => scrollToBottom("smooth")}
+      className="fixed bottom-24 right-4 z-10 p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+      style={{
+        backgroundColor: "var(--oc-accent)",
+        color: "var(--background)",
+      }}
+      aria-label="Scroll to bottom"
+    >
+      <svg
+        className="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M19 14l-7 7m0 0l-7-7m7 7V3"
+        />
+      </svg>
+    </button>
   );
 }
