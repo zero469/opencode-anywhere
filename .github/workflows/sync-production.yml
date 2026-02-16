@@ -1,0 +1,46 @@
+name: Sync to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm sync to production'
+        required: true
+        default: ''
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'deploy'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync main to production
+        run: |
+          git fetch origin
+          
+          # Create production branch if it doesn't exist
+          if ! git ls-remote --heads origin production | grep -q production; then
+            echo "Creating production branch..."
+            git checkout -b production
+            git push origin production
+          else
+            echo "Syncing main to production..."
+            git checkout production
+            git pull origin production
+            git merge origin/main --no-edit
+            git push origin production
+          fi
+
+      - name: Summary
+        run: |
+          echo "✅ Successfully synced main to production"
+          echo "Commit: $(git rev-parse HEAD)"
