@@ -1,8 +1,10 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Keyboard } from "@capacitor/keyboard";
 
 let keyboardHeight = 0;
+let pendingHeight: number | null = null;
+let rafId: number | null = null;
 const listeners = new Set<() => void>();
 
 function subscribe(callback: () => void) {
@@ -18,6 +20,25 @@ function notify() {
   listeners.forEach(l => l());
 }
 
+// Batch keyboard height updates using requestAnimationFrame
+// This prevents multiple synchronous layout recalculations during keyboard animation
+function scheduleUpdate(newHeight: number) {
+  pendingHeight = newHeight;
+  
+  if (rafId !== null) {
+    return; // Already scheduled
+  }
+  
+  rafId = requestAnimationFrame(() => {
+    rafId = null;
+    if (pendingHeight !== null && pendingHeight !== keyboardHeight) {
+      keyboardHeight = pendingHeight;
+      pendingHeight = null;
+      notify();
+    }
+  });
+}
+
 let initialized = false;
 
 function initKeyboardListeners() {
@@ -25,13 +46,11 @@ function initKeyboardListeners() {
   initialized = true;
   
   Keyboard.addListener("keyboardWillShow", (info) => {
-    keyboardHeight = info.keyboardHeight;
-    notify();
+    scheduleUpdate(info.keyboardHeight);
   });
 
   Keyboard.addListener("keyboardWillHide", () => {
-    keyboardHeight = 0;
-    notify();
+    scheduleUpdate(0);
   });
 }
 

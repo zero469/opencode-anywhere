@@ -57,7 +57,8 @@ function ChatView() {
       style={{ 
         backgroundColor: 'var(--background)',
         paddingTop: 'var(--safe-area-top)', 
-        paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : 'var(--safe-area-bottom)' 
+        paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : 'var(--safe-area-bottom)',
+        willChange: keyboardHeight > 0 ? 'padding-bottom' : 'auto'
       }}
     >
       <div className="fixed top-0 left-0 right-0 z-50" style={{ height: 'var(--safe-area-top)', backgroundColor: 'var(--background-panel)' }} />

@@ -587,7 +587,9 @@ function MessageListContent({
 
   useEffect(() => {
     if (keyboardHeight > 0) {
-      scrollToBottom("instant");
+      requestAnimationFrame(() => {
+        scrollToBottom("instant");
+      });
     }
   }, [keyboardHeight, scrollToBottom]);
 
