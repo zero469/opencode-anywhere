@@ -229,6 +229,9 @@ export default function Home() {
   const config = useAppStore((state) => state.config);
   const fetchDevices = useAppStore((state) => state.fetchDevices);
   const selectDevice = useAppStore((state) => state.selectDevice);
+  const deselectDevice = useAppStore((state) => state.deselectDevice);
+  const devices = useAppStore((state) => state.devices);
+  const devicesFetched = useAppStore((state) => state.devicesFetched);
 
   const hydrated = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
 
@@ -245,11 +248,21 @@ export default function Home() {
   }, [hydrated, relayToken, fetchDevices]);
 
   // Re-connect when we have a selected device but no config (after app restart)
+  // Wait for devices to be fetched first to check if persisted device is online
   useEffect(() => {
-    if (hydrated && relayToken && selectedDevice && !config) {
-      selectDevice(selectedDevice);
+    if (hydrated && relayToken && selectedDevice && !config && devicesFetched) {
+      // Check if persisted device is online in freshly fetched devices
+      const freshDevice = devices.find(d => d.id === selectedDevice.id);
+      
+      if (freshDevice?.online) {
+        // Device is online, connect with fresh device data
+        selectDevice(freshDevice);
+      } else {
+        // Device is offline or not found, go to device list
+        deselectDevice();
+      }
     }
-  }, [hydrated, relayToken, selectedDevice, config, selectDevice]);
+  }, [hydrated, relayToken, selectedDevice, config, devicesFetched, devices, selectDevice, deselectDevice]);
 
   if (!hydrated) {
     return (
