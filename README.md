@@ -29,6 +29,14 @@ A native iOS app for [OpenCode](https://github.com/sst/opencode) - like Happy Co
 - **Permission Handling** - Approve/deny tool executions remotely
 - **Dark Mode** - Easy on the eyes, optimized for mobile
 
+## Screenshots
+
+<div align="center">
+<img src="Message.PNG" width="250" alt="Message View">
+<img src="Skill.PNG" width="250" alt="Skills">
+<img src="Command.PNG" width="250" alt="Commands">
+</div>
+
 ## Quick Start
 
 ### Step 1: Download the App
@@ -192,6 +200,14 @@ Built for use with [OpenCode](https://github.com/sst/opencode) by SST.
 - **会话管理** - 创建、切换和管理多个编程会话
 - **权限处理** - 远程批准/拒绝工具执行请求
 - **深色模式** - 护眼设计，针对移动端优化
+
+## 截图
+
+<div align="center">
+<img src="Message.PNG" width="250" alt="消息界面">
+<img src="Skill.PNG" width="250" alt="技能">
+<img src="Command.PNG" width="250" alt="命令">
+</div>
 
 ## 快速开始
 

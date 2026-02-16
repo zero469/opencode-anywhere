@@ -553,12 +553,9 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
           bottomRef.current?.scrollIntoView({ behavior: "instant" });
         });
       });
-    } else {
-      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-      const isNearBottom = distanceFromBottom < 100;
-      if (isNearBottom) {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-      }
+    } else if (!userScrolledUpRef.current) {
+      // Auto-scroll to bottom when user hasn't manually scrolled up
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
     
     prevSessionIdRef.current = currentSessionId;
