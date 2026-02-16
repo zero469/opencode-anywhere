@@ -534,7 +534,7 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
 
   return (
     <StickToBottom
-      className="flex-1 overflow-y-auto overflow-x-hidden"
+      className="flex-1 overflow-y-auto overflow-x-hidden relative"
       resize="smooth"
       initial="smooth"
     >
@@ -551,6 +551,7 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
         firstMessageIdRef={firstMessageIdRef}
         prevScrollHeightRef={prevScrollHeightRef}
       />
+      <ScrollToBottomButton />
     </StickToBottom>
   );
 }
@@ -662,8 +663,6 @@ function MessageListContent({
         <MessageBubble key={msg.info.id} message={msg} />
       ))}
       <div ref={bottomRef} />
-
-      <ScrollToBottomButton />
     </StickToBottom.Content>
   );
 }
@@ -676,10 +675,11 @@ function ScrollToBottomButton() {
   return (
     <button
       onClick={() => scrollToBottom("smooth")}
-      className="sticky bottom-4 left-1/2 -translate-x-1/2 z-10 p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+      className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
       style={{
-        backgroundColor: "var(--oc-accent)",
-        color: "var(--background)",
+        backgroundColor: "var(--background)",
+        color: "var(--foreground-muted)",
+        border: "1px solid var(--border)",
       }}
       aria-label="Scroll to bottom"
     >
