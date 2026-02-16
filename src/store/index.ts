@@ -6,7 +6,7 @@ import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
 import { notifyTaskComplete, notifyApprovalNeeded, notifyInputNeeded } from "@/lib/notifications";
 
-const MESSAGE_PAGE_SIZE = 30;
+const MESSAGE_PAGE_SIZE = 15; // Reduced to limit payload size for image-heavy sessions
 
 const messageCache = new Map<string, SessionMessage[]>();
 const sessionLastUpdated = new Map<string, number>();
@@ -48,6 +48,19 @@ let currentDeviceId: number | null = null;
 
 function getCacheKey(sessionId: string): string {
   return currentDeviceId ? `${currentDeviceId}:${sessionId}` : sessionId;
+}
+
+function stripLargeDataForCache(messages: SessionMessage[]): SessionMessage[] {
+  return messages.map(msg => ({
+    ...msg,
+    parts: msg.parts.map(part => {
+      // Strip base64 image data (but keep metadata)
+      if (part.type === "file" && part.url?.startsWith("data:") && part.url.length > 1000) {
+        return { ...part, url: "[stripped-for-cache]" };
+      }
+      return part;
+    })
+  }));
 }
 
 function hasRunningToolInvocations(messages: SessionMessage[]): boolean {
@@ -528,7 +541,11 @@ export const useAppStore = create<AppState>()(
           });
           set({ sessions: sortedSessions });
           
-          get().preloadRecentSessions(sortedSessions.slice(0, 5));
+          // Delay preloading to ensure UI is responsive first
+          // Reduce from 5 to 2 sessions to minimize impact of image-heavy sessions
+          setTimeout(() => {
+            get().preloadRecentSessions(sortedSessions.slice(0, 2));
+          }, 3000);
         } catch (error) {
           console.error("Failed to fetch sessions:", error);
           if (currentDeviceId !== deviceIdAtStart) {
@@ -553,9 +570,14 @@ export const useAppStore = create<AppState>()(
       preloadRecentSessions: (sessions) => {
         const deviceIdAtStart = currentDeviceId;
         const loadSequentially = async () => {
-          for (const session of sessions) {
+          for (let i = 0; i < sessions.length; i++) {
             if (currentDeviceId !== deviceIdAtStart) return;
             
+            if (i > 0) {
+              await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            const session = sessions[i];
             const cacheKey = getCacheKey(session.id);
             if (!messageCache.has(cacheKey)) {
               try {
@@ -565,7 +587,7 @@ export const useAppStore = create<AppState>()(
                 
                 if (currentDeviceId !== deviceIdAtStart) return;
                 
-                messageCache.set(cacheKey, messages);
+                messageCache.set(cacheKey, stripLargeDataForCache(messages));
                 sessionHasMoreMessages.set(cacheKey, hasMore);
                 sessionLoadedCount.set(cacheKey, messages.length);
               } catch {}
@@ -594,6 +616,20 @@ export const useAppStore = create<AppState>()(
           const hasMore = sessionHasMoreMessages.get(cacheKey) || false;
           set({ currentSessionId: id, messages: cached, isLoading: false, hasMoreMessages: hasMore, sessionLoadingStep: "ready" });
           get().fetchTodos(id);
+          
+          // Check if cache has stripped images - if so, refresh in background
+          const hasStrippedImages = cached.some(msg => 
+            msg.parts.some(p => p.url === "[stripped-for-cache]")
+          );
+          if (hasStrippedImages) {
+            // Refresh in background to get full image data
+            opencode.getSessionMessages(id, { limit: MESSAGE_PAGE_SIZE }).then(({ messages: freshMessages }) => {
+              if (get().currentSessionId === id) {
+                set({ messages: freshMessages });
+                messageCache.set(cacheKey, stripLargeDataForCache(freshMessages));
+              }
+            }).catch(() => {}); // Ignore errors, cache is still usable
+          }
           return;
         }
         
@@ -623,7 +659,7 @@ export const useAppStore = create<AppState>()(
             return;
           }
           
-          messageCache.set(cacheKey, messages);
+          messageCache.set(cacheKey, stripLargeDataForCache(messages));
           sessionHasMoreMessages.set(cacheKey, hasMore);
           sessionLoadedCount.set(cacheKey, messages.length);
           sessionLastUpdated.set(cacheKey, sessionUpdatedTime);
@@ -701,7 +737,7 @@ export const useAppStore = create<AppState>()(
             return timeA - timeB;
           });
           
-          messageCache.set(cacheKey, newMessages);
+          messageCache.set(cacheKey, stripLargeDataForCache(newMessages));
           sessionHasMoreMessages.set(cacheKey, hasMore);
           sessionLoadedCount.set(cacheKey, currentOffset + olderMessages.length);
           
@@ -741,7 +777,7 @@ export const useAppStore = create<AppState>()(
             return timeA - timeB;
           });
           
-          messageCache.set(cacheKey, mergedMessages);
+          messageCache.set(cacheKey, stripLargeDataForCache(mergedMessages));
           set({ messages: mergedMessages });
           
           const lastMsg = mergedMessages[mergedMessages.length - 1];
@@ -1147,7 +1183,7 @@ export const useAppStore = create<AppState>()(
                   });
                   
                   set({ messages: mergedMessages });
-                  messageCache.set(cacheKey, mergedMessages);
+                  messageCache.set(cacheKey, stripLargeDataForCache(mergedMessages));
                 }).catch(console.error);
               }
             } else {
@@ -1179,7 +1215,7 @@ export const useAppStore = create<AppState>()(
               }
               
               set({ messages: newMessages });
-              messageCache.set(getCacheKey(currentSessionId), newMessages);
+              messageCache.set(getCacheKey(currentSessionId), stripLargeDataForCache(newMessages));
             }
             break;
           }
@@ -1217,7 +1253,7 @@ export const useAppStore = create<AppState>()(
                 });
               }
               set({ messages: newMessages });
-              messageCache.set(getCacheKey(currentSessionId), newMessages);
+              messageCache.set(getCacheKey(currentSessionId), stripLargeDataForCache(newMessages));
               
               const { runningSessions } = get();
               if (runningSessions.includes(sessionId)) {
