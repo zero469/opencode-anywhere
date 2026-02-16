@@ -393,6 +393,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
   const toolParts = message.parts.filter(p => p.type === "tool");
   const reasoningParts = message.parts.filter(p => p.type === "reasoning" && p.text);
   const compactionParts = message.parts.filter(p => p.type === "compaction");
+  const fileParts = message.parts.filter(p => p.type === "file" && p.url && p.mime?.startsWith("image/"));
   
   if (compactionParts.length > 0) {
     const isAuto = compactionParts[0]?.auto;
@@ -417,7 +418,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
     );
   }
   
-  const hasVisibleContent = textParts.length > 0 || toolParts.length > 0 || reasoningParts.length > 0;
+  const hasVisibleContent = textParts.length > 0 || toolParts.length > 0 || reasoningParts.length > 0 || fileParts.length > 0;
   
   if (!hasVisibleContent) {
     return null;
@@ -465,6 +466,18 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
           </details>
         ))}
         
+        {fileParts.map((part, i) => (
+          <div key={`file-${part.id || i}`} className="my-2">
+            <img 
+              src={part.url} 
+              alt={part.filename || "image"} 
+              className="max-w-full rounded-lg cursor-pointer"
+              style={{ maxHeight: '300px' }}
+              onClick={() => window.open(part.url, '_blank')}
+            />
+          </div>
+        ))}
+
         {textParts.map((part, i) => (
           <div key={`text-${i}`} className="prose prose-invert prose-sm max-w-none">
             {isUser ? (

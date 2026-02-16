@@ -67,6 +67,9 @@ export interface MessagePart {
   toolName?: string;
   callID?: string;
   auto?: boolean;
+  mime?: string;
+  filename?: string;
+  url?: string;
   state?: {
     status?: "pending" | "running" | "completed" | "error";
     title?: string;
