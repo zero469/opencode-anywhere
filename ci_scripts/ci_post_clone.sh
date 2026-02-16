@@ -2,19 +2,24 @@
 set -e
 
 echo "=== Xcode Cloud Post-Clone Script ==="
+echo "CI_PRIMARY_REPOSITORY_PATH: $CI_PRIMARY_REPOSITORY_PATH"
+echo "Current directory: $(pwd)"
 
 cd "$CI_PRIMARY_REPOSITORY_PATH"
 
-# 安装 Node.js (使用 Homebrew)
 echo "Installing Node.js..."
 brew install node
 
-# 安装依赖
+echo "Node version: $(node --version)"
+echo "npm version: $(npm --version)"
+
 echo "Installing npm dependencies..."
 npm ci
 
-# 构建 Web 资源并同步到 iOS
-echo "Building web assets..."
+echo "Building web assets and syncing to iOS..."
 npm run build:native
+
+echo "Verifying node_modules/@capacitor..."
+ls -la node_modules/@capacitor/
 
 echo "=== Post-Clone Complete ==="
