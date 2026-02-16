@@ -18,9 +18,10 @@
 ## 📱 Screenshots
 
 <div align="center">
-<img src="https://raw.githubusercontent.com/zero469/opencode-anywhere/main/Message.PNG" width="250" alt="Chat">
-<img src="https://raw.githubusercontent.com/zero469/opencode-anywhere/main/Skill.PNG" width="250" alt="Skills">
-<img src="https://raw.githubusercontent.com/zero469/opencode-anywhere/main/Command.PNG" width="250" alt="Commands">
+<img src="https://raw.githubusercontent.com/zero469/opencode-anywhere/main/Device.png" width="200" alt="Devices">
+<img src="https://raw.githubusercontent.com/zero469/opencode-anywhere/main/Message.PNG" width="200" alt="Chat">
+<img src="https://raw.githubusercontent.com/zero469/opencode-anywhere/main/Skill.PNG" width="200" alt="Skills">
+<img src="https://raw.githubusercontent.com/zero469/opencode-anywhere/main/Command.PNG" width="200" alt="Commands">
 </div>
 
 ---
