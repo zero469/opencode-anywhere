@@ -9,6 +9,51 @@ import type { Components } from "react-markdown";
 import { getAgentColor, capitalizeAgentName } from "@/lib/agentColors";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
+function ImagePreviewModal({ 
+  imageUrl, 
+  onClose 
+}: { 
+  imageUrl: string; 
+  onClose: () => void 
+}) {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
+  return (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center animate-in fade-in duration-200"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}
+      onClick={onClose}
+    >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 p-2 rounded-full transition-all duration-200 hover:scale-110"
+        style={{ 
+          color: 'rgba(255, 255, 255, 0.8)',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)'
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 1)'}
+        onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)'}
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+      <img
+        src={imageUrl}
+        alt="Preview"
+        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -385,11 +430,12 @@ const MarkdownContent = memo(function MarkdownContent({ text }: { text: string }
 
 const MessageBubble = memo(function MessageBubble({ message }: { message: SessionMessage }) {
   const agents = useAppStore((state) => state.agents);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const isUser = message.info.role === "user";
   const createdTime = message.info.time?.created;
   const hasError = !!message.info.error;
   
-  const textParts = message.parts.filter(p => p.type === "text" && p.text);
+  const textParts = message.parts.filter(p => p.type === "text" && p.text && !/^\[Image \d+\]$/.test(p.text));
   const toolParts = message.parts.filter(p => p.type === "tool");
   const reasoningParts = message.parts.filter(p => p.type === "reasoning" && p.text);
   const compactionParts = message.parts.filter(p => p.type === "compaction");
@@ -471,9 +517,9 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
             <img 
               src={part.url} 
               alt={part.filename || "image"} 
-              className="max-w-full rounded-lg cursor-pointer"
+              className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
               style={{ maxHeight: '300px' }}
-              onClick={() => window.open(part.url, '_blank')}
+              onClick={() => setPreviewImage(part.url!)}
             />
           </div>
         ))}
@@ -501,6 +547,12 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
           </svg>
           Failed to send
         </div>
+      )}
+      {previewImage && (
+        <ImagePreviewModal 
+          imageUrl={previewImage} 
+          onClose={() => setPreviewImage(null)} 
+        />
       )}
     </div>
   );
