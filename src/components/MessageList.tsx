@@ -508,6 +508,7 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
   const firstMessageIdRef = useRef<string | null>(null);
   const prevScrollHeightRef = useRef<number>(0);
   const userScrolledUpRef = useRef(false);
+  const isAutoScrollingRef = useRef(false);
 
   const isSessionRunning = currentSessionId ? runningSessions.includes(currentSessionId) : false;
 
@@ -516,6 +517,9 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
     if (!container) return;
 
     const handleScroll = () => {
+      // Ignore scroll events triggered by programmatic scrolling
+      if (isAutoScrollingRef.current) return;
+      
       const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
       if (distanceFromBottom > 100) {
         userScrolledUpRef.current = true;
@@ -530,7 +534,11 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
 
   useEffect(() => {
     if (keyboardHeight > 0) {
+      isAutoScrollingRef.current = true;
       bottomRef.current?.scrollIntoView({ behavior: "instant" });
+      setTimeout(() => {
+        isAutoScrollingRef.current = false;
+      }, 100);
     }
   }, [keyboardHeight]);
 
@@ -548,14 +556,21 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
       container.scrollTop = scrollDiff;
     } else if (isNewSession) {
       userScrolledUpRef.current = false;
+      isAutoScrollingRef.current = true;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           bottomRef.current?.scrollIntoView({ behavior: "instant" });
+          setTimeout(() => {
+            isAutoScrollingRef.current = false;
+          }, 100);
         });
       });
     } else if (!userScrolledUpRef.current) {
-      // Auto-scroll to bottom when user hasn't manually scrolled up
+      isAutoScrollingRef.current = true;
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      setTimeout(() => {
+        isAutoScrollingRef.current = false;
+      }, 500);
     }
     
     prevSessionIdRef.current = currentSessionId;
@@ -570,7 +585,11 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
       const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
       const isNearBottom = distanceFromBottom < 100;
       if (isNearBottom) {
+        isAutoScrollingRef.current = true;
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+        setTimeout(() => {
+          isAutoScrollingRef.current = false;
+        }, 500);
       }
     }
   }, [isSessionRunning]);
