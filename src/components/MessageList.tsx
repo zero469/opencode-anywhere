@@ -42,7 +42,7 @@ function ImagePreviewModal({
   const modalContent = (
     <div 
       className="fixed inset-0 z-[9999] flex items-center justify-center animate-in fade-in duration-200"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)' }}
       onClick={handleBackdropClick}
     >
       <button
@@ -50,24 +50,24 @@ function ImagePreviewModal({
           e.stopPropagation();
           onClose();
         }}
-        className="absolute top-4 right-4 p-2 rounded-full transition-all duration-200 hover:scale-110"
+        className="absolute top-12 right-4 z-10 p-3 rounded-full transition-all duration-200 active:scale-95"
         style={{ 
-          color: 'rgba(255, 255, 255, 0.8)',
-          backgroundColor: 'rgba(255, 255, 255, 0.1)'
+          color: 'rgba(255, 255, 255, 0.9)',
+          backgroundColor: 'rgba(255, 255, 255, 0.2)'
         }}
-        onMouseEnter={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 1)'}
-        onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255, 255, 255, 0.8)'}
       >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
-      <img
-        src={imageUrl}
-        alt="Preview"
-        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      />
+      <div className="flex items-center justify-center p-4 pt-20">
+        <img
+          src={imageUrl}
+          alt="Preview"
+          className="max-w-[85vw] max-h-[75vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
     </div>
   );
 
