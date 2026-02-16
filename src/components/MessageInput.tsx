@@ -19,14 +19,14 @@ export function MessageInput() {
   const runningSessions = useAppStore((state) => state.runningSessions);
   const abortSession = useAppStore((state) => state.abortSession);
   const summarizeCurrentSession = useAppStore((state) => state.summarizeCurrentSession);
-  const compactingSessionId = useAppStore((state) => state.compactingSessionId);
+  const compactingSessions = useAppStore((state) => state.compactingSessions);
   const fetchSkills = useAppStore((state) => state.fetchSkills);
   const skills = useAppStore((state) => state.skills);
   const fetchCommands = useAppStore((state) => state.fetchCommands);
   const commands = useAppStore((state) => state.commands);
   
   const isSessionBusy = currentSessionId ? runningSessions.includes(currentSessionId) : false;
-  const isCompacting = compactingSessionId === currentSessionId;
+  const isCompacting = currentSessionId ? compactingSessions.includes(currentSessionId) : false;
   
   const [text, setText] = useState("");
   const [isComposing, setIsComposing] = useState(false);
