@@ -1335,7 +1335,15 @@ export const useAppStore = create<AppState>()(
 
           case "session.error": {
             const sessionId = event.properties.sessionID as string | undefined;
-            const errorObj = event.properties.error as { type?: string; message?: string } | undefined;
+            // Handle both old format and new NamedError format from OpenCode
+            const errorObj = event.properties.error as { 
+              name?: string;
+              type?: string; 
+              message?: string;
+              data?: { message?: string };
+            } | undefined;
+            
+            console.log('[session.error] Received error event:', JSON.stringify(event.properties));
             
             if (sessionId) {
               // Mark session as no longer running
@@ -1346,7 +1354,7 @@ export const useAppStore = create<AppState>()(
               
               // If this is the current session, show error on the last message
               if (sessionId === currentSessionId) {
-                const errorMessage = errorObj?.message || errorObj?.type || "Unknown error";
+                const errorMessage = errorObj?.data?.message || errorObj?.message || errorObj?.name || errorObj?.type || "Unknown error";
                 const currentMessages = get().messages;
                 
                 if (currentMessages.length > 0) {
