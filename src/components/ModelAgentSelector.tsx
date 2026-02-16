@@ -86,7 +86,7 @@ export function ModelAgentSelector() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors hover:opacity-80"
+        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors hover:opacity-80 min-w-0"
         style={{ color: "var(--foreground-muted)", backgroundColor: "var(--background-element)" }}
       >
         <span 

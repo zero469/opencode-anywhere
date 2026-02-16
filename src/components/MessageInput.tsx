@@ -130,17 +130,19 @@ export function MessageInput() {
   return (
     <div className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
       <div className="px-4 pt-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
           <ModelAgentSelector />
           <ContextUsageDisplay />
         </div>
-        <QuickActionsBar 
-          onCompact={handleCompact}
-          onSkills={handleSkills}
-          onMore={handleMore}
-          disabled={isSessionBusy}
-          isCompacting={isCompacting}
-        />
+        <div className="flex-shrink-0">
+          <QuickActionsBar 
+            onCompact={handleCompact}
+            onSkills={handleSkills}
+            onMore={handleMore}
+            disabled={isSessionBusy}
+            isCompacting={isCompacting}
+          />
+        </div>
       </div>
       <form onSubmit={handleSubmit} className="p-4 pt-2">
         <div className="flex gap-2 items-end">
