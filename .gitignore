@@ -42,3 +42,6 @@ next-env.d.ts
 
 # iOS build artifacts
 ios/build/
+
+# sisyphus temp files
+.sisyphus/
