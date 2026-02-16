@@ -83,10 +83,10 @@ export function ModelAgentSelector() {
   const currentAgentName = capitalizeAgentName(selectedAgent);
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors hover:opacity-80 min-w-0"
+        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors hover:opacity-80 min-w-0 max-w-full overflow-hidden"
         style={{ color: "var(--foreground-muted)", backgroundColor: "var(--background-element)" }}
       >
         <span 

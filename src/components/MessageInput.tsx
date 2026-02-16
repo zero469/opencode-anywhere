@@ -130,7 +130,7 @@ export function MessageInput() {
   return (
     <div className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
       <div className="px-4 pt-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+        <div className="flex items-center gap-2 min-w-0">
           <ModelAgentSelector />
           <ContextUsageDisplay />
         </div>
