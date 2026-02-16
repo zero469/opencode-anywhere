@@ -636,15 +636,21 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
         ))}
         
         {fileParts.map((part, i) => (
-          <div key={`file-${part.id || i}`} className="my-2">
-            <img 
-              src={part.url} 
-              alt={part.filename || "image"} 
-              className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-              style={{ maxHeight: '300px' }}
-              onClick={() => setPreviewImage(part.url!)}
-            />
-          </div>
+          <button
+            key={`file-${part.id || i}`}
+            onClick={() => setPreviewImage(part.url!)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium mr-1.5 mb-1.5 hover:opacity-80 transition-opacity cursor-pointer"
+            style={{ 
+              backgroundColor: 'var(--oc-step4)', 
+              color: 'var(--oc-step11)',
+              border: '1px solid var(--oc-step6)'
+            }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Image {i + 1}
+          </button>
         ))}
 
         {textParts.map((part, i) => (
