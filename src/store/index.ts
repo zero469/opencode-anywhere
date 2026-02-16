@@ -31,7 +31,9 @@ function markSessionComplete(sessionId: string, sessions: Session[]) {
     storeSetRef({ runningSessions: runningSessions.filter(id => id !== sessionId) });
     
     const session = sessions.find(s => s.id === sessionId);
-    notifyTaskComplete(session?.title);
+    if (session && !session.parentID) {
+      notifyTaskComplete(session.title);
+    }
   }
   
   if (sendingSessions.has(sessionId)) {
