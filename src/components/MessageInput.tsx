@@ -9,6 +9,14 @@ import { CommandsModal } from "./CommandsModal";
 import { ContextUsageDisplay } from "./ContextUsageDisplay";
 import type { Attachment } from "@/lib/opencode";
 
+interface PendingAttachment {
+  previewUrl: string;     // URL.createObjectURL() result for instant display
+  uri: string | null;     // base64 data URL (null while loading)
+  mimeType: string;
+  fileName?: string;
+  isLoading: boolean;
+}
+
 const isMobileDevice = () => {
   if (typeof window === "undefined") return false;
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -45,7 +53,7 @@ export function MessageInput() {
   const [showSkillsModal, setShowSkillsModal] = useState(false);
   const [showCommandsModal, setShowCommandsModal] = useState(false);
   const [isLoadingCommands, setIsLoadingCommands] = useState(false);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -69,9 +77,19 @@ export function MessageInput() {
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = text.trim();
-    if ((!trimmed && attachments.length === 0) || isSessionBusy) return;
+    const hasLoadingAttachments = attachments.some(att => att.isLoading);
+    if ((!trimmed && attachments.length === 0) || isSessionBusy || hasLoadingAttachments) return;
     
-    const currentAttachments = attachments;
+    const readyAttachments: Attachment[] = attachments
+      .filter(att => att.uri !== null)
+      .map(att => ({
+        uri: att.uri!,
+        mimeType: att.mimeType,
+        fileName: att.fileName,
+      }));
+    
+    attachments.forEach(att => URL.revokeObjectURL(att.previewUrl));
+    
     setText("");
     setAttachments([]);
     if (textareaRef.current) {
@@ -79,7 +97,7 @@ export function MessageInput() {
     }
     await sendMessage(
       trimmed || "What's in this image?",
-      currentAttachments.length > 0 ? currentAttachments : undefined
+      readyAttachments.length > 0 ? readyAttachments : undefined
     );
   }, [text, attachments, isSessionBusy, sendMessage]);
 
@@ -143,23 +161,41 @@ export function MessageInput() {
     if (!files?.length) return;
     
     Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        setAttachments(prev => [...prev, {
-          uri: dataUrl,
-          mimeType: file.type,
-          fileName: file.name,
-        }]);
+      const previewUrl = URL.createObjectURL(file);
+      const pendingAttachment: PendingAttachment = {
+        previewUrl,
+        uri: null,
+        mimeType: file.type,
+        fileName: file.name,
+        isLoading: true,
       };
-      reader.readAsDataURL(file);
+      
+      setAttachments(prev => [...prev, pendingAttachment]);
+      
+      requestIdleCallback(() => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target?.result as string;
+          setAttachments(prev => prev.map(att => 
+            att.previewUrl === previewUrl 
+              ? { ...att, uri: dataUrl, isLoading: false }
+              : att
+          ));
+        };
+        reader.readAsDataURL(file);
+      });
     });
-    // Reset input for re-selection
     e.target.value = '';
   }, []);
 
   const handleRemoveAttachment = useCallback((index: number) => {
-    setAttachments(prev => prev.filter((_, idx) => idx !== index));
+    setAttachments(prev => {
+      const toRemove = prev[index];
+      if (toRemove) {
+        URL.revokeObjectURL(toRemove.previewUrl);
+      }
+      return prev.filter((_, idx) => idx !== index);
+    });
   }, []);
 
   if (!currentSessionId) {
@@ -196,11 +232,16 @@ export function MessageInput() {
             {attachments.map((att, i) => (
               <div key={i} className="relative group">
                 <img 
-                  src={att.uri} 
+                  src={att.previewUrl} 
                   alt={att.fileName || `Image ${i + 1}`}
                   className="w-16 h-16 object-cover rounded-lg border"
                   style={{ borderColor: 'var(--border)' }}
                 />
+                {att.isLoading && (
+                  <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => handleRemoveAttachment(i)}
@@ -278,11 +319,11 @@ export function MessageInput() {
           ) : (
             <button
               type="submit"
-              disabled={!text.trim() && attachments.length === 0}
+              disabled={(!text.trim() && attachments.length === 0) || attachments.some(att => att.isLoading)}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed rounded-xl font-medium transition-colors h-[42px]"
               style={{ 
                 color: 'var(--foreground)',
-                backgroundColor: (!text.trim() && attachments.length === 0) ? 'var(--background-element)' : undefined
+                backgroundColor: ((!text.trim() && attachments.length === 0) || attachments.some(att => att.isLoading)) ? 'var(--background-element)' : undefined
               }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
