@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, memo } from "react";
+import { createPortal } from "react-dom";
 import { useAppStore } from "@/store";
 import type { SessionMessage, MessagePart } from "@/types";
 import ReactMarkdown from "react-markdown";
@@ -16,6 +17,13 @@ function ImagePreviewModal({
   imageUrl: string; 
   onClose: () => void 
 }) {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -24,14 +32,24 @@ function ImagePreviewModal({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
-  return (
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    // Only close if clicking the backdrop itself, not children
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  const modalContent = (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9999] flex items-center justify-center animate-in fade-in duration-200"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}
-      onClick={onClose}
+      onClick={handleBackdropClick}
     >
       <button
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
         className="absolute top-4 right-4 p-2 rounded-full transition-all duration-200 hover:scale-110"
         style={{ 
           color: 'rgba(255, 255, 255, 0.8)',
@@ -52,6 +70,10 @@ function ImagePreviewModal({
       />
     </div>
   );
+
+  // Use portal to render at document body level
+  if (!mounted) return null;
+  return createPortal(modalContent, document.body);
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -435,11 +457,24 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
   const createdTime = message.info.time?.created;
   const hasError = !!message.info.error;
   
-  const textParts = message.parts.filter(p => p.type === "text" && p.text && !/^\[Image \d+\]$/.test(p.text));
+  const fileParts = message.parts.filter(p => p.type === "file" && p.url && p.mime?.startsWith("image/"));
+  const hasImages = fileParts.length > 0;
+  
+  const textParts = message.parts.filter(p => {
+    if (p.type !== "text" || !p.text) return false;
+    
+    if (hasImages) {
+      const trimmed = p.text.trim();
+      if (/^(\[Image\s+\d+\]\s*)+$/.test(trimmed)) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
   const toolParts = message.parts.filter(p => p.type === "tool");
   const reasoningParts = message.parts.filter(p => p.type === "reasoning" && p.text);
   const compactionParts = message.parts.filter(p => p.type === "compaction");
-  const fileParts = message.parts.filter(p => p.type === "file" && p.url && p.mime?.startsWith("image/"));
   
   if (compactionParts.length > 0) {
     const isAuto = compactionParts[0]?.auto;
