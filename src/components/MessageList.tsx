@@ -675,7 +675,7 @@ function ScrollToBottomButton() {
   return (
     <button
       onClick={() => scrollToBottom("smooth")}
-      className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+      className="absolute bottom-4 right-4 z-10 p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
       style={{
         backgroundColor: "var(--background)",
         color: "var(--foreground-muted)",
