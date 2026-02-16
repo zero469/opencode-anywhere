@@ -28,6 +28,8 @@ export function calculateContextUsage(
   if (providers && lastAssistant.info.providerID && lastAssistant.info.modelID) {
     const provider = providers.all.find((p) => p.id === lastAssistant.info.providerID);
     const model = provider?.models[lastAssistant.info.modelID];
+    console.log("[context] providerID:", lastAssistant.info.providerID, "modelID:", lastAssistant.info.modelID);
+    console.log("[context] provider:", provider?.id, "model:", model?.id, "limit:", model?.limit);
     if (model?.limit?.context) {
       percentage = Math.round((total / model.limit.context) * 100);
     }

@@ -14,8 +14,14 @@ permissions:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    if: github.event.inputs.confirm == 'deploy'
+    if: github.event.inputs.confirm == 'deploy' && github.actor == github.repository_owner
     steps:
+      - name: Check owner
+        if: github.actor != github.repository_owner
+        run: |
+          echo "❌ Only repository owner can trigger this workflow"
+          exit 1
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
