@@ -336,10 +336,10 @@ export const useAppStore = create<AppState>()(
       },
 
       selectDevice: async (device) => {
-        const { relayToken, selectedDevice: currentDevice, cachedSessionsByDevice, getDeviceEncryptionKey } = get();
+        const { relayToken, selectedDevice: currentDevice, cachedSessionsByDevice, getDeviceEncryptionKey, config } = get();
         if (!relayToken) return;
         
-        if (currentDevice?.id === device.id) {
+        if (currentDevice?.id === device.id && config) {
           return;
         }
         
