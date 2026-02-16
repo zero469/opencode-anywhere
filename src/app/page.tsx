@@ -280,6 +280,17 @@ export default function Home() {
     return <DeviceList />;
   }
 
+  // If we have a persisted selectedDevice but no config yet (app just started),
+  // wait for devices to be fetched to verify device is online before showing ConnectingView
+  // This prevents showing "Device offline" screen before we can redirect to device list
+  if (!config && !devicesFetched) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background)' }}>
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
+      </div>
+    );
+  }
+
   if (!status.connected) {
     return <ConnectingView />;
   }
