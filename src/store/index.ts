@@ -528,8 +528,7 @@ export const useAppStore = create<AppState>()(
           });
           set({ sessions: sortedSessions });
           
-          // Disabled preloading - large messages (with images) block the tunnel
-          // get().preloadRecentSessions(sortedSessions.slice(0, 5));
+          get().preloadRecentSessions(sortedSessions.slice(0, 2));
         } catch (error) {
           console.error("Failed to fetch sessions:", error);
           if (currentDeviceId !== deviceIdAtStart) {
