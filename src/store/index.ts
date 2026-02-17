@@ -1420,6 +1420,12 @@ export const useAppStore = create<AppState>()(
     {
       name: "opencode-anywhere-v8",
       storage: createJSONStorage(() => capacitorStorage),
+      onRehydrateStorage: () => (state) => {
+        // Auto-trigger fetchDevices after hydration completes
+        if (state?.relayToken) {
+          state.fetchDevices();
+        }
+      },
       partialize: (state) => ({ 
         relayToken: state.relayToken,
         user: state.user,
