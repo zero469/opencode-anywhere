@@ -179,7 +179,7 @@ export function MessageInput() {
           quality: 80,
           allowEditing: false,
           resultType: CameraResultType.DataUrl,
-          source: CameraSource.Prompt,
+          source: CameraSource.Photos,
         });
         
         if (image.dataUrl) {
