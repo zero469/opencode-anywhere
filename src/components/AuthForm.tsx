@@ -55,6 +55,7 @@ export function AuthForm() {
           await SavePassword.promptDialog({
             username: email,
             password: password,
+            url: 'opencode-relay.azurewebsites.net',
           });
         } catch (err) {
           console.error('SavePassword prompt failed:', err);
