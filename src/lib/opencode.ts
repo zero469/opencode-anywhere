@@ -23,15 +23,13 @@ function isNative(): boolean {
 }
 
 async function nativeFetch(url: string, options?: { method?: string; headers?: Record<string, string>; body?: string; timeout?: number }) {
+  const startTime = Date.now();
   let requestBody = options?.body;
   
-  console.log('[nativeFetch] encryptionKey set:', !!currentEncryptionKey, 'hasBody:', !!requestBody);
-  
   if (currentEncryptionKey && requestBody) {
-    console.log('[nativeFetch] Encrypting body, original length:', requestBody.length);
     requestBody = await encrypt(requestBody, currentEncryptionKey);
-    console.log('[nativeFetch] Encrypted body length:', requestBody.length, 'preview:', requestBody.substring(0, 50));
   }
+  const encryptTime = Date.now();
   
   const response = await CapacitorHttp.request({
     url,
@@ -42,6 +40,7 @@ async function nativeFetch(url: string, options?: { method?: string; headers?: R
     readTimeout: options?.timeout || 300000,
     responseType: currentEncryptionKey ? 'text' : undefined,
   });
+  const networkTime = Date.now();
   
   let responseData = response.data;
   
@@ -59,6 +58,9 @@ async function nativeFetch(url: string, options?: { method?: string; headers?: R
       }
     }
   }
+  const decryptTime = Date.now();
+  
+  console.log(`[nativeFetch] ${options?.method || 'GET'} ${url.split('/').slice(-2).join('/')} - encrypt: ${encryptTime - startTime}ms, network: ${networkTime - encryptTime}ms, decrypt: ${decryptTime - networkTime}ms, total: ${decryptTime - startTime}ms`);
   
   return {
     ok: response.status >= 200 && response.status < 300,
