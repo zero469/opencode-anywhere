@@ -9,6 +9,8 @@ import { CommandsModal } from "./CommandsModal";
 import { ContextUsageDisplay } from "./ContextUsageDisplay";
 import type { Attachment } from "@/lib/opencode";
 import { compressImage } from "@/lib/imageUtils";
+import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { Capacitor } from "@capacitor/core";
 
 interface PendingAttachment {
   previewUrl: string;     // URL.createObjectURL() result for instant display
@@ -70,6 +72,13 @@ export function MessageInput() {
 
   useEffect(() => {
     setIsMobile(isMobileDevice());
+  }, []);
+
+  // Pre-warm camera permissions on mount to avoid first-click delay
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      Camera.checkPermissions().catch(() => {});
+    }
   }, []);
 
   const adjustHeight = useCallback(() => {
@@ -163,8 +172,31 @@ export function MessageInput() {
     });
   }, [adjustHeight]);
 
-  const handleImagePick = useCallback(() => {
-    fileInputRef.current?.click();
+  const handleImagePick = useCallback(async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const image = await Camera.getPhoto({
+          quality: 80,
+          allowEditing: false,
+          resultType: CameraResultType.DataUrl,
+          source: CameraSource.Prompt,
+        });
+        
+        if (image.dataUrl) {
+          const pendingAttachment: PendingAttachment = {
+            previewUrl: image.dataUrl,
+            uri: image.dataUrl,
+            mimeType: `image/${image.format || 'jpeg'}`,
+            isLoading: false,
+          };
+          setAttachments(prev => [...prev, pendingAttachment]);
+        }
+      } catch {
+        // User cancelled or permission denied - silently ignore
+      }
+    } else {
+      fileInputRef.current?.click();
+    }
   }, []);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
