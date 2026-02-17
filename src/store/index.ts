@@ -6,6 +6,8 @@ import type { SkillInfo, CommandInfo, Attachment } from "@/lib/opencode";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
 import { notifyTaskComplete, notifyApprovalNeeded, notifyInputNeeded } from "@/lib/notifications";
+import { Capacitor } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
 
 const MESSAGE_PAGE_SIZE = 30;
 
@@ -451,7 +453,16 @@ export const useAppStore = create<AppState>()(
 
       saveDeviceEncryptionKey: (deviceId, key) => {
         const { deviceEncryptionKeys } = get();
-        set({ deviceEncryptionKeys: { ...deviceEncryptionKeys, [deviceId]: key } });
+        const newKeys = { ...deviceEncryptionKeys, [deviceId]: key };
+        set({ deviceEncryptionKeys: newKeys });
+        
+        // Immediately persist to native storage (don't wait for zustand-persist async cycle)
+        if (Capacitor.isNativePlatform()) {
+          Preferences.set({ 
+            key: 'opencode-device-encryption-keys', 
+            value: JSON.stringify(newKeys) 
+          });
+        }
       },
 
       getDeviceEncryptionKey: (deviceId) => {
@@ -1433,8 +1444,22 @@ export const useAppStore = create<AppState>()(
     {
       name: "opencode-anywhere-v8",
       storage: createJSONStorage(() => capacitorStorage),
-      onRehydrateStorage: () => (state) => {
-        // Auto-trigger fetchDevices after hydration completes
+      onRehydrateStorage: () => async (state) => {
+        if (state && Capacitor.isNativePlatform()) {
+          const directKeys = await Preferences.get({ key: 'opencode-device-encryption-keys' });
+          if (directKeys.value) {
+            try {
+              const parsed = JSON.parse(directKeys.value);
+              const currentKeys = state.deviceEncryptionKeys || {};
+              const merged = { ...parsed, ...currentKeys };
+              if (Object.keys(merged).length > Object.keys(currentKeys).length) {
+                useAppStore.setState({ deviceEncryptionKeys: merged });
+              }
+            } catch (e) {
+              console.error('[Rehydrate] Failed to parse direct encryption keys:', e);
+            }
+          }
+        }
         if (state?.relayToken) {
           state.fetchDevices();
         }

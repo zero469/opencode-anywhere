@@ -48,18 +48,24 @@ export function AuthForm() {
     e.preventDefault();
     
     if (authView === "login") {
-      await login(email, password);
+      // Capture credentials before login causes re-render/unmount
+      const savedEmail = email;
+      const savedPassword = password;
+      
+      await login(savedEmail, savedPassword);
+      
       const state = useAppStore.getState();
       if (state.relayToken && Capacitor.isNativePlatform()) {
-        try {
-          await SavePassword.promptDialog({
-            username: email,
-            password: password,
-            url: 'opencode-relay.azurewebsites.net',
-          });
-        } catch (err) {
-          console.error('SavePassword prompt failed:', err);
-        }
+        // Fire-and-forget: don't await, let native dialog show independently of React lifecycle
+        // The iOS system dialog is owned by the OS, not WKWebView, so it can persist after component unmounts
+        SavePassword.promptDialog({
+          username: savedEmail,
+          password: savedPassword,
+          url: 'opencode-relay.azurewebsites.net',
+        }).catch((err) => {
+          // Known: SecAddSharedWebCredential silently fails if credential already exists in keychain
+          console.warn('SavePassword.promptDialog failed:', err);
+        });
       }
       return;
     }
