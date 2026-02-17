@@ -977,34 +977,49 @@ export const useAppStore = create<AppState>()(
       },
       
       fetchProvidersAndAgents: async () => {
+        const applyData = (providers: ProvidersResponse | null, agents: Agent[]) => {
+          const visibleAgents = agents.filter(a => !a.hidden && a.mode !== "subagent");
+          set({ providers, agents: visibleAgents });
+          
+          const hasValidProviders = providers && Array.isArray(providers.all) && Array.isArray(providers.connected);
+          if (hasValidProviders && !get().selectedModel) {
+            const connectedProvider = providers.all.find(p => providers.connected.includes(p.id));
+            if (connectedProvider) {
+              const defaultModelId = providers.default[connectedProvider.id];
+              const model = connectedProvider.models[defaultModelId];
+              if (model) {
+                set({
+                  selectedModel: {
+                    providerID: connectedProvider.id,
+                    modelID: model.id,
+                  },
+                });
+              }
+            }
+          }
+          
+          if (visibleAgents.length > 0 && !get().defaultAgent) {
+            const buildAgent = visibleAgents.find(a => a.name === "build");
+            set({ defaultAgent: buildAgent?.name || visibleAgents[0].name });
+          }
+        };
+
+        // 1. 先立即展示缓存数据
+        const [cachedProviders, cachedAgents] = await Promise.all([
+          opencode.getCachedProviders(),
+          opencode.getCachedAgents(),
+        ]);
+        if (cachedProviders || cachedAgents.length > 0) {
+          applyData(cachedProviders, cachedAgents);
+        }
+
+        // 2. 后台请求最新数据并覆盖
         const [providers, agents] = await Promise.all([
           opencode.getProviders(),
           opencode.getAgents(),
         ]);
-        
-        const visibleAgents = agents.filter(a => !a.hidden && a.mode !== "subagent");
-        set({ providers, agents: visibleAgents });
-        
-        const hasValidProviders = providers && Array.isArray(providers.all) && Array.isArray(providers.connected);
-        if (hasValidProviders && !get().selectedModel) {
-          const connectedProvider = providers.all.find(p => providers.connected.includes(p.id));
-          if (connectedProvider) {
-            const defaultModelId = providers.default[connectedProvider.id];
-            const model = connectedProvider.models[defaultModelId];
-            if (model) {
-              set({
-                selectedModel: {
-                  providerID: connectedProvider.id,
-                  modelID: model.id,
-                },
-              });
-            }
-          }
-        }
-        
-        if (visibleAgents.length > 0 && !get().defaultAgent) {
-          const buildAgent = visibleAgents.find(a => a.name === "build");
-          set({ defaultAgent: buildAgent?.name || visibleAgents[0].name });
+        if (providers || agents.length > 0) {
+          applyData(providers, agents);
         }
       },
       

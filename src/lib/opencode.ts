@@ -1,7 +1,40 @@
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
 import type { Session } from "@/types";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import { Preferences } from "@capacitor/preferences";
 import { encrypt, decrypt } from "./crypto";
+
+// Cache keys for local storage
+const CACHE_KEY_PROVIDERS = "opencode_providers_cache";
+const CACHE_KEY_AGENTS = "opencode_agents_cache";
+
+// Cache helper functions
+async function getCachedData<T>(key: string): Promise<T | null> {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const { value } = await Preferences.get({ key });
+      return value ? JSON.parse(value) : null;
+    } else {
+      const value = localStorage.getItem(key);
+      return value ? JSON.parse(value) : null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+async function setCachedData<T>(key: string, data: T): Promise<void> {
+  try {
+    const value = JSON.stringify(data);
+    if (Capacitor.isNativePlatform()) {
+      await Preferences.set({ key, value });
+    } else {
+      localStorage.setItem(key, value);
+    }
+  } catch {
+    // Ignore cache write errors
+  }
+}
 
 export type { Session };
 
@@ -182,10 +215,15 @@ export async function getProviders(): Promise<ProvidersResponse | null> {
     if (!response.ok) return null;
     const data = await response.json();
     if (data.error || !Array.isArray(data.all)) return null;
+    setCachedData(CACHE_KEY_PROVIDERS, data);
     return data;
   } catch {
     return null;
   }
+}
+
+export async function getCachedProviders(): Promise<ProvidersResponse | null> {
+  return getCachedData<ProvidersResponse>(CACHE_KEY_PROVIDERS);
 }
 
 export async function getAgents(): Promise<Agent[]> {
@@ -195,10 +233,15 @@ export async function getAgents(): Promise<Agent[]> {
     if (!response.ok) return [];
     const data = await response.json();
     if (data.error || !Array.isArray(data)) return [];
+    setCachedData(CACHE_KEY_AGENTS, data);
     return data;
   } catch {
     return [];
   }
+}
+
+export async function getCachedAgents(): Promise<Agent[]> {
+  return (await getCachedData<Agent[]>(CACHE_KEY_AGENTS)) || [];
 }
 
 export async function getSessions(): Promise<Session[]> {
