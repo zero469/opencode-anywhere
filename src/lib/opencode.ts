@@ -110,7 +110,8 @@ function getApiUrl(path: string): string {
     .replace(/^\/session\/([^/]+)\/abort$/, "/api/opencode/sessions/$1/abort")
     .replace(/^\/session\/([^/]+)\/todo$/, "/api/opencode/sessions/$1/todo")
     .replace(/^\/session\/([^/]+)$/, "/api/opencode/sessions/$1")
-    .replace(/^\/command$/, "/api/opencode/commands");
+    .replace(/^\/command$/, "/api/opencode/commands")
+    .replace(/^\/lazy-image\/([^/]+)$/, "/api/opencode/lazy-image/$1");
   return proxyPath;
 }
 
@@ -750,4 +751,21 @@ export async function getCommands(): Promise<CommandInfo[]> {
   
   if (data.error || !Array.isArray(data)) return [];
   return data;
+}
+
+export async function fetchLazyImage(partId: string): Promise<string> {
+  const path = `/lazy-image/${partId}`;
+  const url = getApiUrl(path);
+  const response = await http(url, { headers: getHeaders() });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch lazy image: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  if (data.error) {
+    throw new Error(data.error);
+  }
+  
+  return data.url;
 }

@@ -3,12 +3,16 @@
 import { useRef, useEffect, useState, memo } from "react";
 import { createPortal } from "react-dom";
 import { useAppStore } from "@/store";
+import { fetchLazyImage } from "@/lib/opencode";
 import type { SessionMessage, MessagePart } from "@/types";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import { getAgentColor, capitalizeAgentName } from "@/lib/agentColors";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
+
+// Module-level cache for lazy images (survives re-renders)
+const lazyImageCache = new Map<string, string>();
 
 function ImagePreviewModal({ 
   imageUrl, 
@@ -541,12 +545,49 @@ const MarkdownContent = memo(function MarkdownContent({ text }: { text: string }
 const MessageBubble = memo(function MessageBubble({ message }: { message: SessionMessage }) {
   const agents = useAppStore((state) => state.agents);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
   const isUser = message.info.role === "user";
   const createdTime = message.info.time?.created;
   const hasError = !!message.info.error;
   
   const fileParts = message.parts.filter(p => p.type === "file" && p.url && p.mime?.startsWith("image/"));
   const hasImages = fileParts.length > 0;
+  
+  const handleImageClick = async (part: MessagePart) => {
+    const url = part.url!;
+    
+    if (url.startsWith('data:')) {
+      setPreviewImage(url);
+      return;
+    }
+    
+    if (url.startsWith('lazy:')) {
+      const partId = url.slice(5);
+      
+      if (lazyImageCache.has(partId)) {
+        setPreviewImage(lazyImageCache.get(partId)!);
+        return;
+      }
+      
+      setLoadingImages(prev => new Set(prev).add(partId));
+      try {
+        const dataUrl = await fetchLazyImage(partId);
+        lazyImageCache.set(partId, dataUrl);
+        setPreviewImage(dataUrl);
+      } catch (err) {
+        console.error('Failed to load image:', err);
+      } finally {
+        setLoadingImages(prev => {
+          const next = new Set(prev);
+          next.delete(partId);
+          return next;
+        });
+      }
+      return;
+    }
+    
+    setPreviewImage(url);
+  };
   
   const textParts = message.parts.filter(p => {
     if (p.type !== "text" || !p.text) return false;
@@ -635,23 +676,37 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
           </details>
         ))}
         
-        {fileParts.map((part, i) => (
-          <button
-            key={`file-${part.id || i}`}
-            onClick={() => setPreviewImage(part.url!)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium mr-1.5 mb-1.5 hover:opacity-80 transition-opacity cursor-pointer"
-            style={{ 
-              backgroundColor: 'var(--oc-step4)', 
-              color: 'var(--oc-step11)',
-              border: '1px solid var(--oc-step6)'
-            }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Image {i + 1}
-          </button>
-        ))}
+        {fileParts.map((part, i) => {
+          const isLazy = part.url?.startsWith('lazy:');
+          const partId = isLazy ? part.url!.slice(5) : null;
+          const isLoading = partId ? loadingImages.has(partId) : false;
+          
+          return (
+            <button
+              key={`file-${part.id || i}`}
+              onClick={() => handleImageClick(part)}
+              disabled={isLoading}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium mr-1.5 mb-1.5 hover:opacity-80 transition-opacity cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+              style={{ 
+                backgroundColor: 'var(--oc-step4)', 
+                color: 'var(--oc-step11)',
+                border: '1px solid var(--oc-step6)'
+              }}
+            >
+              {isLoading ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              )}
+              {isLoading ? 'Loading...' : `Image ${i + 1}`}
+            </button>
+          );
+        })}
 
         {textParts.map((part, i) => (
           <div key={`text-${i}`} className="prose prose-invert prose-sm max-w-none">
