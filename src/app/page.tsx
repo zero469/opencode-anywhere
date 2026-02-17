@@ -3,7 +3,7 @@
 import { useSyncExternalStore, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { useSSE } from "@/hooks/useSSE";
-import { useKeyboard } from "@/hooks/useKeyboard";
+import { useKeyboard, preWarmKeyboard } from "@/hooks/useKeyboard";
 import { AuthForm } from "@/components/AuthForm";
 import { DeviceList } from "@/components/DeviceList";
 import { SessionList } from "@/components/SessionList";
@@ -16,6 +16,10 @@ import { requestNotificationPermission } from "@/lib/notifications";
 import { APP_VERSION } from "@/lib/version";
 import { App } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
+
+if (typeof window !== 'undefined') {
+  preWarmKeyboard();
+}
 
 function ChatView() {
   const { currentSessionId, deselectDevice, clearCurrentSession } = useAppStore();

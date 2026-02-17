@@ -54,6 +54,12 @@ function initKeyboardListeners() {
   });
 }
 
+// Pre-warm keyboard plugin on app start to avoid first-input delay
+export function preWarmKeyboard() {
+  if (!Capacitor.isNativePlatform()) return;
+  initKeyboardListeners();
+}
+
 export function useKeyboard() {
   useEffect(() => {
     initKeyboardListeners();
