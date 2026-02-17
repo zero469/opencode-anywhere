@@ -81,43 +81,49 @@ export function AuthForm() {
           </div>
           
           <h1 className="text-2xl font-bold text-center mb-2">OpenCode Anywhere</h1>
-          <p className="text-center mb-10" style={{ color: 'var(--foreground-muted)' }}>Control your AI coding assistant from anywhere</p>
+          <p className="text-center mb-8" style={{ color: 'var(--foreground-muted)' }}>Control your AI coding assistant from anywhere</p>
           
-          {/* Primary action - Scan QR */}
+          {/* Primary action - Login */}
+          <button
+            onClick={() => setAuthView("login")}
+            className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold transition-colors text-white"
+          >
+            Login
+          </button>
+          
+          <p className="text-sm text-center mt-4" style={{ color: 'var(--foreground-muted)' }}>
+            Don&apos;t have an account?{' '}
+            <button
+              onClick={() => setAuthView("register")}
+              className="text-blue-500 hover:text-blue-400 font-medium transition-colors"
+            >
+              Register
+            </button>
+          </p>
+          
+          {/* Divider */}
+          <div className="w-full flex items-center gap-4 my-8">
+            <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border-subtle)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--foreground-muted)' }}>or</span>
+            <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border-subtle)' }} />
+          </div>
+          
+          {/* Secondary - Self-hosted QR */}
+          <p className="text-xs text-center mb-3" style={{ color: 'var(--foreground-muted)' }}>Self-hosted relay server?</p>
           <button
             onClick={() => setShowScanner(true)}
-            className="w-full py-4 px-6 bg-blue-600 hover:bg-blue-500 rounded-xl font-semibold transition-colors flex items-center justify-center gap-3"
+            className="w-full py-3 px-4 rounded-xl font-medium transition-colors hover:opacity-80 flex items-center justify-center gap-2"
+            style={{ backgroundColor: 'var(--background-element)', border: '1px solid var(--border)' }}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--foreground-muted)' }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
             </svg>
             Scan QR Code to Connect
           </button>
           
-          <p className="text-xs text-center mt-3 mb-4" style={{ color: 'var(--foreground-muted)' }}>
-            Run <code className="text-green-400 px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--background-element)' }}>tunnel-client</code> on your computer to get the QR code
+          <p className="text-xs text-center mt-3" style={{ color: 'var(--foreground-muted)' }}>
+            Run <code className="text-green-400 px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--background-element)' }}>tunnel-client</code> on your computer
           </p>
-          
-          {/* Secondary - Cloud service login */}
-          <div className="w-full pt-6 mt-4" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-            <p className="text-xs text-center mb-4" style={{ color: 'var(--foreground-muted)' }}>Using official cloud service?</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setAuthView("login")}
-                className="flex-1 py-3 px-4 rounded-xl font-medium transition-colors hover:opacity-80"
-                style={{ backgroundColor: 'var(--background-element)' }}
-              >
-                Login
-              </button>
-              <button
-                onClick={() => setAuthView("register")}
-                className="flex-1 py-3 px-4 rounded-xl font-medium transition-colors hover:opacity-80"
-                style={{ backgroundColor: 'var(--background-element)' }}
-              >
-                Register
-              </button>
-            </div>
-          </div>
         </div>
         
         <QRScanner 
