@@ -151,16 +151,15 @@ export function AuthForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+              className="w-full px-3 py-3 rounded-xl placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
-              placeholder="you@example.com"
+              placeholder="Email address"
             />
           </div>
           <button
             type="submit"
             disabled={isLoading || !email}
-            className="w-full py-2 px-4 rounded-md font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
-            style={{ backgroundColor: 'var(--background-element)' }}
+            className="w-full py-3 px-4 rounded-xl font-semibold transition-colors bg-blue-600 hover:bg-blue-500 text-white disabled:bg-blue-600/50"
           >
             {isLoading ? "Sending..." : "Send Verification Code"}
           </button>
@@ -187,16 +186,15 @@ export function AuthForm() {
               required
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="w-full px-3 py-2 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 text-center text-2xl tracking-widest"
+              className="w-full px-3 py-3 rounded-xl placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-2xl tracking-widest"
               style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
-              placeholder="000000"
+              placeholder="------"
             />
           </div>
           <button
             type="submit"
             disabled={code.length !== 6}
-            className="w-full py-2 px-4 rounded-md font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
-            style={{ backgroundColor: 'var(--background-element)' }}
+            className="w-full py-3 px-4 rounded-xl font-semibold transition-colors bg-blue-600 hover:bg-blue-500 text-white disabled:bg-blue-600/50"
           >
             Continue
           </button>
@@ -230,7 +228,7 @@ export function AuthForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-3 py-2 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+            className="w-full px-3 py-3 rounded-xl placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
             placeholder="At least 6 characters"
           />
@@ -238,8 +236,7 @@ export function AuthForm() {
         <button
           type="submit"
           disabled={isLoading || password.length < 6}
-          className="w-full py-2 px-4 rounded-md font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
-          style={{ backgroundColor: 'var(--background-element)' }}
+          className="w-full py-3 px-4 rounded-xl font-semibold transition-colors bg-blue-600 hover:bg-blue-500 text-white disabled:bg-blue-600/50"
         >
           {isLoading ? "Creating Account..." : "Create Account"}
         </button>
@@ -255,15 +252,15 @@ export function AuthForm() {
         </label>
         <input
           id="email"
-          name="email"
+          name="username"
           type="email"
-          autoComplete="email"
+          autoComplete="username"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+          className="w-full px-3 py-3 rounded-xl placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
-          placeholder="you@example.com"
+          placeholder="Email address"
         />
       </div>
       <div>
@@ -278,16 +275,15 @@ export function AuthForm() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-3 py-2 rounded-md placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500"
+          className="w-full px-3 py-3 rounded-xl placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           style={{ backgroundColor: 'var(--background-element)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
-          placeholder="••••••••"
+          placeholder="Password"
         />
       </div>
       <button
         type="submit"
         disabled={isLoading}
-        className="w-full py-2 px-4 rounded-md font-semibold transition-colors hover:opacity-80 disabled:opacity-50"
-        style={{ backgroundColor: 'var(--background-element)' }}
+        className="w-full py-3 px-4 rounded-xl font-semibold transition-colors bg-blue-600 hover:bg-blue-500 text-white disabled:bg-blue-600/50"
       >
         {isLoading ? "Loading..." : "Login"}
       </button>
@@ -327,7 +323,7 @@ export function AuthForm() {
         
         <h1 className="text-3xl font-bold text-center mb-8">{getTitle()}</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
           {authView === "login" ? renderLoginForm() : renderRegisterForm()}
           
           {authError && (
