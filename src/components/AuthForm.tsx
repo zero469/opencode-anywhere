@@ -3,6 +3,8 @@
 import { useState, FormEvent, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { QRScanner } from "@/components/QRScanner";
+import { Capacitor } from '@capacitor/core';
+import { SavePassword } from '@capgo/capacitor-autofill-save-password';
 
 type RegisterStep = "email" | "code" | "password";
 type AuthView = "welcome" | "login" | "register";
@@ -16,7 +18,7 @@ export function AuthForm() {
   const [countdown, setCountdown] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
   
-  const { login, register, sendVerification, isLoading, authError, clearAuthError, relayToken } = useAppStore();
+  const { login, register, sendVerification, isLoading, authError, clearAuthError } = useAppStore();
 
   useEffect(() => {
     clearAuthError();
@@ -47,6 +49,17 @@ export function AuthForm() {
     
     if (authView === "login") {
       await login(email, password);
+      const state = useAppStore.getState();
+      if (state.relayToken && Capacitor.isNativePlatform()) {
+        try {
+          await SavePassword.promptDialog({
+            username: email,
+            password: password,
+          });
+        } catch (err) {
+          console.error('SavePassword prompt failed:', err);
+        }
+      }
       return;
     }
 
@@ -323,7 +336,7 @@ export function AuthForm() {
         
         <h1 className="text-3xl font-bold text-center mb-8">{getTitle()}</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
+        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on" method="post">
           {authView === "login" ? renderLoginForm() : renderRegisterForm()}
           
           {authError && (

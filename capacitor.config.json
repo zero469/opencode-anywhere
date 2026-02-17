@@ -2,6 +2,9 @@
   "appId": "com.opencode.anywhere",
   "appName": "OpenCode Anywhere",
   "webDir": "out",
+  "server": {
+    "hostname": "opencode-relay.azurewebsites.net"
+  },
   "plugins": {
     "CapacitorHttp": {
       "enabled": true
