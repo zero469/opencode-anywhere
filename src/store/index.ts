@@ -20,6 +20,9 @@ const lastCheckedSessionTimes = new Map<string, number>();
 let selectSessionRequestId = 0;
 let sessionUpdatedRequestId = 0;
 
+// Consecutive failure counter for lenient offline detection (requires 2+ failures)
+let consecutiveFailures = 0;
+
 let storeGetRef: (() => AppState) | null = null;
 let storeSetRef: ((partial: Partial<AppState>) => void) | null = null;
 
@@ -527,6 +530,7 @@ export const useAppStore = create<AppState>()(
             const timeB = b.time?.updated || b.time?.created || 0;
             return timeB - timeA;
           });
+          consecutiveFailures = 0;
           set({ sessions: sortedSessions });
           
           get().preloadRecentSessions(sortedSessions.slice(0, 2));
@@ -535,18 +539,21 @@ export const useAppStore = create<AppState>()(
           if (currentDeviceId !== deviceIdAtStart) {
             return;
           }
-          const { selectedDevice, devices } = get();
-          if (selectedDevice) {
-            const updatedDevices = devices.map(d => 
-              d.id === selectedDevice.id ? { ...d, online: false } : d
-            );
-            set({ 
-              connectionStep: "idle",
-              selectedDevice: { ...selectedDevice, online: false },
-              devices: updatedDevices,
-            });
-          } else {
-            set({ connectionStep: "idle" });
+          consecutiveFailures++;
+          if (consecutiveFailures >= 2) {
+            const { selectedDevice, devices } = get();
+            if (selectedDevice) {
+              const updatedDevices = devices.map(d => 
+                d.id === selectedDevice.id ? { ...d, online: false } : d
+              );
+              set({ 
+                connectionStep: "idle",
+                selectedDevice: { ...selectedDevice, online: false },
+                devices: updatedDevices,
+              });
+            } else {
+              set({ connectionStep: "idle" });
+            }
           }
         }
       },
@@ -629,6 +636,7 @@ export const useAppStore = create<AppState>()(
           sessionHasMoreMessages.set(cacheKey, hasMore);
           sessionLoadedCount.set(cacheKey, messages.length);
           sessionLastUpdated.set(cacheKey, sessionUpdatedTime);
+          consecutiveFailures = 0;
           
           if (get().currentSessionId === id) {
             // Extract agent from most recent assistant message to set session agent
@@ -651,20 +659,25 @@ export const useAppStore = create<AppState>()(
         } catch (error) {
           console.error("Failed to fetch messages:", error);
           if (get().currentSessionId === id && thisRequestId === selectSessionRequestId) {
-            const { selectedDevice, devices } = get();
-            if (selectedDevice) {
-              const updatedDevices = devices.map(d => 
-                d.id === selectedDevice.id ? { ...d, online: false } : d
-              );
-              set({ 
-                isLoading: false, 
-                sessionLoadingStep: "idle", 
-                connectionStep: "idle",
-                selectedDevice: { ...selectedDevice, online: false },
-                devices: updatedDevices,
-              });
+            consecutiveFailures++;
+            if (consecutiveFailures >= 2) {
+              const { selectedDevice, devices } = get();
+              if (selectedDevice) {
+                const updatedDevices = devices.map(d => 
+                  d.id === selectedDevice.id ? { ...d, online: false } : d
+                );
+                set({ 
+                  isLoading: false, 
+                  sessionLoadingStep: "idle", 
+                  connectionStep: "idle",
+                  selectedDevice: { ...selectedDevice, online: false },
+                  devices: updatedDevices,
+                });
+              } else {
+                set({ isLoading: false, sessionLoadingStep: "idle", connectionStep: "idle" });
+              }
             } else {
-              set({ isLoading: false, sessionLoadingStep: "idle", connectionStep: "idle" });
+              set({ isLoading: false, sessionLoadingStep: "idle" });
             }
           }
         }
