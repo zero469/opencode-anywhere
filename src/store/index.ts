@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { capacitorStorage } from "@/lib/storage";
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
 import type { SkillInfo, CommandInfo, Attachment } from "@/lib/opencode";
 import * as opencode from "@/lib/opencode";
@@ -1418,6 +1419,7 @@ export const useAppStore = create<AppState>()(
     }},
     {
       name: "opencode-anywhere-v8",
+      storage: createJSONStorage(() => capacitorStorage),
       partialize: (state) => ({ 
         relayToken: state.relayToken,
         user: state.user,
