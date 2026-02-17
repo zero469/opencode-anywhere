@@ -16,6 +16,8 @@ vi.mock('@/lib/opencode', () => ({
   getAgents: vi.fn(),
   getConfig: vi.fn(),
   getSessionTodos: vi.fn(),
+  getCachedProviders: vi.fn(),
+  getCachedAgents: vi.fn(),
 }))
 
 const mockOpencode = opencode as {
@@ -31,6 +33,8 @@ const mockOpencode = opencode as {
   getAgents: ReturnType<typeof vi.fn>
   getConfig: ReturnType<typeof vi.fn>
   getSessionTodos: ReturnType<typeof vi.fn>
+  getCachedProviders: ReturnType<typeof vi.fn>
+  getCachedAgents: ReturnType<typeof vi.fn>
 }
 
 describe('useAppStore', () => {
@@ -38,6 +42,8 @@ describe('useAppStore', () => {
     vi.clearAllMocks()
     mockOpencode.getConfig.mockReturnValue({ baseUrl: 'http://localhost:4096' })
     mockOpencode.getSessionTodos.mockResolvedValue([])
+    mockOpencode.getCachedProviders.mockResolvedValue(null)
+    mockOpencode.getCachedAgents.mockResolvedValue([])
     useAppStore.setState({
       config: null,
       status: { connected: false },
