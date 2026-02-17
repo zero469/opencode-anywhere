@@ -12,6 +12,7 @@ import { MessageInput } from "@/components/MessageInput";
 import { PermissionDialog } from "@/components/PermissionDialog";
 import { QuestionDialog } from "@/components/QuestionDialog";
 import { TodoCard } from "@/components/TodoCard";
+import { SplashScreen } from "@/components/SplashScreen";
 import { requestNotificationPermission } from "@/lib/notifications";
 import { APP_VERSION } from "@/lib/version";
 import { App } from "@capacitor/app";
@@ -262,11 +263,7 @@ export default function Home() {
   }, [hydrated, relayToken, selectedDevice, config, devicesFetched, devices, selectDevice, deselectDevice]);
 
   if (!hydrated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background)' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   if (!relayToken) {
@@ -281,11 +278,7 @@ export default function Home() {
   // wait for devices to be fetched to verify device is online before showing ConnectingView
   // This prevents showing "Device offline" screen before we can redirect to device list
   if (!config && !devicesFetched) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--background)' }}>
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
-      </div>
-    );
+    return <SplashScreen />;
   }
 
   if (!status.connected) {
