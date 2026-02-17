@@ -839,8 +839,24 @@ export const useAppStore = create<AppState>()(
         try {
           const session = await opencode.createSession(title);
           if (session) {
-            await get().refreshSessions();
-            await get().selectSession(session.id);
+            // Add new session to top of list immediately (no API call)
+            const { sessions } = get();
+            set({ sessions: [session, ...sessions] });
+            
+            // Set as current session directly (no message loading needed - it's empty)
+            const cacheKey = getCacheKey(session.id);
+            messageCache.set(cacheKey, []);
+            sessionHasMoreMessages.set(cacheKey, false);
+            sessionLoadedCount.set(cacheKey, 0);
+            sessionLastUpdated.set(cacheKey, session.time?.updated || Date.now());
+            
+            set({ 
+              currentSessionId: session.id, 
+              messages: [], 
+              isLoading: false, 
+              hasMoreMessages: false,
+              sessionLoadingStep: "ready"
+            });
           }
         } catch (error) {
           console.error("Failed to create session:", error);
