@@ -345,6 +345,7 @@ const markdownComponents: Components = {
 
 function ToolInvocation({ part }: { part: MessagePart }) {
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const statusColors: Record<string, string> = {
     pending: "text-yellow-400 bg-yellow-400/10",
@@ -367,29 +368,168 @@ function ToolInvocation({ part }: { part: MessagePart }) {
   const output = part.state?.output;
   const error = part.state?.error;
   const hasContent = input != null || output != null || error != null;
+  const timeStart = part.state?.time?.start;
+  const timeEnd = part.state?.time?.end;
+
+  // Tool type detection
+  const getToolCategory = (name: string): "terminal" | "read" | "write" | "search" | "other" => {
+    const lowerName = name.toLowerCase();
+    if (["bash", "terminal", "shell", "interactive_bash"].includes(lowerName)) return "terminal";
+    if (["read", "cat"].includes(lowerName)) return "read";
+    if (["write", "edit"].includes(lowerName)) return "write";
+    if (["grep", "glob", "find", "search", "ast_grep_search", "ast-grep", "ast_grep_replace", "lsp_find_references", "lsp_symbols"].includes(lowerName)) return "search";
+    return "other";
+  };
+
+  const toolCategory = getToolCategory(toolName);
+
+  // Tool icons (16x16 inline SVG)
+  const ToolIcon = () => {
+    const iconStyle = { color: 'var(--foreground-muted)', flexShrink: 0 };
+    switch (toolCategory) {
+      case "terminal":
+        return (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={iconStyle}>
+            <rect x="1" y="2" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <path d="M4 6l2.5 2L4 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M8 10h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        );
+      case "read":
+        return (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={iconStyle}>
+            <path d="M9 1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V5L9 1z" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <path d="M9 1v4h4" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+            <path d="M5 8h6M5 11h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        );
+      case "write":
+        return (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={iconStyle}>
+            <path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none"/>
+            <path d="M9.5 3.5l3 3" stroke="currentColor" strokeWidth="1.5"/>
+          </svg>
+        );
+      case "search":
+        return (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={iconStyle}>
+            <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+            <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        );
+      default:
+        return (
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={iconStyle}>
+            <path d="M9.5 1L14 5.5v1L9 11.5 7.5 10l4-4-1.5-1.5-4 4L4.5 7l5-6z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinejoin="round"/>
+            <path d="M6.5 15L2 10.5v-1L7 4.5 8.5 6l-4 4 1.5 1.5 4-4L11.5 9l-5 6z" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinejoin="round"/>
+          </svg>
+        );
+    }
+  };
+
+  // Generate smart preview (2-3 lines)
+  const getSmartPreview = (): { text: string; isError: boolean } | null => {
+    if (status === "pending" || status === "running") return null;
+    
+    if (status === "error" && error) {
+      const lines = error.split("\n").slice(0, 2);
+      const preview = lines.map(l => l.length > 120 ? l.slice(0, 117) + "..." : l).join("\n");
+      return { text: preview + (error.split("\n").length > 2 ? "\n..." : ""), isError: true };
+    }
+
+    if (output == null) return null;
+
+    const outputStr = typeof output === "string" ? output : JSON.stringify(output, null, 2);
+    const inputObj = input as Record<string, unknown> | null;
+    
+    // Tool-specific preview strategies
+    if (toolCategory === "write") {
+      const filePath = inputObj?.filePath || inputObj?.path || inputObj?.file;
+      if (filePath) {
+        return { text: `Wrote to ${filePath}`, isError: false };
+      }
+    }
+
+    if (toolCategory === "read") {
+      const filePath = inputObj?.filePath || inputObj?.path || inputObj?.file;
+      const lines = outputStr.split("\n").slice(0, 2);
+      const preview = lines.map(l => l.length > 120 ? l.slice(0, 117) + "..." : l).join("\n");
+      const fileIndicator = filePath ? `📄 ${filePath}\n` : "";
+      return { text: fileIndicator + preview + (outputStr.split("\n").length > 2 ? "\n..." : ""), isError: false };
+    }
+
+    // Default: first 3 lines
+    const lines = outputStr.split("\n").slice(0, 3);
+    const preview = lines.map(l => l.length > 120 ? l.slice(0, 117) + "..." : l).join("\n");
+    const truncated = outputStr.split("\n").length > 3 ? "\n..." : "";
+    return { text: preview + truncated, isError: false };
+  };
+
+  // Generate input summary for expanded view
+  const getInputSummary = (): string | null => {
+    if (input == null) return null;
+    const inputObj = input as Record<string, unknown>;
+
+    if (toolCategory === "terminal") {
+      const cmd = inputObj.command || inputObj.cmd;
+      if (cmd) return `$ ${cmd}`;
+    }
+
+    if (toolCategory === "read") {
+      const filePath = inputObj.filePath || inputObj.path || inputObj.file;
+      if (filePath) return `File: ${filePath}`;
+    }
+
+    if (toolCategory === "write") {
+      const filePath = inputObj.filePath || inputObj.path || inputObj.file;
+      if (filePath) return `File: ${filePath}`;
+    }
+
+    if (toolCategory === "search") {
+      const pattern = inputObj.pattern || inputObj.query || inputObj.search;
+      const include = inputObj.include || inputObj.glob || inputObj.path;
+      if (pattern) {
+        return include ? `Pattern: "${pattern}" in ${include}` : `Pattern: "${pattern}"`;
+      }
+    }
+
+    return null;
+  };
+
+  const smartPreview = getSmartPreview();
+  const inputSummary = getInputSummary();
+  const outputStr = output != null ? (typeof output === "string" ? output : JSON.stringify(output, null, 2)) : "";
+  
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (outputStr) {
+      await navigator.clipboard.writeText(outputStr);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <div 
       className="rounded-lg my-2 overflow-hidden"
       style={{ backgroundColor: 'color-mix(in srgb, var(--background-element) 50%, transparent)' }}
     >
+      {/* Header row */}
       <button
         onClick={() => hasContent && setExpanded(!expanded)}
         className={`w-full flex items-center gap-2 px-3 py-2 ${hasContent ? "cursor-pointer" : "cursor-default"}`}
-        style={hasContent ? { 
-          ['--hover-bg' as string]: 'color-mix(in srgb, var(--oc-step6) 50%, transparent)'
-        } : undefined}
         onMouseEnter={(e) => hasContent && (e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--oc-step6) 50%, transparent)')}
         onMouseLeave={(e) => hasContent && (e.currentTarget.style.backgroundColor = 'transparent')}
       >
-        <span className={`text-xs px-1.5 py-0.5 rounded ${statusColors[status] || statusColors.pending}`}>
-          {statusIcons[status] || statusIcons.pending}
-        </span>
+        <ToolIcon />
         <span 
           className="text-sm font-mono flex-1 text-left truncate"
           style={{ color: 'var(--foreground-muted)' }}
         >
           {title}
+        </span>
+        <span className={`text-xs px-1.5 py-0.5 rounded ${statusColors[status] || statusColors.pending}`}>
+          {statusIcons[status] || statusIcons.pending}
         </span>
         {hasContent && (
           <span className="text-xs" style={{ color: 'var(--foreground-muted)' }}>
@@ -397,36 +537,106 @@ function ToolInvocation({ part }: { part: MessagePart }) {
           </span>
         )}
       </button>
+
+      {/* Smart preview (collapsed state only) */}
+      {!expanded && smartPreview && (
+        <div 
+          className="px-3 pb-2 cursor-pointer"
+          onClick={() => hasContent && setExpanded(true)}
+        >
+          <pre 
+            className={`text-xs font-mono whitespace-pre-wrap break-words leading-relaxed ${smartPreview.isError ? "text-red-400" : ""}`}
+            style={{ color: smartPreview.isError ? undefined : 'var(--foreground-muted)', opacity: 0.7 }}
+          >
+            {smartPreview.text}
+          </pre>
+        </div>
+      )}
       
+      {/* Expanded content */}
       {expanded && hasContent && (
-        <div className="px-3 pb-3 space-y-2">
+        <div className="px-3 pb-3 space-y-3">
+          {/* Input summary + collapsible full input */}
           {input != null && (
             <div>
-              <div className="text-xs mb-1" style={{ color: 'var(--foreground-muted)' }}>Input:</div>
-              <pre 
-                className="text-xs rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
-                style={{ color: 'var(--foreground-muted)', backgroundColor: 'var(--background-panel)' }}
-              >
-                {typeof input === "string" ? input : JSON.stringify(input, null, 2)}
-              </pre>
+              {inputSummary && (
+                <div 
+                  className="text-xs font-mono mb-1 px-2 py-1 rounded"
+                  style={{ color: 'var(--oc-cyan)', backgroundColor: 'color-mix(in srgb, var(--oc-cyan) 10%, transparent)' }}
+                >
+                  {inputSummary}
+                </div>
+              )}
+              <details className="text-xs">
+                <summary 
+                  className="cursor-pointer mb-1 select-none"
+                  style={{ color: 'var(--foreground-muted)' }}
+                >
+                  Full input
+                </summary>
+                <pre 
+                  className="text-xs rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
+                  style={{ color: 'var(--foreground-muted)', backgroundColor: 'var(--background-panel)' }}
+                >
+                  {typeof input === "string" ? input : JSON.stringify(input, null, 2)}
+                </pre>
+              </details>
             </div>
           )}
+          
+          {/* Output block with copy button */}
           {output != null && (
             <div>
-              <div className="text-xs mb-1" style={{ color: 'var(--foreground-muted)' }}>Output:</div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-xs" style={{ color: 'var(--foreground-muted)' }}>
+                  Output
+                  {timeStart && timeEnd && (
+                    <span className="ml-2 opacity-60">({formatDuration(timeStart, timeEnd)})</span>
+                  )}
+                </div>
+                <button
+                  onClick={handleCopy}
+                  className="text-xs px-1.5 py-0.5 rounded flex items-center gap-1 transition-colors"
+                  style={{ 
+                    color: copied ? 'var(--oc-green)' : 'var(--foreground-muted)',
+                    backgroundColor: copied ? 'color-mix(in srgb, var(--oc-green) 15%, transparent)' : 'transparent'
+                  }}
+                  onMouseEnter={(e) => !copied && (e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--foreground-muted) 15%, transparent)')}
+                  onMouseLeave={(e) => !copied && (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  {copied ? (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 8l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                        <rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                        <path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5" stroke="currentColor" strokeWidth="1.5"/>
+                      </svg>
+                      Copy
+                    </>
+                  )}
+                </button>
+              </div>
               <pre 
-                className="text-xs rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
+                className="text-xs rounded p-2 overflow-x-auto max-h-[60vh] overflow-y-auto"
                 style={{ color: 'var(--foreground-muted)', backgroundColor: 'var(--background-panel)' }}
               >
-                {typeof output === "string" ? output : JSON.stringify(output, null, 2)}
+                {outputStr}
               </pre>
             </div>
           )}
+          
+          {/* Error block */}
           {error != null && (
             <div>
-              <div className="text-xs text-red-500 mb-1">Error:</div>
+              <div className="text-xs text-red-500 mb-1">Error</div>
               <pre 
-                className="text-xs text-red-400 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
+                className="text-xs text-red-400 rounded p-2 overflow-x-auto max-h-[60vh] overflow-y-auto"
                 style={{ backgroundColor: 'var(--background-panel)' }}
               >
                 {error}
