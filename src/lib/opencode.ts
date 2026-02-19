@@ -182,30 +182,38 @@ export async function checkConnection(): Promise<ConnectionStatus> {
     return { connected: false, error: "Client not initialized" };
   }
 
-  try {
-    const url = isNative() ? `${getBaseUrl()}/global/health` : "/api/opencode/health";
-    
-    const response = isNative() 
-      ? await nativeFetch(url, { headers: getHeaders() })
-      : await fetch(url, { headers: getHeaders(), mode: 'same-origin' });
-    
-    const data = await response.json();
-    
-    if (data.error) {
-      return { connected: false, error: data.error };
+  const maxRetries = 3;
+  const retryDelay = 2000; // ms
+  let lastError: string | undefined;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const url = isNative() ? `${getBaseUrl()}/global/health` : "/api/opencode/health";
+      
+      const response = isNative() 
+        ? await nativeFetch(url, { headers: getHeaders() })
+        : await fetch(url, { headers: getHeaders(), mode: 'same-origin' });
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        lastError = data.error;
+      } else if (data.healthy === true) {
+        return { connected: true, serverVersion: data.version };
+      } else {
+        lastError = "Server not healthy";
+      }
+    } catch (error) {
+      console.error(`[OpenCode] checkConnection attempt ${attempt}/${maxRetries} failed:`, error);
+      lastError = error instanceof Error ? error.message : "Connection failed";
     }
-    
-    return {
-      connected: data.healthy === true,
-      serverVersion: data.version,
-    };
-  } catch (error) {
-    console.error("[OpenCode] checkConnection error:", error);
-    return {
-      connected: false,
-      error: error instanceof Error ? error.message : "Connection failed",
-    };
+
+    if (attempt < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
+    }
   }
+
+  return { connected: false, error: lastError };
 }
 
 export async function getProviders(): Promise<ProvidersResponse | null> {
