@@ -61,7 +61,7 @@ export function AuthForm() {
         SavePassword.promptDialog({
           username: savedEmail,
           password: savedPassword,
-          url: 'opencode-relay.azurewebsites.net',
+          url: 'opencode-relay.victoriouswater-fc24e366.eastasia.azurecontainerapps.io',
         }).catch((err) => {
           // Known: SecAddSharedWebCredential silently fails if credential already exists in keychain
           console.warn('SavePassword.promptDialog failed:', err);

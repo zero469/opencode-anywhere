@@ -8,8 +8,8 @@ import { QRScanner } from "./QRScanner";
 import { getAgentColor, capitalizeAgentName } from "@/lib/agentColors";
 import { APP_VERSION } from "@/lib/version";
 
-const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay.azurewebsites.net/install.sh | bash";
-const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay.azurewebsites.net/install.ps1 | iex";
+const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay.victoriouswater-fc24e366.eastasia.azurecontainerapps.io/install.sh | bash";
+const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay.victoriouswater-fc24e366.eastasia.azurecontainerapps.io/install.ps1 | iex";
 const GITHUB_URL = "https://github.com/code-yeongyu/opencode-anywhere";
 
 function OpenCodeLogo({ width = 160 }: { width?: number }) {

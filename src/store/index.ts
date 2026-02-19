@@ -380,7 +380,7 @@ export const useAppStore = create<AppState>()(
           set({ connectionStep: "authenticating" });
           const frpcConfig = await relay.getFrpcConfig(relayToken, device.id);
           const newConfig: ConnectionConfig = {
-            baseUrl: `https://opencode-relay.azurewebsites.net/proxy/${frpcConfig.subdomain}`,
+            baseUrl: `https://opencode-relay.victoriouswater-fc24e366.eastasia.azurecontainerapps.io/proxy/${frpcConfig.subdomain}`,
             username: frpcConfig.auth_user,
             password: frpcConfig.auth_password,
           };
@@ -497,7 +497,7 @@ export const useAppStore = create<AppState>()(
             opencode.setEncryptionKey(getDeviceEncryptionKey(updatedDevice.id));
             const frpcConfig = await relay.getFrpcConfig(relayToken, updatedDevice.id);
             const newConfig: ConnectionConfig = {
-              baseUrl: `https://opencode-relay.azurewebsites.net/proxy/${frpcConfig.subdomain}`,
+              baseUrl: `https://opencode-relay.victoriouswater-fc24e366.eastasia.azurecontainerapps.io/proxy/${frpcConfig.subdomain}`,
               username: frpcConfig.auth_user,
               password: frpcConfig.auth_password,
             };
