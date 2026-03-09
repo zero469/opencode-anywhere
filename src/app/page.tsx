@@ -23,7 +23,7 @@ if (typeof window !== 'undefined') {
 }
 
 function ChatView() {
-  const { currentSessionId, deselectDevice, clearCurrentSession } = useAppStore();
+  const { currentSessionId, isDraftMode, deselectDevice, clearCurrentSession } = useAppStore();
   const sessions = useAppStore((state) => state.sessions);
   const status = useAppStore((state) => state.status);
   const selectedDevice = useAppStore((state) => state.selectedDevice);
@@ -48,8 +48,10 @@ function ChatView() {
 
   const currentSession = sessions.find((s) => s.id === currentSessionId);
 
+  const showChatView = currentSessionId || isDraftMode;
+
   const handleBack = () => {
-    if (currentSessionId) {
+    if (showChatView) {
       clearCurrentSession();
     } else {
       deselectDevice();
@@ -80,9 +82,9 @@ function ChatView() {
             </button>
             <div className="min-w-0">
                  <h1 className="text-lg font-semibold truncate" style={{ color: 'var(--foreground)' }}>
-                  {currentSession?.title || selectedDevice?.name || "OpenCode"}
+                  {currentSession?.title || (isDraftMode ? "New Chat" : selectedDevice?.name) || "OpenCode"}
                 </h1>
-                <span className="text-xs" style={{ color: 'var(--foreground-muted)' }}>{currentSession ? "Chat" : "Sessions"}</span>
+                <span className="text-xs" style={{ color: 'var(--foreground-muted)' }}>{showChatView ? "Chat" : "Sessions"}</span>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -93,7 +95,7 @@ function ChatView() {
           </div>
         </header>
         
-        {currentSessionId ? (
+        {showChatView ? (
           <>
             <TodoCard />
             <MessageList keyboardHeight={keyboardHeight} />

@@ -37,6 +37,7 @@ const scheduleIdleTask = (callback: () => void) => {
 export function MessageInput() {
   const sendMessage = useAppStore((state) => state.sendMessage);
   const currentSessionId = useAppStore((state) => state.currentSessionId);
+  const isDraftMode = useAppStore((state) => state.isDraftMode);
   const runningSessions = useAppStore((state) => state.runningSessions);
   const abortSession = useAppStore((state) => state.abortSession);
   const summarizeCurrentSession = useAppStore((state) => state.summarizeCurrentSession);
@@ -50,6 +51,7 @@ export function MessageInput() {
   
   const isSessionBusy = currentSessionId ? runningSessions.includes(currentSessionId) : false;
   const isCompacting = currentSessionId ? compactingSessions.includes(currentSessionId) : false;
+  const showInput = currentSessionId || isDraftMode;
 
   // Check if current model supports attachments
   const currentModelSupportsAttachments = useMemo(() => {
@@ -236,7 +238,7 @@ export function MessageInput() {
     });
   }, []);
 
-  if (!currentSessionId) {
+  if (!showInput) {
     return (
       <div 
         className="p-4 border-t text-center"

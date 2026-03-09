@@ -119,6 +119,7 @@ interface AppState {
   sessionLoadingStep: SessionLoadingStep;
   sessions: Session[];
   currentSessionId: string | null;
+  isDraftMode: boolean;
   messages: SessionMessage[];
   pendingPermissions: PermissionRequest[];
   pendingQuestions: QuestionRequest[];
@@ -157,7 +158,7 @@ interface AppState {
   loadMoreMessages: () => Promise<void>;
   clearCurrentSession: () => void;
   sendMessage: (text: string, attachments?: Attachment[]) => Promise<void>;
-  createSession: (title?: string) => Promise<void>;
+  startDraftSession: () => void;
   deleteSession: (sessionId: string) => Promise<boolean>;
   renameSession: (sessionId: string, title: string) => Promise<boolean>;
   togglePinSession: (sessionId: string) => void;
@@ -208,6 +209,7 @@ export const useAppStore = create<AppState>()(
       sessionLoadingStep: "idle",
       sessions: [],
       currentSessionId: null,
+      isDraftMode: false,
       messages: [],
       pendingPermissions: [],
       pendingQuestions: [],
@@ -266,6 +268,7 @@ export const useAppStore = create<AppState>()(
           connectionStep: "idle",
           sessions: [],
           currentSessionId: null,
+          isDraftMode: false,
           messages: [],
           pendingPermissions: [],
           providers: null,
@@ -322,6 +325,7 @@ export const useAppStore = create<AppState>()(
           status: { connected: false },
           sessions: [],
           currentSessionId: null,
+          isDraftMode: false,
           messages: [],
           authError: null,
         });
@@ -365,6 +369,7 @@ export const useAppStore = create<AppState>()(
           isLoading: true,
           sessions: cachedSessions,
           currentSessionId: null,
+          isDraftMode: false,
           messages: [],
           todos: [],
           connectionStep: "connecting",
@@ -406,6 +411,7 @@ export const useAppStore = create<AppState>()(
         set({ 
           selectedDevice: null, 
           currentSessionId: null,
+          isDraftMode: false,
           messages: [],
         });
       },
@@ -612,7 +618,7 @@ export const useAppStore = create<AppState>()(
         
         if (shouldUseCache) {
           const hasMore = sessionHasMoreMessages.get(cacheKey) || false;
-          set({ currentSessionId: id, messages: cached, isLoading: false, hasMoreMessages: hasMore, sessionLoadingStep: "ready" });
+          set({ currentSessionId: id, isDraftMode: false, messages: cached, isLoading: false, hasMoreMessages: hasMore, sessionLoadingStep: "ready" });
           get().fetchTodos(id);
           return;
         }
@@ -620,7 +626,7 @@ export const useAppStore = create<AppState>()(
         const previousCached = cached ? [...cached] : [];
         const previousHasMore = sessionHasMoreMessages.get(cacheKey) || false;
         
-        set({ currentSessionId: id, messages: previousCached, isLoading: true, hasMoreMessages: previousHasMore, sessionLoadingStep: "loading_messages" });
+        set({ currentSessionId: id, isDraftMode: false, messages: previousCached, isLoading: true, hasMoreMessages: previousHasMore, sessionLoadingStep: "loading_messages" });
         
         const fetchWithRetry = async (retriesLeft: number): Promise<{ messages: SessionMessage[]; hasMore: boolean }> => {
           try {
@@ -695,7 +701,7 @@ export const useAppStore = create<AppState>()(
       },
 
       clearCurrentSession: () => {
-        set({ currentSessionId: null, messages: [], hasMoreMessages: false, todos: [], sessionLoadingStep: "idle", isLoading: false });
+        set({ currentSessionId: null, isDraftMode: false, messages: [], hasMoreMessages: false, todos: [], sessionLoadingStep: "idle", isLoading: false });
       },
 
       loadMoreMessages: async () => {
@@ -785,15 +791,45 @@ export const useAppStore = create<AppState>()(
       },
 
       sendMessage: async (text, attachments) => {
-        const { currentSessionId, selectedModel, sessionAgents, defaultAgent, messages, commands } = get();
-        if (!currentSessionId || !text.trim()) return;
+        const { currentSessionId, isDraftMode, selectedModel, sessionAgents, defaultAgent, messages, commands } = get();
+        if (!text.trim()) return;
+        
+        let sessionId = currentSessionId;
+        if (isDraftMode || !sessionId) {
+          try {
+            const session = await opencode.createSession();
+            if (!session) {
+              console.error("Failed to create session");
+              return;
+            }
+            sessionId = session.id;
+            
+            const cacheKey = getCacheKey(session.id);
+            messageCache.set(cacheKey, []);
+            sessionHasMoreMessages.set(cacheKey, false);
+            sessionLoadedCount.set(cacheKey, 0);
+            sessionLastUpdated.set(cacheKey, session.time?.updated || Date.now());
+            
+            set({ 
+              currentSessionId: session.id, 
+              isDraftMode: false,
+              messages: [], 
+              isLoading: false, 
+              hasMoreMessages: false,
+              sessionLoadingStep: "ready"
+            });
+          } catch (error) {
+            console.error("Failed to create session:", error);
+            return;
+          }
+        }
 
-        const selectedAgent = sessionAgents[currentSessionId] || defaultAgent;
+        const selectedAgent = sessionAgents[sessionId] || defaultAgent;
 
         const userMessage: SessionMessage = {
           info: {
             id: `temp_${Date.now()}`,
-            sessionID: currentSessionId,
+            sessionID: sessionId,
             role: "user",
             time: { created: Date.now() },
           },
@@ -808,16 +844,14 @@ export const useAppStore = create<AppState>()(
             { type: "text" as const, text, id: `prt_temp_${Date.now()}` }
           ],
         };
-        sendingSessions.add(currentSessionId);
+        sendingSessions.add(sessionId);
         set({ 
-          messages: [...messages, userMessage], 
-          sendingSessionId: currentSessionId,
-          runningSessions: get().runningSessions.includes(currentSessionId) 
+          messages: [...get().messages, userMessage], 
+          sendingSessionId: sessionId,
+          runningSessions: get().runningSessions.includes(sessionId) 
             ? get().runningSessions 
-            : [...get().runningSessions, currentSessionId]
+            : [...get().runningSessions, sessionId]
         });
-
-        const sessionId = currentSessionId;
         
         const trimmed = text.trim();
         const isSlashCommand = trimmed.startsWith("/");
@@ -879,32 +913,16 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      createSession: async (title) => {
-        try {
-          const session = await opencode.createSession(title);
-          if (session) {
-            // Add new session to top of list immediately (no API call)
-            const { sessions } = get();
-            set({ sessions: [session, ...sessions] });
-            
-            // Set as current session directly (no message loading needed - it's empty)
-            const cacheKey = getCacheKey(session.id);
-            messageCache.set(cacheKey, []);
-            sessionHasMoreMessages.set(cacheKey, false);
-            sessionLoadedCount.set(cacheKey, 0);
-            sessionLastUpdated.set(cacheKey, session.time?.updated || Date.now());
-            
-            set({ 
-              currentSessionId: session.id, 
-              messages: [], 
-              isLoading: false, 
-              hasMoreMessages: false,
-              sessionLoadingStep: "ready"
-            });
-          }
-        } catch (error) {
-          console.error("Failed to create session:", error);
-        }
+      startDraftSession: () => {
+        set({ 
+          currentSessionId: null, 
+          isDraftMode: true,
+          messages: [], 
+          isLoading: false, 
+          hasMoreMessages: false,
+          sessionLoadingStep: "ready",
+          todos: [],
+        });
       },
 
       deleteSession: async (sessionId) => {
@@ -1332,8 +1350,9 @@ export const useAppStore = create<AppState>()(
 
           case "session.created": {
             const sessionData = event.properties.info as Session | undefined;
-            if (sessionData?.id && !sessions.find(s => s.id === sessionData.id)) {
-              set({ sessions: [sessionData, ...sessions] });
+            const currentSessions = get().sessions;
+            if (sessionData?.id && !currentSessions.find(s => s.id === sessionData.id)) {
+              set({ sessions: [sessionData, ...currentSessions] });
             }
             break;
           }
