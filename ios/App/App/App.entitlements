@@ -4,8 +4,8 @@
 <dict>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>webcredentials:opencode-relay.victoriouswater-fc24e366.eastasia.azurecontainerapps.io</string>
-		<string>applinks:opencode-relay.victoriouswater-fc24e366.eastasia.azurecontainerapps.io</string>
+		<string>webcredentials:opencode-relay.azurewebsites.net</string>
+		<string>applinks:opencode-relay.azurewebsites.net</string>
 	</array>
 </dict>
 </plist>

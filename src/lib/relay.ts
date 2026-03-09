@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://opencode-relay.victoriouswater-fc24e366.eastasia.azurecontainerapps.io';
+const API_BASE_URL = 'https://opencode-relay.azurewebsites.net';
 
 export interface Device {
   id: number;

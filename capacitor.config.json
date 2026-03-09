@@ -3,7 +3,7 @@
   "appName": "OpenCode Anywhere",
   "webDir": "out",
   "server": {
-    "hostname": "opencode-relay.victoriouswater-fc24e366.eastasia.azurecontainerapps.io"
+    "hostname": "opencode-relay.azurewebsites.net"
   },
   "plugins": {
     "CapacitorHttp": {
