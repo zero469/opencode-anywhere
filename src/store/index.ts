@@ -631,7 +631,7 @@ export const useAppStore = create<AppState>()(
         const previousCached = cached ? [...cached] : [];
         const previousHasMore = sessionHasMoreMessages.get(cacheKey) || false;
         
-        set({ currentSessionId: id, isDraftMode: false, messages: previousCached, isLoading: true, hasMoreMessages: previousHasMore, sessionLoadingStep: "loading_messages" });
+        set({ currentSessionId: id, isDraftMode: false, messages: previousCached, isLoading: true, isLoadingMore: false, hasMoreMessages: previousHasMore, sessionLoadingStep: "loading_messages" });
         
         const fetchWithRetry = async (retriesLeft: number): Promise<{ messages: SessionMessage[]; hasMore: boolean }> => {
           try {
@@ -948,6 +948,7 @@ export const useAppStore = create<AppState>()(
           isDraftMode: true,
           messages: [], 
           isLoading: false, 
+          isLoadingMore: false,
           hasMoreMessages: false,
           sessionLoadingStep: "ready",
           todos: [],

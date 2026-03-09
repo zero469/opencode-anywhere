@@ -831,6 +831,52 @@ interface ToolTimelineEntry {
   status: string;
 }
 
+function getToolDisplayName(part: MessagePart): string {
+  const toolName = part.tool || part.toolName || "tool";
+  
+  let inputObj: Record<string, unknown> | null = null;
+  try {
+    const partAny = part as unknown as Record<string, unknown>;
+    const rawInput = part.state?.input ?? partAny.input ?? partAny.args;
+    if (typeof rawInput === "string") {
+      inputObj = JSON.parse(rawInput);
+    } else if (rawInput && typeof rawInput === "object") {
+      inputObj = rawInput as Record<string, unknown>;
+    }
+  } catch { /* ignore */ }
+  
+  if (inputObj) {
+    const filePath = inputObj.filePath || inputObj.path || inputObj.file;
+    if (filePath) {
+      const segments = String(filePath).split('/');
+      return segments[segments.length - 1];
+    }
+    
+    const cmd = inputObj.command || inputObj.cmd;
+    if (cmd) {
+      const cmdStr = String(cmd);
+      return cmdStr.length > 30 ? cmdStr.slice(0, 27) + "..." : cmdStr;
+    }
+    
+    const pattern = inputObj.pattern || inputObj.query || inputObj.search;
+    if (pattern) {
+      const patStr = String(pattern);
+      return patStr.length > 25 ? `"${patStr.slice(0, 22)}..."` : `"${patStr}"`;
+    }
+  }
+  
+  const title = part.state?.title;
+  if (title) {
+    if (title.includes('/')) {
+      const segments = title.split('/');
+      return segments[segments.length - 1];
+    }
+    return title.length > 30 ? title.slice(0, 27) + "..." : title;
+  }
+  
+  return toolName;
+}
+
 function ToolTimeline({ toolParts }: { toolParts: MessagePart[] }) {
   const entries = useMemo(() => {
     const result: ToolTimelineEntry[] = [];
@@ -838,7 +884,7 @@ function ToolTimeline({ toolParts }: { toolParts: MessagePart[] }) {
       const start = part.state?.time?.start;
       if (!start) continue;
       result.push({
-        name: part.state?.title || part.tool || part.toolName || "tool",
+        name: getToolDisplayName(part),
         start,
         end: part.state?.time?.end,
         status: part.state?.status || "pending",
