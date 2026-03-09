@@ -5,8 +5,7 @@ import { QuickActionsBar } from './QuickActionsBar'
 describe('QuickActionsBar', () => {
   const defaultProps = {
     onCompact: vi.fn(),
-    onSkills: vi.fn(),
-    onMore: vi.fn(),
+    onSlashCommands: vi.fn(),
   }
 
   beforeEach(() => {
@@ -18,15 +17,14 @@ describe('QuickActionsBar', () => {
     vi.useRealTimers()
   })
 
-  it('renders 3 action buttons', () => {
+  it('renders 2 action buttons', () => {
     render(<QuickActionsBar {...defaultProps} />)
 
     const buttons = screen.getAllByRole('button')
-    expect(buttons).toHaveLength(3)
+    expect(buttons).toHaveLength(2)
 
     expect(screen.getByRole('button', { name: /compact/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /skills/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /more/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /commands/i })).toBeInTheDocument()
   })
 
   it('calls onCompact when Compact button clicked', () => {
@@ -37,32 +35,22 @@ describe('QuickActionsBar', () => {
     expect(defaultProps.onCompact).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onSkills when Skills button clicked', () => {
+  it('calls onSlashCommands when Commands button clicked', () => {
     render(<QuickActionsBar {...defaultProps} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /skills/i }))
+    fireEvent.click(screen.getByRole('button', { name: /commands/i }))
 
-    expect(defaultProps.onSkills).toHaveBeenCalledTimes(1)
-  })
-
-  it('calls onMore when More button clicked', () => {
-    render(<QuickActionsBar {...defaultProps} />)
-
-    fireEvent.click(screen.getByRole('button', { name: /more/i }))
-
-    expect(defaultProps.onMore).toHaveBeenCalledTimes(1)
+    expect(defaultProps.onSlashCommands).toHaveBeenCalledTimes(1)
   })
 
   it('disables buttons when disabled prop is true', () => {
     render(<QuickActionsBar {...defaultProps} disabled />)
 
     const compactButton = screen.getByRole('button', { name: /compact/i })
-    const skillsButton = screen.getByRole('button', { name: /skills/i })
-    const moreButton = screen.getByRole('button', { name: /more/i })
+    const commandsButton = screen.getByRole('button', { name: /commands/i })
 
     expect(compactButton).toBeDisabled()
-    expect(skillsButton).toBeDisabled()
-    expect(moreButton).toBeDisabled()
+    expect(commandsButton).toBeDisabled()
 
     fireEvent.click(compactButton)
     expect(defaultProps.onCompact).not.toHaveBeenCalled()
@@ -91,11 +79,11 @@ describe('QuickActionsBar', () => {
     expect(defaultProps.onCompact).toHaveBeenCalledTimes(2)
   })
 
-  it('More button is enabled and clickable', () => {
+  it('Commands button is enabled and clickable', () => {
     render(<QuickActionsBar {...defaultProps} />)
 
-    const moreButton = screen.getByRole('button', { name: /more/i })
-    expect(moreButton).not.toBeDisabled()
+    const commandsButton = screen.getByRole('button', { name: /commands/i })
+    expect(commandsButton).not.toBeDisabled()
   })
 
   it('shows spinner and disables Compact button when isCompacting is true', () => {
