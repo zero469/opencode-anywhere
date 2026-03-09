@@ -159,6 +159,7 @@ interface AppState {
   loadMoreMessages: () => Promise<void>;
   clearCurrentSession: () => void;
   sendMessage: (text: string, attachments?: Attachment[]) => Promise<void>;
+  retryMessage: (messageId: string) => Promise<void>;
   startDraftSession: () => void;
   deleteSession: (sessionId: string) => Promise<boolean>;
   renameSession: (sessionId: string, title: string) => Promise<boolean>;
@@ -915,6 +916,30 @@ export const useAppStore = create<AppState>()(
             set({ messages: newMessages });
           }
         }
+      },
+
+      retryMessage: async (messageId) => {
+        const { messages, sendMessage } = get();
+        const failedMessage = messages.find(m => m.info.id === messageId);
+        
+        if (!failedMessage || !failedMessage.info.error) return;
+        
+        const textPart = failedMessage.parts.find(p => p.type === "text");
+        const text = textPart?.text;
+        if (!text) return;
+        
+        const fileParts = failedMessage.parts.filter(p => p.type === "file");
+        const attachments: Attachment[] = fileParts
+          .filter(p => p.url && p.mime)
+          .map(p => ({
+            uri: p.url!,
+            mimeType: p.mime!,
+            fileName: p.filename,
+          }));
+        
+        set({ messages: messages.filter(m => m.info.id !== messageId) });
+        
+        await sendMessage(text, attachments.length > 0 ? attachments : undefined);
       },
 
       startDraftSession: () => {

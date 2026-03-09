@@ -23,6 +23,7 @@
     "@capacitor/preferences": "^8.0.0",
     "@capgo/capacitor-autofill-save-password": "^8.0.15",
     "@opencode-ai/sdk": "^1.1.23",
+    "@tanstack/react-virtual": "^3.13.21",
     "next": "16.1.2",
     "next-pwa": "^5.6.0",
     "react": "19.2.3",
