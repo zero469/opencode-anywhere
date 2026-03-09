@@ -5,6 +5,7 @@ import { useAppStore } from "@/store";
 import { ModelAgentSelector } from "./ModelAgentSelector";
 import { QuickActionsBar } from "./QuickActionsBar";
 import { SlashCommandModal } from "./SlashCommandModal";
+import { McpModal } from "./McpModal";
 import { ContextUsageDisplay } from "./ContextUsageDisplay";
 import type { Attachment } from "@/lib/opencode";
 import { compressImage } from "@/lib/imageUtils";
@@ -48,6 +49,9 @@ export function MessageInput() {
   const commands = useAppStore((state) => state.commands);
   const providers = useAppStore((state) => state.providers);
   const selectedModel = useAppStore((state) => state.selectedModel);
+  const mcpStatus = useAppStore((state) => state.mcpStatus);
+  const fetchMcpStatus = useAppStore((state) => state.fetchMcpStatus);
+  const toggleMcp = useAppStore((state) => state.toggleMcp);
   
   const isSessionBusy = currentSessionId ? runningSessions.includes(currentSessionId) : false;
   const isCompacting = currentSessionId ? compactingSessions.includes(currentSessionId) : false;
@@ -65,6 +69,7 @@ export function MessageInput() {
   const [isComposing, setIsComposing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [showSlashModal, setShowSlashModal] = useState(false);
+  const [showMcpModal, setShowMcpModal] = useState(false);
   const [isLoadingCommands, setIsLoadingCommands] = useState(false);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -144,6 +149,10 @@ export function MessageInput() {
       setIsLoadingCommands(false);
     }
   }, [commands.length, skills.length, fetchCommands, fetchSkills]);
+
+  const handleMcp = useCallback(() => {
+    setShowMcpModal(true);
+  }, []);
 
   const handleSelectSlashCommand = useCallback((name: string) => {
     setShowSlashModal(false);
@@ -258,10 +267,9 @@ export function MessageInput() {
         </div>
         <div className="flex-shrink-0">
           <QuickActionsBar 
-            onCompact={handleCompact}
             onSlashCommands={handleSlashCommands}
+            onMcp={handleMcp}
             disabled={isSessionBusy}
-            isCompacting={isCompacting}
           />
         </div>
       </div>
@@ -378,7 +386,16 @@ export function MessageInput() {
         commands={commands}
         skills={skills}
         onSelect={handleSelectSlashCommand}
+        onCompact={handleCompact}
+        isCompacting={isCompacting}
         loading={isLoadingCommands}
+      />
+      <McpModal
+        isOpen={showMcpModal}
+        onClose={() => setShowMcpModal(false)}
+        mcpStatus={mcpStatus}
+        onToggle={toggleMcp}
+        onRefresh={fetchMcpStatus}
       />
     </div>
   );

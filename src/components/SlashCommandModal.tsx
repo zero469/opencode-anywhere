@@ -3,12 +3,12 @@
 import { useState, useMemo, useEffect } from "react";
 import type { CommandInfo, SkillInfo } from "@/lib/opencode";
 
-type FilterType = "all" | "skills" | "commands";
+type FilterType = "all" | "skills" | "commands" | "actions";
 
 interface SlashCommandItem {
   name: string;
   description?: string;
-  category: "skill" | "command";
+  category: "skill" | "command" | "action";
 }
 
 interface SlashCommandModalProps {
@@ -17,6 +17,8 @@ interface SlashCommandModalProps {
   commands: CommandInfo[];
   skills: SkillInfo[];
   onSelect: (name: string) => void;
+  onCompact: () => void;
+  isCompacting?: boolean;
   loading?: boolean;
 }
 
@@ -25,7 +27,9 @@ export function SlashCommandModal({
   onClose, 
   commands, 
   skills, 
-  onSelect, 
+  onSelect,
+  onCompact,
+  isCompacting,
   loading 
 }: SlashCommandModalProps) {
   const [filter, setFilter] = useState<FilterType>("all");
@@ -55,10 +59,20 @@ export function SlashCommandModal({
         category: "command",
       }));
     
-    const all = [...skillItems, ...commandItems].sort((a, b) => a.name.localeCompare(b.name));
+    // Action items (special actions like Compact)
+    const actionItems: SlashCommandItem[] = [
+      {
+        name: "compact",
+        description: "Compact conversation history to reduce token usage",
+        category: "action",
+      },
+    ];
+    
+    const all = [...skillItems, ...commandItems, ...actionItems].sort((a, b) => a.name.localeCompare(b.name));
     
     if (filter === "skills") return all.filter(i => i.category === "skill");
     if (filter === "commands") return all.filter(i => i.category === "command");
+    if (filter === "actions") return all.filter(i => i.category === "action");
     return all;
   }, [commands, skills, filter]);
 
@@ -91,7 +105,7 @@ export function SlashCommandModal({
         </div>
 
         <div className="flex gap-2 px-4 py-2" style={{ borderBottomWidth: '1px', borderBottomStyle: 'solid', borderBottomColor: 'var(--border-subtle)' }}>
-          {(["all", "skills", "commands"] as const).map((f) => (
+          {(["all", "skills", "commands", "actions"] as const).map((f) => (
             <button
               key={f}
               onClick={() => { setFilter(f); setHoveredItem(null); }}
@@ -102,7 +116,7 @@ export function SlashCommandModal({
                 border: filter === f ? '1px solid #3b82f6' : '1px solid transparent',
               }}
             >
-              {f === "all" ? "All" : f === "skills" ? "Skills" : "Commands"}
+              {f === "all" ? "All" : f === "skills" ? "Skills" : f === "commands" ? "Commands" : "Actions"}
             </button>
           ))}
         </div>
@@ -124,11 +138,38 @@ export function SlashCommandModal({
               {items.map((item) => {
                 const itemKey = `${item.category}-${item.name}`;
                 const isHovered = hoveredItem === itemKey;
+                const isAction = item.category === "action";
+                const isCompactAction = isAction && item.name === "compact";
+                const isDisabled = isCompactAction && isCompacting;
+                
+                const handleClick = () => {
+                  if (isCompactAction) {
+                    onCompact();
+                  } else {
+                    onSelect(item.name);
+                  }
+                };
+                
+                const getIconBgColor = () => {
+                  if (item.category === "skill") return 'rgba(59, 130, 246, 0.2)';
+                  if (item.category === "action") return 'rgba(251, 146, 60, 0.2)';
+                  return 'rgba(34, 197, 94, 0.2)';
+                };
+                
+                const getBadgeColor = () => {
+                  if (item.category === "skill") return { bg: 'rgba(59, 130, 246, 0.2)', text: '#60a5fa' };
+                  if (item.category === "action") return { bg: 'rgba(251, 146, 60, 0.2)', text: '#fb923c' };
+                  return { bg: 'rgba(34, 197, 94, 0.2)', text: '#4ade80' };
+                };
+                
+                const badgeColors = getBadgeColor();
+                
                 return (
                   <button
                     key={itemKey}
-                    onClick={() => onSelect(item.name)}
-                    className="w-full text-left p-3 rounded-lg transition-colors group"
+                    onClick={handleClick}
+                    disabled={isDisabled}
+                    className="w-full text-left p-3 rounded-lg transition-colors group disabled:opacity-50"
                     style={{ backgroundColor: isHovered ? 'var(--background-element)' : 'transparent' }}
                     onMouseEnter={() => setHoveredItem(itemKey)}
                     onMouseLeave={() => setHoveredItem(null)}
@@ -136,15 +177,20 @@ export function SlashCommandModal({
                   <div className="flex items-start gap-3">
                     <div 
                       className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ 
-                        backgroundColor: item.category === "skill" 
-                          ? 'rgba(59, 130, 246, 0.2)' 
-                          : 'rgba(34, 197, 94, 0.2)' 
-                      }}
+                      style={{ backgroundColor: getIconBgColor() }}
                     >
-                      {item.category === "skill" ? (
+                      {isCompactAction && isCompacting ? (
+                        <svg className="w-4 h-4 text-orange-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                      ) : item.category === "skill" ? (
                         <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      ) : item.category === "action" ? (
+                        <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
                       ) : (
                         <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,20 +202,13 @@ export function SlashCommandModal({
                       <div className="flex items-center gap-2">
                         <span 
                           className="text-sm font-medium transition-colors"
-                          style={{ 
-                            color: 'var(--foreground)',
-                          }}
+                          style={{ color: 'var(--foreground)' }}
                         >
-                          /{item.name}
+                          {isAction ? item.name.charAt(0).toUpperCase() + item.name.slice(1) : `/${item.name}`}
                         </span>
                         <span 
                           className="text-xs px-1.5 py-0.5 rounded"
-                          style={{ 
-                            backgroundColor: item.category === "skill" 
-                              ? 'rgba(59, 130, 246, 0.2)' 
-                              : 'rgba(34, 197, 94, 0.2)',
-                            color: item.category === "skill" ? '#60a5fa' : '#4ade80',
-                          }}
+                          style={{ backgroundColor: badgeColors.bg, color: badgeColors.text }}
                         >
                           {item.category}
                         </span>

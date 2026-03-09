@@ -2,7 +2,7 @@
 
 ## SlashCommandModal Hover State Bug
 
-**Version**: 1.4.2
+**Version**: 1.4.3
 **Severity**: Low (cosmetic)
 
 **Description**: When opening the Slash Commands modal, occasionally a random item appears with hover background styling even though the user hasn't hovered over it.

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { capacitorStorage } from "@/lib/storage";
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
-import type { SkillInfo, CommandInfo, Attachment } from "@/lib/opencode";
+import type { SkillInfo, CommandInfo, Attachment, McpStatusMap } from "@/lib/opencode";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
 import { notifyTaskComplete, notifyApprovalNeeded, notifyInputNeeded } from "@/lib/notifications";
@@ -138,6 +138,7 @@ interface AppState {
    skills: SkillInfo[];
    commands: CommandInfo[];
    compactingSessions: string[];
+   mcpStatus: McpStatusMap;
 
    relayToken: string | null;
   user: User | null;
@@ -179,6 +180,8 @@ interface AppState {
    summarizeCurrentSession: () => Promise<void>;
    fetchPendingRequests: () => Promise<void>;
    onAppResume: () => Promise<void>;
+   fetchMcpStatus: () => Promise<void>;
+   toggleMcp: (name: string, enable: boolean) => Promise<void>;
 
    sendVerification: (email: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -228,6 +231,7 @@ export const useAppStore = create<AppState>()(
        skills: [],
        commands: [],
        compactingSessions: [],
+       mcpStatus: {},
 
        relayToken: null,
       user: null,
@@ -1206,6 +1210,30 @@ export const useAppStore = create<AppState>()(
         if (currentSessionId) {
           await get().refreshCurrentSession();
           await get().fetchTodos(currentSessionId);
+        }
+      },
+
+      fetchMcpStatus: async () => {
+        try {
+          const mcpStatus = await opencode.getMcpStatus();
+          set({ mcpStatus });
+        } catch (error) {
+          console.error("Failed to fetch MCP status:", error);
+        }
+      },
+
+      toggleMcp: async (name, enable) => {
+        const { mcpStatus } = get();
+        try {
+          if (enable) {
+            await opencode.connectMcp(name);
+          } else {
+            await opencode.disconnectMcp(name);
+          }
+          await get().fetchMcpStatus();
+        } catch (error) {
+          console.error(`Failed to ${enable ? 'connect' : 'disconnect'} MCP ${name}:`, error);
+          throw error;
         }
       },
 

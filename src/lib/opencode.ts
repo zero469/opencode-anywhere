@@ -865,3 +865,44 @@ export async function fetchLazyImage(partId: string): Promise<string> {
   
   return data.url;
 }
+
+export type McpStatus = 
+  | { status: "connected" }
+  | { status: "disabled" }
+  | { status: "failed"; error: string }
+  | { status: "needs_auth" }
+  | { status: "needs_client_registration"; error: string };
+
+export interface McpStatusMap {
+  [name: string]: McpStatus;
+}
+
+export async function getMcpStatus(): Promise<McpStatusMap> {
+  const url = isNative() ? `${getBaseUrl()}/mcp` : "/api/opencode/mcp";
+  const response = await http(url, { headers: getHeaders() });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+export async function connectMcp(name: string): Promise<boolean> {
+  const url = isNative() 
+    ? `${getBaseUrl()}/mcp/${encodeURIComponent(name)}/connect` 
+    : `/api/opencode/mcp/${encodeURIComponent(name)}/connect`;
+  const response = await http(url, {
+    method: "POST",
+    headers: getHeaders(),
+  });
+  return response.ok;
+}
+
+export async function disconnectMcp(name: string): Promise<boolean> {
+  const url = isNative() 
+    ? `${getBaseUrl()}/mcp/${encodeURIComponent(name)}/disconnect` 
+    : `/api/opencode/mcp/${encodeURIComponent(name)}/disconnect`;
+  const response = await http(url, {
+    method: "POST",
+    headers: getHeaders(),
+  });
+  return response.ok;
+}
