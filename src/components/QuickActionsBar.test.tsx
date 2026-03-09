@@ -4,8 +4,8 @@ import { QuickActionsBar } from './QuickActionsBar'
 
 describe('QuickActionsBar', () => {
   const defaultProps = {
-    onCompact: vi.fn(),
     onSlashCommands: vi.fn(),
+    onMcp: vi.fn(),
   }
 
   beforeEach(() => {
@@ -23,16 +23,8 @@ describe('QuickActionsBar', () => {
     const buttons = screen.getAllByRole('button')
     expect(buttons).toHaveLength(2)
 
-    expect(screen.getByRole('button', { name: /compact/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /commands/i })).toBeInTheDocument()
-  })
-
-  it('calls onCompact when Compact button clicked', () => {
-    render(<QuickActionsBar {...defaultProps} />)
-
-    fireEvent.click(screen.getByRole('button', { name: /compact/i }))
-
-    expect(defaultProps.onCompact).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: /mcp/i })).toBeInTheDocument()
   })
 
   it('calls onSlashCommands when Commands button clicked', () => {
@@ -43,40 +35,48 @@ describe('QuickActionsBar', () => {
     expect(defaultProps.onSlashCommands).toHaveBeenCalledTimes(1)
   })
 
+  it('calls onMcp when MCP button clicked', () => {
+    render(<QuickActionsBar {...defaultProps} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /mcp/i }))
+
+    expect(defaultProps.onMcp).toHaveBeenCalledTimes(1)
+  })
+
   it('disables buttons when disabled prop is true', () => {
     render(<QuickActionsBar {...defaultProps} disabled />)
 
-    const compactButton = screen.getByRole('button', { name: /compact/i })
     const commandsButton = screen.getByRole('button', { name: /commands/i })
+    const mcpButton = screen.getByRole('button', { name: /mcp/i })
 
-    expect(compactButton).toBeDisabled()
     expect(commandsButton).toBeDisabled()
+    expect(mcpButton).toBeDisabled()
 
-    fireEvent.click(compactButton)
-    expect(defaultProps.onCompact).not.toHaveBeenCalled()
+    fireEvent.click(commandsButton)
+    expect(defaultProps.onSlashCommands).not.toHaveBeenCalled()
   })
 
   it('debounces rapid taps', () => {
     render(<QuickActionsBar {...defaultProps} />)
 
-    const compactButton = screen.getByRole('button', { name: /compact/i })
+    const mcpButton = screen.getByRole('button', { name: /mcp/i })
 
     vi.setSystemTime(1000)
 
-    fireEvent.click(compactButton)
-    expect(defaultProps.onCompact).toHaveBeenCalledTimes(1)
+    fireEvent.click(mcpButton)
+    expect(defaultProps.onMcp).toHaveBeenCalledTimes(1)
 
     vi.setSystemTime(1100)
-    fireEvent.click(compactButton)
-    expect(defaultProps.onCompact).toHaveBeenCalledTimes(1)
+    fireEvent.click(mcpButton)
+    expect(defaultProps.onMcp).toHaveBeenCalledTimes(1)
 
     vi.setSystemTime(1200)
-    fireEvent.click(compactButton)
-    expect(defaultProps.onCompact).toHaveBeenCalledTimes(1)
+    fireEvent.click(mcpButton)
+    expect(defaultProps.onMcp).toHaveBeenCalledTimes(1)
 
     vi.setSystemTime(1400)
-    fireEvent.click(compactButton)
-    expect(defaultProps.onCompact).toHaveBeenCalledTimes(2)
+    fireEvent.click(mcpButton)
+    expect(defaultProps.onMcp).toHaveBeenCalledTimes(2)
   })
 
   it('Commands button is enabled and clickable', () => {
@@ -84,15 +84,5 @@ describe('QuickActionsBar', () => {
 
     const commandsButton = screen.getByRole('button', { name: /commands/i })
     expect(commandsButton).not.toBeDisabled()
-  })
-
-  it('shows spinner and disables Compact button when isCompacting is true', () => {
-    render(<QuickActionsBar {...defaultProps} isCompacting />)
-
-    const compactButton = screen.getByRole('button', { name: /compact/i })
-    expect(compactButton).toBeDisabled()
-    
-    const spinner = compactButton.querySelector('.animate-spin')
-    expect(spinner).toBeInTheDocument()
   })
 })
