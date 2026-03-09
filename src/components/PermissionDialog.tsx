@@ -33,14 +33,14 @@ export function PermissionDialog() {
         <div className="flex gap-3">
           <button
             onClick={() => respondPermission(permission.id, false)}
-            className="flex-1 py-2 px-4 rounded-lg font-medium transition-colors hover:opacity-80"
+            className="no-select flex-1 py-2 px-4 rounded-lg font-medium transition-colors hover:opacity-80"
             style={{ backgroundColor: 'var(--background-element)', color: 'var(--foreground)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--border)' }}
           >
             Deny
           </button>
           <button
             onClick={() => respondPermission(permission.id, true)}
-            className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
+            className="no-select flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-colors"
           >
             Allow
           </button>

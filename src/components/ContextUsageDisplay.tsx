@@ -56,8 +56,13 @@ export function ContextUsageDisplay() {
   return (
     <div ref={containerRef} className="relative">
       <div
-        className="flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg shrink-0 cursor-pointer"
-        style={{ backgroundColor: "var(--background-element)" }}
+        className="no-select flex items-center gap-1.5 px-2 py-1 text-[12px] rounded-xl shrink-0 cursor-pointer"
+        style={{ 
+          background: "var(--glass-bg)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          border: "1px solid var(--glass-border)"
+        }}
         onClick={() => setShowTooltip(!showTooltip)}
       >
       <svg
@@ -72,7 +77,7 @@ export function ContextUsageDisplay() {
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--border)"
+          stroke="var(--glass-border)"
           strokeWidth={strokeWidth}
         />
         <circle
@@ -94,11 +99,13 @@ export function ContextUsageDisplay() {
       </div>
       {showTooltip && (
         <div
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs rounded-lg whitespace-nowrap z-50"
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[12px] rounded-xl whitespace-nowrap z-50"
           style={{ 
-            backgroundColor: "var(--background-panel)", 
+            background: "var(--glass-bg)", 
+            backdropFilter: "blur(20px) saturate(180%)",
+            WebkitBackdropFilter: "blur(20px) saturate(180%)",
             color: "var(--foreground)",
-            border: "1px solid var(--border)"
+            border: "1px solid var(--glass-border)"
           }}
         >
           {contextUsage.formatted} tokens

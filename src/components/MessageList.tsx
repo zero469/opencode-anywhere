@@ -217,8 +217,8 @@ const CodeBlock = memo(function CodeBlock({
       )}
       <CopyButton text={code} />
       <pre 
-        className="rounded-lg p-4 pt-8 overflow-x-auto text-sm"
-        style={{ backgroundColor: 'var(--background-panel)' }}
+        className="rounded-lg p-4 pt-8 overflow-x-auto text-[13px]"
+        style={{ backgroundColor: 'var(--glass-bg-solid)' }}
       >
         <code 
           className={className || ""}
@@ -512,18 +512,24 @@ function ToolInvocation({ part }: { part: MessagePart }) {
   return (
     <div 
       className="rounded-lg my-2 overflow-hidden"
-      style={{ backgroundColor: 'color-mix(in srgb, var(--background-element) 50%, transparent)' }}
+      style={{ 
+        background: 'var(--glass-bg)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        border: '1px solid var(--glass-border)',
+        boxShadow: 'var(--glass-shadow)'
+      }}
     >
       {/* Header row */}
       <button
         onClick={() => hasContent && setExpanded(!expanded)}
-        className={`w-full flex items-center gap-2 px-3 py-2 ${hasContent ? "cursor-pointer" : "cursor-default"}`}
-        onMouseEnter={(e) => hasContent && (e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--oc-step6) 50%, transparent)')}
+        className={`no-select w-full flex items-center gap-2 px-3 py-2 ${hasContent ? "cursor-pointer" : "cursor-default"}`}
+        onMouseEnter={(e) => hasContent && (e.currentTarget.style.backgroundColor = 'var(--glass-bg-elevated)')}
         onMouseLeave={(e) => hasContent && (e.currentTarget.style.backgroundColor = 'transparent')}
       >
         <ToolIcon />
         <span 
-          className="text-sm font-mono flex-1 text-left truncate"
+          className="text-[13px] font-mono flex-1 text-left truncate"
           style={{ color: 'var(--foreground-muted)' }}
         >
           {title}
@@ -727,7 +733,7 @@ function MessageFooter({ message }: { message: SessionMessage }) {
 
   return (
     <div 
-      className="mt-2 pt-2 text-xs"
+      className="mt-2 pt-2 text-[12px]"
       style={{ 
         borderTop: '1px solid color-mix(in srgb, var(--border) 50%, transparent)',
         color: 'var(--foreground-muted)'
@@ -820,7 +826,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
     return (
       <div className="flex justify-center my-4">
         <div 
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px]"
           style={{ 
             backgroundColor: 'color-mix(in srgb, var(--background-element) 60%, transparent)',
             color: 'var(--foreground-muted)'
@@ -847,22 +853,23 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
   return (
     <div className={`flex flex-col ${isUser ? "items-end" : "items-start"} mb-4`}>
       {createdTime && (
-        <div className="text-xs mb-1 px-2" style={{ color: 'var(--foreground-muted)' }}>
+        <div className="text-[12px] mb-1 px-2" style={{ color: 'var(--foreground-muted)' }}>
           {formatMessageTime(createdTime)}
         </div>
       )}
       <div
-        className={`max-w-[90%] lg:max-w-[80%] rounded-2xl px-4 py-3 overflow-hidden break-words ${
+        className={`max-w-[90%] lg:max-w-[80%] rounded-2xl px-4 py-3 overflow-hidden break-words text-[14px] ${
           isUser
             ? hasError ? "bg-red-600/80 text-white" : "bg-blue-600 text-white"
             : ""
         }`}
         style={isUser ? undefined : {
-          backgroundColor: 'var(--background-element)',
+          background: 'var(--glass-bg)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          border: '1px solid var(--glass-border)',
+          boxShadow: 'var(--glass-shadow)',
           color: 'var(--foreground)',
-          borderWidth: 1,
-          borderStyle: 'solid',
-          borderColor: 'var(--border-subtle)',
           ...(message.info.agent ? {
             borderLeftWidth: 3,
             borderLeftColor: getAgentColor(message.info.agent, agents),
@@ -872,13 +879,13 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
         {reasoningParts.map((part, i) => (
           <details key={`reasoning-${i}`} className="my-2">
             <summary 
-              className="text-sm cursor-pointer"
+              className="text-[13px] cursor-pointer"
               style={{ color: 'var(--foreground-muted)' }}
             >
               Thinking...
             </summary>
             <div 
-              className="text-sm pl-3 mt-2 italic"
+              className="text-[13px] pl-3 mt-2 italic"
               style={{ color: 'var(--foreground-muted)', borderLeft: '2px solid var(--border)' }}
             >
               {part.text}
@@ -896,7 +903,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
               key={`file-${part.id || i}`}
               onClick={() => handleImageClick(part)}
               disabled={isLoading}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium mr-1.5 mb-1.5 hover:opacity-80 transition-opacity cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium mr-1.5 mb-1.5 hover:opacity-80 transition-opacity cursor-pointer disabled:opacity-60 disabled:cursor-wait"
               style={{ 
                 backgroundColor: 'var(--oc-step4)', 
                 color: 'var(--oc-step11)',
@@ -919,7 +926,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
         })}
 
         {textParts.map((part, i) => (
-          <div key={`text-${i}`} className="prose prose-invert prose-sm max-w-none">
+          <div key={`text-${i}`} className="prose prose-invert prose-sm max-w-none text-[14px]">
             {isUser ? (
               <p className="mb-0 whitespace-pre-wrap">{part.text}</p>
             ) : (
@@ -935,7 +942,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Sessio
         {!isUser && <MessageFooter message={message} />}
       </div>
       {hasError && (
-        <div className="text-xs text-red-400 mt-1 px-2 flex items-center gap-1">
+        <div className="text-[12px] text-red-400 mt-1 px-2 flex items-center gap-1">
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
@@ -978,7 +985,7 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
-        {stepLabel && <span className="text-sm" style={{ color: 'var(--foreground-muted)' }}>{stepLabel}</span>}
+        {stepLabel && <span className="text-[13px]" style={{ color: 'var(--foreground-muted)' }}>{stepLabel}</span>}
       </div>
     );
   }
@@ -1105,7 +1112,7 @@ function MessageListContent({
       {isLoadingMore && (
         <div className="flex justify-center mb-4">
           <span
-            className="flex items-center gap-2 text-sm"
+            className="flex items-center gap-2 text-[13px]"
             style={{ color: "var(--foreground-muted)" }}
           >
             <span
@@ -1136,11 +1143,14 @@ function ScrollToBottomButton() {
   return (
     <button
       onClick={() => scrollToBottom("smooth")}
-      className="absolute bottom-4 right-4 z-10 p-2 rounded-full shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+      className="absolute bottom-4 right-4 z-10 p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95"
       style={{
-        backgroundColor: "var(--background)",
+        background: "var(--glass-bg)",
+        backdropFilter: "blur(20px) saturate(180%)",
+        WebkitBackdropFilter: "blur(20px) saturate(180%)",
         color: "var(--foreground-muted)",
-        border: "1px solid var(--border)",
+        border: "1px solid var(--glass-border)",
+        boxShadow: "var(--glass-shadow)",
       }}
       aria-label="Scroll to bottom"
     >

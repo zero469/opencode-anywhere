@@ -250,8 +250,14 @@ export function MessageInput() {
   if (!showInput) {
     return (
       <div 
-        className="p-4 border-t text-center"
-        style={{ borderColor: 'var(--border-subtle)', color: 'var(--foreground-muted)' }}
+        className="p-4 text-center text-[14px]"
+        style={{ 
+          borderTop: '1px solid var(--glass-border)',
+          color: 'var(--foreground-muted)',
+          background: 'var(--glass-bg)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)'
+        }}
       >
         Select a session to start chatting
       </div>
@@ -259,7 +265,14 @@ export function MessageInput() {
   }
 
   return (
-    <div className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+    <div 
+      style={{ 
+        borderTop: '1px solid var(--glass-border)',
+        background: 'var(--glass-bg)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)'
+      }}
+    >
       <div className="px-4 pt-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <ModelAgentSelector />
@@ -281,18 +294,19 @@ export function MessageInput() {
                 <img 
                   src={att.previewUrl} 
                   alt={att.fileName || `Image ${i + 1}`}
-                  className="w-16 h-16 object-cover rounded-lg border"
-                  style={{ borderColor: 'var(--border)' }}
+                  className="w-16 h-16 object-cover rounded-xl"
+                  style={{ border: '1px solid var(--glass-border)' }}
                 />
                 {att.isLoading && (
-                  <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   </div>
                 )}
                 <button
                   type="button"
                   onClick={() => handleRemoveAttachment(i)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors"
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold transition-opacity active:opacity-70"
+                  style={{ background: '#FF3B30' }}
                 >
                   ×
                 </button>
@@ -302,8 +316,8 @@ export function MessageInput() {
         )}
         {attachments.length > 0 && !currentModelSupportsAttachments && (
           <div 
-            className="flex items-center gap-2 pb-2 text-xs"
-            style={{ color: 'var(--warning, #f59e0b)' }}
+            className="flex items-center gap-2 pb-2 text-[12px]"
+            style={{ color: '#FF9F0A' }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -316,10 +330,11 @@ export function MessageInput() {
             type="button"
             onClick={handleImagePick}
             disabled={isSessionBusy}
-            className="p-2 rounded-lg transition-colors h-[42px] flex items-center justify-center"
+            className="p-2 rounded-xl transition-opacity active:opacity-70 h-[42px] flex items-center justify-center"
             style={{ 
               color: 'var(--foreground-muted)',
-              backgroundColor: 'var(--background-element)',
+              background: 'var(--glass-bg-solid)',
+              border: '1px solid var(--glass-border)'
             }}
             title="Attach image"
           >
@@ -344,10 +359,10 @@ export function MessageInput() {
             onCompositionEnd={() => setIsComposing(false)}
             placeholder="Message..."
             rows={1}
-            className="flex-1 px-4 py-2 border rounded-xl placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[42px] max-h-[200px] overflow-y-auto"
+            className="flex-1 px-4 py-2 rounded-xl text-[15px] placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none min-h-[42px] max-h-[200px] overflow-y-auto"
             style={{ 
-              backgroundColor: 'var(--background-element)', 
-              borderColor: 'var(--border)', 
+              background: 'var(--glass-bg-solid)', 
+              border: '1px solid var(--glass-border)', 
               color: 'var(--foreground)' 
             }}
             disabled={isSessionBusy}
@@ -356,8 +371,8 @@ export function MessageInput() {
             <button
               type="button"
               onClick={() => abortSession()}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-xl font-medium transition-colors h-[42px]"
-              style={{ color: 'var(--foreground)' }}
+              className="px-4 py-2 rounded-xl font-medium transition-opacity active:opacity-70 h-[42px]"
+              style={{ background: '#FF3B30', color: '#fff' }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -367,10 +382,17 @@ export function MessageInput() {
             <button
               type="submit"
               disabled={(!text.trim() && attachments.length === 0) || attachments.some(att => att.isLoading)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed rounded-xl font-medium transition-colors h-[42px]"
+              className="px-4 py-2 rounded-xl font-medium transition-opacity active:opacity-70 disabled:opacity-40 h-[42px]"
               style={{ 
-                color: 'var(--foreground)',
-                backgroundColor: ((!text.trim() && attachments.length === 0) || attachments.some(att => att.isLoading)) ? 'var(--background-element)' : undefined
+                background: ((!text.trim() && attachments.length === 0) || attachments.some(att => att.isLoading)) 
+                  ? 'var(--glass-bg-solid)' 
+                  : 'var(--glass-blue-solid)',
+                color: ((!text.trim() && attachments.length === 0) || attachments.some(att => att.isLoading))
+                  ? 'var(--foreground-muted)'
+                  : '#fff',
+                border: ((!text.trim() && attachments.length === 0) || attachments.some(att => att.isLoading))
+                  ? '1px solid var(--glass-border)'
+                  : 'none'
               }}
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

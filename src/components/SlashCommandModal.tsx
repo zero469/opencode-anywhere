@@ -109,7 +109,7 @@ export function SlashCommandModal({
             <button
               key={f}
               onClick={() => { setFilter(f); setHoveredItem(null); }}
-              className="px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
+              className="no-select px-3 py-1.5 text-xs font-medium rounded-md transition-colors"
               style={{
                 backgroundColor: filter === f ? '#2563eb' : 'var(--background-element)',
                 color: filter === f ? '#ffffff' : 'var(--foreground-muted)',
@@ -169,7 +169,7 @@ export function SlashCommandModal({
                     key={itemKey}
                     onClick={handleClick}
                     disabled={isDisabled}
-                    className="w-full text-left p-3 rounded-lg transition-colors group disabled:opacity-50"
+                    className="no-select w-full text-left p-3 rounded-lg transition-colors group disabled:opacity-50"
                     style={{ backgroundColor: isHovered ? 'var(--background-element)' : 'transparent' }}
                     onMouseEnter={() => setHoveredItem(itemKey)}
                     onMouseLeave={() => setHoveredItem(null)}

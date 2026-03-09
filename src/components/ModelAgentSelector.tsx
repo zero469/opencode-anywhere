@@ -26,8 +26,14 @@ export function ModelAgentSelector() {
   if (hasNoData && isConnectionInProgress) {
     return (
       <div 
-        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg"
-        style={{ color: "var(--foreground-muted)", backgroundColor: "var(--background-element)" }}
+        className="flex items-center gap-2 px-3 py-1.5 text-[12px] rounded-xl"
+        style={{ 
+          color: "var(--foreground-muted)", 
+          background: "var(--glass-bg)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          border: "1px solid var(--glass-border)"
+        }}
       >
         <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -47,8 +53,14 @@ export function ModelAgentSelector() {
           setIsRetrying(false);
         }}
         disabled={isRetrying}
-        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors hover:opacity-80"
-        style={{ color: "var(--foreground-muted)", backgroundColor: "var(--background-element)" }}
+        className="flex items-center gap-2 px-3 py-1.5 text-[12px] rounded-xl transition-colors hover:opacity-80"
+        style={{ 
+          color: "var(--foreground-muted)", 
+          background: "var(--glass-bg)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          border: "1px solid var(--glass-border)"
+        }}
       >
         {isRetrying ? (
           <>
@@ -86,8 +98,14 @@ export function ModelAgentSelector() {
     <div className="relative min-w-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg transition-colors hover:opacity-80 min-w-0 max-w-full overflow-hidden"
-        style={{ color: "var(--foreground-muted)", backgroundColor: "var(--background-element)" }}
+        className="no-select flex items-center gap-2 px-3 py-1.5 text-[12px] rounded-xl transition-colors hover:opacity-80 min-w-0 max-w-full overflow-hidden"
+        style={{ 
+          color: "var(--foreground-muted)", 
+          background: "var(--glass-bg)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          border: "1px solid var(--glass-border)"
+        }}
       >
         <span 
           className="truncate max-w-[120px]" 
@@ -114,11 +132,16 @@ export function ModelAgentSelector() {
             onClick={() => setIsOpen(false)}
           />
           <div 
-            className="absolute bottom-full left-0 mb-2 w-72 rounded-lg shadow-xl z-50 overflow-hidden"
-            style={{ backgroundColor: "var(--background-panel)", borderWidth: 1, borderStyle: "solid", borderColor: "var(--border)" }}
+            className="no-select absolute bottom-full left-0 mb-2 w-72 rounded-xl shadow-xl z-50 overflow-hidden"
+            style={{ 
+              background: "var(--glass-bg-solid)", 
+              backdropFilter: "blur(20px) saturate(180%)",
+              WebkitBackdropFilter: "blur(20px) saturate(180%)",
+              border: "1px solid var(--glass-border)"
+            }}
           >
             {agents.length > 0 && (
-              <div className="p-2" style={{ borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: "var(--border)" }}>
+              <div className="p-2" style={{ borderBottom: "1px solid var(--glass-border)" }}>
                 <div className="text-xs px-2 py-1" style={{ color: "var(--foreground-muted)" }}>Agent</div>
                 <div className="space-y-0.5">
                   {agents.map((agent) => (
@@ -127,16 +150,29 @@ export function ModelAgentSelector() {
                       onClick={() => {
                         setSelectedAgent(agent.name);
                       }}
-                      className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
+                      className={`w-full text-left px-2 py-1.5 rounded-lg text-[14px] transition-colors ${
                         selectedAgent === agent.name
-                          ? "bg-blue-600 text-white"
-                          : "hover:bg-zinc-800"
+                          ? ""
+                          : ""
                       }`}
-                      style={selectedAgent === agent.name ? undefined : { color: "var(--foreground)" }}
+                      style={selectedAgent === agent.name 
+                        ? { backgroundColor: "var(--glass-blue-solid)", color: "white" } 
+                        : { color: "var(--foreground)" }
+                      }
+                      onMouseEnter={(e) => {
+                        if (selectedAgent !== agent.name) {
+                          e.currentTarget.style.backgroundColor = "var(--glass-bg)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (selectedAgent !== agent.name) {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                        }
+                      }}
                     >
                       <div 
                         className="font-medium"
-                        style={{ color: selectedAgent === agent.name ? undefined : getAgentColor(agent.name, agents) }}
+                        style={{ color: selectedAgent === agent.name ? "white" : getAgentColor(agent.name, agents) }}
                       >
                         {capitalizeAgentName(agent.name)}
                       </div>
@@ -161,7 +197,7 @@ export function ModelAgentSelector() {
                     </div>
                     <div className="space-y-0.5">
                       {Object.values(provider.models).map((model) => (
-                        <button
+                          <button
                           key={model.id}
                           onClick={() => {
                             setSelectedModel({
@@ -169,18 +205,23 @@ export function ModelAgentSelector() {
                               modelID: model.id,
                             });
                           }}
-                          className={`w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
-                            selectedModel?.providerID === provider.id &&
-                            selectedModel?.modelID === model.id
-                              ? "bg-blue-600 text-white"
-                              : "hover:bg-zinc-800"
-                          }`}
+                          className="w-full text-left px-2 py-1.5 rounded-lg text-[14px] transition-colors"
                           style={
                             selectedModel?.providerID === provider.id &&
                             selectedModel?.modelID === model.id
-                              ? undefined
+                              ? { backgroundColor: "var(--glass-blue-solid)", color: "white" }
                               : { color: "var(--foreground)" }
                           }
+                          onMouseEnter={(e) => {
+                            if (!(selectedModel?.providerID === provider.id && selectedModel?.modelID === model.id)) {
+                              e.currentTarget.style.backgroundColor = "var(--glass-bg)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!(selectedModel?.providerID === provider.id && selectedModel?.modelID === model.id)) {
+                              e.currentTarget.style.backgroundColor = "transparent";
+                            }
+                          }}
                         >
                           {model.name}
                         </button>

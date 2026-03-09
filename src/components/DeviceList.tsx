@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useAppStore } from "@/store";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Device } from "@/lib/relay";
@@ -12,9 +12,11 @@ const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay.azurewebsites.net/i
 const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay.azurewebsites.net/install.ps1 | iex";
 const GITHUB_URL = "https://github.com/code-yeongyu/opencode-anywhere";
 
+const SWIPE_THRESHOLD = 60;
+const ACTION_WIDTH = 80;
+
 function OpenCodeLogo({ width = 160 }: { width?: number }) {
   const { resolvedTheme } = useTheme();
-  // Dark mode uses dark logo (white text), light mode uses light logo (black text)
   const logoSrc = resolvedTheme === 'dark' 
     ? '/opencode-anywhere-dark.png'
     : '/opencode-anywhere-light.png';
@@ -75,10 +77,8 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
     return (
       <button
         onClick={() => setIsExpanded(true)}
-        className="w-full text-center py-3 text-sm flex items-center justify-center gap-2 transition-colors"
+        className="no-select w-full text-center py-3 text-[14px] flex items-center justify-center gap-2 transition-opacity active:opacity-70"
         style={{ color: 'var(--foreground-muted)' }}
-        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--foreground)'}
-        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-muted)'}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -89,16 +89,25 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
   }
 
   return (
-    <div className={collapsed ? "rounded-lg p-4" : ""} style={collapsed ? { backgroundColor: 'var(--background-panel)' } : undefined}>
+    <div 
+      className={collapsed ? "rounded-2xl p-4" : ""}
+      style={collapsed ? { 
+        background: 'var(--glass-bg)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        border: '1px solid var(--glass-border)'
+      } : undefined}
+    >
       {collapsed && (
         <div className="flex justify-between items-center mb-3">
-          <span className="text-sm font-medium">Add New Device</span>
+          <span className="text-[14px] font-medium" style={{ color: 'var(--foreground)' }}>Add New Device</span>
           <button 
             onClick={() => setIsExpanded(false)} 
-            className="transition-colors"
-            style={{ color: 'var(--foreground-muted)' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--foreground)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-muted)'}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity active:opacity-70"
+            style={{ 
+              background: 'var(--glass-bg)',
+              color: 'var(--foreground-muted)'
+            }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -107,47 +116,56 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
         </div>
       )}
 
-      <p className="text-sm mb-3" style={{ color: 'var(--foreground-muted)' }}>
+      <p className="text-[13px] mb-3" style={{ color: 'var(--foreground-muted)' }}>
         Run this command on your computer:
       </p>
 
       <div className="flex justify-center gap-1 mb-3">
         <button
           onClick={() => setPlatform('unix')}
-          className="px-3 py-1 text-xs rounded-l-lg transition-colors"
+          className="no-select px-4 py-1.5 text-[12px] rounded-l-full transition-all"
           style={platform === 'unix' 
-            ? { backgroundColor: 'var(--background-element)', color: 'var(--foreground)' }
-            : { backgroundColor: 'var(--background-panel)', color: 'var(--foreground-muted)' }}
+            ? { backgroundColor: 'var(--glass-blue-solid)', color: '#fff' }
+            : { backgroundColor: 'var(--glass-bg)', color: 'var(--foreground-muted)', border: '1px solid var(--glass-border)' }}
         >
           macOS / Linux
         </button>
         <button
           onClick={() => setPlatform('windows')}
-          className="px-3 py-1 text-xs rounded-r-lg transition-colors"
+          className="no-select px-4 py-1.5 text-[12px] rounded-r-full transition-all"
           style={platform === 'windows' 
-            ? { backgroundColor: 'var(--background-element)', color: 'var(--foreground)' }
-            : { backgroundColor: 'var(--background-panel)', color: 'var(--foreground-muted)' }}
+            ? { backgroundColor: 'var(--glass-blue-solid)', color: '#fff' }
+            : { backgroundColor: 'var(--glass-bg)', color: 'var(--foreground-muted)', border: '1px solid var(--glass-border)' }}
         >
           Windows
         </button>
       </div>
       
-      <div className="rounded-lg p-3 relative group" style={{ backgroundColor: 'var(--background-element)' }}>
-        <code className="text-xs text-green-400 break-all block pr-8">
+      <div 
+        className="rounded-xl p-3 relative group"
+        style={{ 
+          background: 'var(--glass-bg)',
+          border: '1px solid var(--glass-border)'
+        }}
+      >
+        <code className="text-[11px] text-green-400 break-all block pr-8">
           {currentCommand}
         </code>
         <button
           onClick={handleCopy}
-          className="absolute top-2 right-2 p-1.5 rounded transition-colors"
-          style={{ backgroundColor: 'var(--background-element)' }}
+          className="absolute top-2 right-2 p-1.5 rounded-lg transition-opacity active:opacity-70"
+          style={{ 
+            background: 'var(--glass-bg-elevated)',
+            color: copied ? 'var(--oc-green)' : 'var(--foreground-muted)'
+          }}
           title="Copy to clipboard"
         >
           {copied ? (
-            <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           ) : (
-            <svg className="w-4 h-4" style={{ color: 'var(--foreground-muted)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
           )}
@@ -155,13 +173,13 @@ function SetupGuide({ collapsed = false }: { collapsed?: boolean }) {
       </div>
 
       {platform === 'windows' && (
-        <p className="text-xs mt-2" style={{ color: 'var(--foreground-muted)' }}>
+        <p className="text-[11px] mt-2" style={{ color: 'var(--foreground-muted)' }}>
           Run in PowerShell as Administrator
         </p>
       )}
 
-      <p className="text-xs mt-3" style={{ color: 'var(--foreground-muted)' }}>
-        The installer will show a QR code. Tap <span className="text-blue-400">&quot;Scan QR Code&quot;</span> to pair.
+      <p className="text-[11px] mt-3" style={{ color: 'var(--foreground-muted)' }}>
+        The installer will show a QR code. Tap <span style={{ color: 'var(--glass-blue-solid)' }}>&quot;Scan QR Code&quot;</span> to pair.
       </p>
     </div>
   );
@@ -171,20 +189,18 @@ function SettingsButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
-      style={{ backgroundColor: 'var(--background-element)', color: 'var(--foreground-muted)' }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = 'var(--border)';
-        e.currentTarget.style.color = 'var(--foreground)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'var(--background-element)';
-        e.currentTarget.style.color = 'var(--foreground-muted)';
+      className="w-10 h-10 rounded-full flex items-center justify-center transition-opacity active:opacity-70"
+      style={{ 
+        background: 'var(--glass-bg)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        border: '1px solid var(--glass-border)',
+        color: 'var(--foreground)'
       }}
     >
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
     </button>
   );
@@ -227,62 +243,72 @@ function RenameDeviceModal({
   if (!isOpen || !device) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50" />
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ 
+        background: 'rgba(0,0,0,0.4)', 
+        backdropFilter: 'blur(8px)', 
+        WebkitBackdropFilter: 'blur(8px)' 
+      }}
+      onClick={onClose}
+    >
       <div 
-        className="relative rounded-xl w-full max-w-sm overflow-hidden"
-        style={{ backgroundColor: 'var(--background-panel)' }}
+        className="rounded-2xl p-5 w-full max-w-sm"
+        style={{
+          background: 'var(--glass-bg-prominent)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          border: '1px solid var(--glass-border-prominent)',
+          boxShadow: 'var(--glass-shadow-elevated)'
+        }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center p-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>Rename Device</h2>
-          <button 
-            onClick={onClose} 
-            className="transition-colors"
-            style={{ color: 'var(--foreground-muted)' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--foreground)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-muted)'}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        <h3 
+          className="text-lg font-semibold mb-4 text-center"
+          style={{ color: 'var(--foreground)' }}
+        >
+          Rename Device
+        </h3>
         
-        <div className="p-4 space-y-4">
-          <input
-            ref={inputRef}
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Device name"
-            className="w-full px-4 py-3 rounded-xl focus:outline-none focus:border-blue-500"
+        <input
+          ref={inputRef}
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Device name"
+          className="w-full px-4 py-3 rounded-xl text-[16px] mb-4 outline-none"
+          style={{ 
+            background: 'var(--glass-bg)',
+            border: '1px solid var(--glass-border)',
+            color: 'var(--foreground)'
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave();
+          }}
+        />
+        
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 px-4 rounded-xl font-medium active:opacity-70 transition-opacity"
             style={{ 
-              backgroundColor: 'var(--background-element)', 
-              border: '1px solid var(--border)', 
-              color: 'var(--foreground)' 
+              background: 'var(--glass-bg)',
+              color: 'var(--foreground)'
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSave();
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!name.trim() || isSaving}
+            className="flex-1 py-3 px-4 rounded-xl font-medium active:opacity-70 transition-opacity disabled:opacity-40"
+            style={{ 
+              background: 'var(--glass-blue-solid)',
+              color: '#fff'
             }}
-          />
-          
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-3 rounded-xl font-medium transition-colors"
-              style={{ backgroundColor: 'var(--background-element)', color: 'var(--foreground)' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!name.trim() || isSaving}
-              className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSaving ? "Saving..." : "Save"}
-            </button>
-          </div>
+          >
+            {isSaving ? "Saving..." : "Save"}
+          </button>
         </div>
       </div>
     </div>
@@ -322,41 +348,61 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50" />
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ 
+        background: 'rgba(0,0,0,0.4)', 
+        backdropFilter: 'blur(8px)', 
+        WebkitBackdropFilter: 'blur(8px)' 
+      }}
+      onClick={onClose}
+    >
       <div 
-        className="relative rounded-xl w-full max-w-sm overflow-hidden"
-        style={{ backgroundColor: 'var(--background-panel)' }}
+        className="rounded-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto"
+        style={{
+          background: 'var(--glass-bg-prominent)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          border: '1px solid var(--glass-border-prominent)',
+          boxShadow: 'var(--glass-shadow-elevated)'
+        }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex justify-between items-center p-4" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+        <div className="flex justify-between items-center p-5 pb-3">
           <h2 className="text-lg font-semibold" style={{ color: 'var(--foreground)' }}>Settings</h2>
           <button 
             onClick={onClose} 
-            className="transition-colors"
-            style={{ color: 'var(--foreground-muted)' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--foreground)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--foreground-muted)'}
+            className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity active:opacity-70"
+            style={{ 
+              background: 'var(--glass-bg)',
+              color: 'var(--foreground-muted)'
+            }}
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         
-        <div className="p-4 space-y-4">
+        <div className="px-5 pb-5 space-y-4">
           {(allModels.length > 0 || agents.length > 0) && (
-            <div className="rounded-lg" style={{ backgroundColor: 'var(--background-element)' }}>
+            <div 
+              className="rounded-xl overflow-hidden"
+              style={{ 
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)'
+              }}
+            >
               {allModels.length > 0 && (
-                <div className="p-3" style={{ borderBottom: agents.length > 0 ? '1px solid var(--border)' : undefined }}>
-                  <label className="block text-sm mb-2" style={{ color: 'var(--foreground-muted)' }}>Default Model</label>
+                <div className="p-3" style={{ borderBottom: agents.length > 0 ? '1px solid var(--glass-border)' : undefined }}>
+                  <label className="block text-[12px] mb-2" style={{ color: 'var(--foreground-muted)' }}>Default Model</label>
                   <select
                     value={currentModelValue}
                     onChange={handleModelChange}
-                    className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    className="w-full rounded-lg px-3 py-2 text-[14px] focus:outline-none"
                     style={{ 
-                      backgroundColor: 'var(--background-panel)', 
-                      border: '1px solid var(--border)', 
+                      background: 'var(--glass-bg-solid)', 
+                      border: '1px solid var(--glass-border)', 
                       color: 'var(--foreground)' 
                     }}
                   >
@@ -370,23 +416,24 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
               )}
               {agents.length > 0 && (
                 <div className="p-3">
-                  <label className="block text-sm mb-2" style={{ color: 'var(--foreground-muted)' }}>Default Agent</label>
+                  <label className="block text-[12px] mb-2" style={{ color: 'var(--foreground-muted)' }}>Default Agent</label>
                   <div className="space-y-1">
                     {agents.map(agent => (
                       <button
                         key={agent.name}
                         onClick={() => setDefaultAgent(agent.name)}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                          defaultAgent === agent.name ? 'bg-blue-600 text-white' : ''
-                        }`}
-                        style={defaultAgent === agent.name ? undefined : { 
-                          backgroundColor: 'var(--background-panel)', 
+                        className="w-full text-left px-3 py-2 rounded-lg text-[14px] transition-all active:opacity-70"
+                        style={defaultAgent === agent.name ? {
+                          background: 'var(--glass-blue-solid)',
+                          color: '#fff'
+                        } : { 
+                          background: 'var(--glass-bg-solid)', 
                           color: 'var(--foreground)' 
                         }}
                       >
                         <span 
                           className="font-medium"
-                          style={{ color: defaultAgent === agent.name ? undefined : getAgentColor(agent.name, agents) }}
+                          style={{ color: defaultAgent === agent.name ? '#fff' : getAgentColor(agent.name, agents) }}
                         >
                           {capitalizeAgentName(agent.name)}
                         </span>
@@ -398,42 +445,56 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
             </div>
           )}
 
-          <div className="rounded-lg" style={{ backgroundColor: 'var(--background-element)' }}>
-            <div className="p-3">
-              <label className="block text-sm mb-2" style={{ color: 'var(--foreground-muted)' }}>Theme</label>
-              <div className="flex gap-2">
-                {(['dark', 'light', 'system'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTheme(t)}
-                    className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                      theme === t ? 'bg-blue-600 text-white' : ''
-                    }`}
-                    style={theme !== t ? { backgroundColor: 'var(--background-panel)', color: 'var(--foreground)' } : undefined}
-                  >
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </button>
-                ))}
-              </div>
+          <div 
+            className="rounded-xl p-3"
+            style={{ 
+              background: 'var(--glass-bg)',
+              border: '1px solid var(--glass-border)'
+            }}
+          >
+            <label className="block text-[12px] mb-2" style={{ color: 'var(--foreground-muted)' }}>Theme</label>
+            <div className="flex gap-2">
+              {(['dark', 'light', 'system'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTheme(t)}
+                  className="flex-1 py-2 px-3 rounded-lg text-[13px] font-medium transition-all active:opacity-70"
+                  style={theme === t ? {
+                    background: 'var(--glass-blue-solid)',
+                    color: '#fff'
+                  } : { 
+                    background: 'var(--glass-bg-solid)', 
+                    color: 'var(--foreground)' 
+                  }}
+                >
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="rounded-lg" style={{ backgroundColor: 'var(--background-element)' }}>
-            <div className="flex justify-between items-center p-3" style={{ borderBottom: '1px solid var(--border)' }}>
-              <span className="text-sm" style={{ color: 'var(--foreground-muted)' }}>Account</span>
-              <span className="text-sm" style={{ color: 'var(--foreground)' }}>{user?.email}</span>
+          <div 
+            className="rounded-xl overflow-hidden"
+            style={{ 
+              background: 'var(--glass-bg)',
+              border: '1px solid var(--glass-border)'
+            }}
+          >
+            <div className="flex justify-between items-center p-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+              <span className="text-[13px]" style={{ color: 'var(--foreground-muted)' }}>Account</span>
+              <span className="text-[13px]" style={{ color: 'var(--foreground)' }}>{user?.email}</span>
             </div>
-            <div className="flex justify-between items-center p-3" style={{ borderBottom: '1px solid var(--border)' }}>
-              <span className="text-sm" style={{ color: 'var(--foreground-muted)' }}>Version</span>
-              <span className="text-sm" style={{ color: 'var(--foreground)' }}>{APP_VERSION}</span>
+            <div className="flex justify-between items-center p-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+              <span className="text-[13px]" style={{ color: 'var(--foreground-muted)' }}>Version</span>
+              <span className="text-[13px]" style={{ color: 'var(--foreground)' }}>{APP_VERSION}</span>
             </div>
             <a 
               href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex justify-between items-center p-3"
+              className="flex justify-between items-center p-3 active:opacity-70 transition-opacity"
             >
-              <span className="text-sm" style={{ color: 'var(--foreground-muted)' }}>GitHub</span>
+              <span className="text-[13px]" style={{ color: 'var(--foreground-muted)' }}>GitHub</span>
               <svg className="w-4 h-4" style={{ color: 'var(--foreground-muted)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
@@ -442,8 +503,11 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
 
           <button
             onClick={() => { onClose(); logout(); }}
-            className="w-full py-2.5 rounded-lg text-red-400 text-sm transition-colors"
-            style={{ backgroundColor: 'var(--background-element)' }}
+            className="w-full py-3 rounded-xl text-red-400 text-[14px] font-medium transition-opacity active:opacity-70"
+            style={{ 
+              background: 'var(--glass-bg)',
+              border: '1px solid var(--glass-border)'
+            }}
           >
             Log Out
           </button>
@@ -453,61 +517,139 @@ function SettingsModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
   );
 }
 
-function DeviceItem({ device, onSelect, onDelete, onRename, needsRepair }: { 
+function DeviceItem({ 
+  device, 
+  onSelect, 
+  onDelete, 
+  onRename, 
+  needsRepair,
+  isFirst,
+  isLast,
+  isRevealed,
+  onReveal,
+  onClose
+}: { 
   device: Device; 
   onSelect: () => void; 
   onDelete: () => void;
   onRename: () => void;
   needsRepair: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  isRevealed: boolean;
+  onReveal: () => void;
+  onClose: () => void;
 }) {
-  const [showDelete, setShowDelete] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const touchStartX = useRef(0);
-  const touchCurrentX = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const startXRef = useRef(0);
+  const currentXRef = useRef(0);
+  const isDraggingRef = useRef(false);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchCurrentX.current = e.touches[0].clientX;
-  };
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+    currentXRef.current = e.touches[0].clientX;
+    isDraggingRef.current = false;
+  }, []);
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchCurrentX.current = e.touches[0].clientX;
-    const diff = touchStartX.current - touchCurrentX.current;
-    if (diff > 50) {
-      setShowDelete(true);
-    } else if (diff < -50) {
-      setShowDelete(false);
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    currentXRef.current = e.touches[0].clientX;
+    const diff = startXRef.current - currentXRef.current;
+    
+    if (Math.abs(diff) > 10) {
+      isDraggingRef.current = true;
     }
-  };
+    
+    if (containerRef.current) {
+      let translateX = 0;
+      if (isRevealed) {
+        translateX = Math.min(0, Math.max(-ACTION_WIDTH, -ACTION_WIDTH + (-diff)));
+      } else {
+        translateX = Math.min(0, Math.max(-ACTION_WIDTH, -diff));
+      }
+      containerRef.current.style.transform = `translateX(${translateX}px)`;
+      containerRef.current.style.transition = 'none';
+    }
+  }, [isRevealed]);
+
+  const handleTouchEnd = useCallback(() => {
+    const diff = startXRef.current - currentXRef.current;
+    
+    if (containerRef.current) {
+      containerRef.current.style.transition = 'transform 0.2s ease-out';
+      
+      if (isRevealed) {
+        if (diff < -SWIPE_THRESHOLD) {
+          containerRef.current.style.transform = 'translateX(0)';
+          onClose();
+        } else {
+          containerRef.current.style.transform = `translateX(-${ACTION_WIDTH}px)`;
+        }
+      } else {
+        if (diff > SWIPE_THRESHOLD) {
+          containerRef.current.style.transform = `translateX(-${ACTION_WIDTH}px)`;
+          onReveal();
+        } else {
+          containerRef.current.style.transform = 'translateX(0)';
+        }
+      }
+    }
+  }, [isRevealed, onReveal, onClose]);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.style.transition = 'transform 0.2s ease-out';
+      containerRef.current.style.transform = isRevealed ? `translateX(-${ACTION_WIDTH}px)` : 'translateX(0)';
+    }
+  }, [isRevealed]);
+
+  const handleClick = useCallback(() => {
+    if (isDraggingRef.current) return;
+    if (isRevealed) {
+      onClose();
+    } else {
+      onSelect();
+    }
+  }, [isRevealed, onClose, onSelect]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isDeleting) return;
     
-    if (confirm(`Delete device "${device.name}"?`)) {
-      setIsDeleting(true);
-      try {
-        await onDelete();
-      } catch {
-        setIsDeleting(false);
-      }
+    setIsDeleting(true);
+    try {
+      await onDelete();
+    } catch {
+      setIsDeleting(false);
     }
   };
 
-  const handleRename = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onRename();
-  };
+  const borderRadius = isFirst && isLast 
+    ? '16px' 
+    : isFirst 
+      ? '16px 16px 0 0' 
+      : isLast 
+        ? '0 0 16px 16px' 
+        : '0';
 
   return (
-    <div className="relative overflow-hidden rounded-lg">
+    <div 
+      className="relative"
+      style={{ 
+        overflow: 'hidden',
+        borderRadius,
+        background: 'var(--glass-bg-solid)'
+      }}
+    >
       <div 
-        className={`absolute inset-y-0 right-0 flex items-center transition-all duration-200 ${showDelete ? "w-20" : "w-0"}`}
+        className="absolute right-0 top-0 bottom-0 flex items-stretch"
+        style={{ width: ACTION_WIDTH }}
       >
         <button
           onClick={handleDelete}
           disabled={isDeleting}
-          className="w-full h-full bg-red-600 hover:bg-red-500 flex items-center justify-center"
+          className="flex-1 flex items-center justify-center text-white active:opacity-80 transition-opacity"
+          style={{ background: '#FF3B30' }}
         >
           {isDeleting ? (
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -518,62 +660,87 @@ function DeviceItem({ device, onSelect, onDelete, onRename, needsRepair }: {
           )}
         </button>
       </div>
-      
-      <button
-        onClick={onSelect}
+
+      <div
+        ref={containerRef}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
-        onTouchEnd={() => {}}
-        className={`w-full text-left p-4 flex items-center justify-between transition-all duration-200 ${showDelete ? "-translate-x-20" : "translate-x-0"}`}
-        style={{ backgroundColor: 'var(--background-panel)' }}
-        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--background-element)'}
-        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--background-panel)'}
+        onTouchEnd={handleTouchEnd}
+        onClick={handleClick}
+        className="no-select relative flex items-center px-4 py-3 cursor-pointer active:opacity-80 transition-opacity"
+        style={{ 
+          background: 'var(--glass-bg-solid)',
+          borderRadius
+        }}
       >
-        <div className="flex items-center flex-1 min-w-0">
+        <div className="mr-3 relative">
           <span
-            className={`w-3 h-3 rounded-full mr-4 shrink-0 ${
-              device.online ? "bg-green-500" : "bg-red-500"
-            }`}
-          ></span>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold truncate">{device.name}</p>
-            {needsRepair ? (
-              <p className="text-sm text-amber-400 flex items-center gap-1">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                Needs re-pairing
-              </p>
-            ) : (
-              <p className="text-sm" style={{ color: 'var(--foreground-muted)' }}>
-                {device.online
-                  ? "Online"
-                  : `Last seen ${timeAgo(device.last_seen)}`}
-              </p>
-            )}
-          </div>
+            className="block w-2.5 h-2.5 rounded-full"
+            style={{
+              backgroundColor: device.online ? '#34C759' : '#FF3B30',
+              boxShadow: device.online 
+                ? '0 0 6px rgba(52, 199, 89, 0.5)' 
+                : '0 0 6px rgba(255, 59, 48, 0.4)'
+            }}
+          />
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+
+        <div className="flex-1 min-w-0">
+          <p 
+            className="font-medium truncate text-[15px]"
+            style={{ color: 'var(--foreground)' }}
+          >
+            {device.name}
+          </p>
+          {needsRepair ? (
+            <p className="text-[12px] flex items-center gap-1" style={{ color: '#FF9F0A' }}>
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Needs re-pairing
+            </p>
+          ) : (
+            <p className="text-[12px]" style={{ color: 'var(--foreground-muted)' }}>
+              {device.online ? "Online" : `Last seen ${timeAgo(device.last_seen)}`}
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
           <button
-            onClick={handleRename}
-            className="p-2 rounded-lg transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRename();
+            }}
+            className="p-2 rounded-full transition-opacity active:opacity-60"
             style={{ color: 'var(--foreground-muted)' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--foreground)';
-              e.currentTarget.style.backgroundColor = 'var(--border)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--foreground-muted)';
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </button>
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" style={{ color: 'var(--foreground-muted)' }}><path d="m9 18 6-6-6-6"/></svg>
+          <svg 
+            className="w-4 h-4" 
+            style={{ color: 'var(--foreground-muted)' }} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m9 18 6-6-6-6"/>
+          </svg>
         </div>
-      </button>
+      </div>
+
+      {!isLast && (
+        <div 
+          className="absolute bottom-0 right-0"
+          style={{ 
+            left: '52px',
+            height: '1px',
+            background: 'var(--glass-border)'
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -593,6 +760,7 @@ export function DeviceList() {
   const [showSettings, setShowSettings] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [renameDevice, setRenameDevice] = useState<Device | null>(null);
+  const [revealedDeviceId, setRevealedDeviceId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchDevices();
@@ -609,8 +777,8 @@ export function DeviceList() {
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
       <div className="fixed top-0 left-0 right-0 z-50" style={{ height: 'var(--safe-area-top)', backgroundColor: 'var(--background)' }} />
-      <header className="flex items-center justify-center p-4 shrink-0" style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-        <h1 className="text-xl font-bold">Devices</h1>
+      <header className="no-select flex items-center justify-center p-4 shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+        <h1 className="text-[17px] font-semibold" style={{ color: 'var(--foreground)' }}>Devices</h1>
       </header>
 
       <main className="flex-grow overflow-y-auto p-4 flex flex-col">
@@ -620,16 +788,17 @@ export function DeviceList() {
               <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              <span>Loading devices...</span>
+              <span className="text-[14px]">Loading devices...</span>
             </div>
           </div>
         ) : devices.length === 0 ? (
           <div className="flex-grow flex flex-col items-center justify-center text-center px-2">
-            <h2 className="text-lg font-semibold mb-6">No Devices Yet</h2>
+            <h2 className="text-[17px] font-semibold mb-6" style={{ color: 'var(--foreground)' }}>No Devices Yet</h2>
             
             <button
               onClick={() => setShowScanner(true)}
-              className="w-full max-w-sm mb-6 py-4 bg-blue-600 hover:bg-blue-500 rounded-xl flex items-center justify-center gap-3 text-white font-medium transition-colors"
+              className="no-select w-full max-w-sm mb-6 py-4 rounded-2xl flex items-center justify-center gap-3 text-white font-medium transition-opacity active:opacity-70"
+              style={{ background: 'var(--glass-blue-solid)' }}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
@@ -638,27 +807,44 @@ export function DeviceList() {
             </button>
             
             <div className="w-full max-w-sm">
-              <p className="text-sm mb-4" style={{ color: 'var(--foreground-muted)' }}>Or set up manually:</p>
+              <p className="text-[13px] mb-4" style={{ color: 'var(--foreground-muted)' }}>Or set up manually:</p>
               <SetupGuide />
             </div>
           </div>
         ) : (
-          <div className="space-y-3">
-            <p className="text-xs mb-2" style={{ color: 'var(--foreground-muted)' }}>Swipe left to delete</p>
-            {devices.map((device) => (
-              <DeviceItem
-                key={device.id}
-                device={device}
-                onSelect={() => selectDevice(device)}
-                onDelete={() => deleteDevice(device.id)}
-                onRename={() => setRenameDevice(device)}
-                needsRepair={!getDeviceEncryptionKey(device.id)}
-              />
-            ))}
-            <div className="mt-6 pt-6" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+          <div className="space-y-4">
+            <div 
+              className="rounded-2xl overflow-hidden"
+              style={{ 
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                border: '1px solid var(--glass-border)',
+                boxShadow: 'var(--glass-shadow)'
+              }}
+            >
+              {devices.map((device, index) => (
+                <DeviceItem
+                  key={device.id}
+                  device={device}
+                  onSelect={() => selectDevice(device)}
+                  onDelete={() => deleteDevice(device.id)}
+                  onRename={() => setRenameDevice(device)}
+                  needsRepair={!getDeviceEncryptionKey(device.id)}
+                  isFirst={index === 0}
+                  isLast={index === devices.length - 1}
+                  isRevealed={revealedDeviceId === device.id}
+                  onReveal={() => setRevealedDeviceId(device.id)}
+                  onClose={() => setRevealedDeviceId(null)}
+                />
+              ))}
+            </div>
+
+            <div className="pt-2">
               <button
                 onClick={() => setShowScanner(true)}
-                className="w-full py-3 mb-4 bg-blue-600 hover:bg-blue-500 rounded-lg flex items-center justify-center gap-2 text-white text-sm font-medium transition-colors"
+                className="no-select w-full py-3 mb-4 rounded-xl flex items-center justify-center gap-2 text-white text-[14px] font-medium transition-opacity active:opacity-70"
+                style={{ background: 'var(--glass-blue-solid)' }}
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
@@ -671,28 +857,27 @@ export function DeviceList() {
         )}
       </main>
 
-      <footer className="py-4 px-6 flex items-center justify-between shrink-0">
+      <footer 
+        className="no-select py-4 px-6 flex items-center justify-between shrink-0"
+        style={{ borderTop: '1px solid var(--glass-border)' }}
+      >
         <SettingsButton onClick={() => setShowSettings(true)} />
-        <OpenCodeLogo width={220} />
+        <OpenCodeLogo width={200} />
         <button
           onClick={() => fetchDevices()}
           disabled={isLoading}
-          className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors`}
-          style={{ color: isLoading ? 'var(--foreground-muted)' : 'var(--foreground-muted)' }}
-          onMouseEnter={(e) => {
-            if (!isLoading) {
-              e.currentTarget.style.color = 'var(--foreground)';
-              e.currentTarget.style.backgroundColor = 'var(--background-element)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'var(--foreground-muted)';
-            e.currentTarget.style.backgroundColor = 'transparent';
+          className="w-10 h-10 rounded-full flex items-center justify-center transition-opacity active:opacity-70"
+          style={{ 
+            background: 'var(--glass-bg)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid var(--glass-border)',
+            color: 'var(--foreground)'
           }}
           title="Refresh"
         >
           <svg className={`w-5 h-5 ${isLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
       </footer>

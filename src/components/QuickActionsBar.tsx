@@ -74,10 +74,13 @@ export function QuickActionsBar({ onSlashCommands, onMcp, disabled }: QuickActio
             onMouseLeave={() => setHoveredId(null)}
             disabled={disabled || action.disabled}
             aria-label={action.label}
-            className="flex items-center justify-center min-w-[44px] min-h-[44px] px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+            className="no-select flex items-center justify-center min-w-[44px] min-h-[44px] px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
             style={{
               color: isHovered ? 'var(--foreground)' : 'var(--foreground-muted)',
-              backgroundColor: 'var(--background-element)',
+              background: 'var(--glass-bg)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              border: '1px solid var(--glass-border)',
             }}
           >
             <Icon />

@@ -102,7 +102,7 @@ export function QuestionDialog() {
                       <button
                         key={optionIndex}
                         onClick={() => handleOptionSelect(questionIndex, option.label, questionItem.multiple || false)}
-                        className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                        className={`no-select w-full text-left p-3 rounded-lg border transition-colors ${
                           isSelected
                             ? "border-blue-500 bg-blue-500/10"
                             : "hover:opacity-80"

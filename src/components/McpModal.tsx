@@ -156,7 +156,7 @@ export function McpModal({
                         <button
                           onClick={() => handleToggle(name)}
                           disabled={isToggling}
-                          className="relative flex-shrink-0 w-12 h-7 rounded-full transition-colors disabled:opacity-50"
+                          className="no-select relative flex-shrink-0 w-12 h-7 rounded-full transition-colors disabled:opacity-50"
                           style={{ 
                             backgroundColor: isConnected ? '#22c55e' : 'var(--background-element)',
                             border: '1px solid',
