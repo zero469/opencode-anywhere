@@ -785,7 +785,7 @@ export const useAppStore = create<AppState>()(
       },
 
       sendMessage: async (text, attachments) => {
-        const { currentSessionId, selectedModel, sessionAgents, defaultAgent, messages } = get();
+        const { currentSessionId, selectedModel, sessionAgents, defaultAgent, messages, commands } = get();
         if (!currentSessionId || !text.trim()) return;
 
         const selectedAgent = sessionAgents[currentSessionId] || defaultAgent;
@@ -798,7 +798,6 @@ export const useAppStore = create<AppState>()(
             time: { created: Date.now() },
           },
           parts: [
-            // File parts first (if any)
             ...(attachments?.map((a, i) => ({
               type: "file" as const,
               id: `prt_temp_${Date.now()}_file_${i}`,
@@ -806,7 +805,6 @@ export const useAppStore = create<AppState>()(
               mime: a.mimeType,
               filename: a.fileName,
             })) || []),
-            // Text part last
             { type: "text" as const, text, id: `prt_temp_${Date.now()}` }
           ],
         };
@@ -820,12 +818,33 @@ export const useAppStore = create<AppState>()(
         });
 
         const sessionId = currentSessionId;
+        
+        const trimmed = text.trim();
+        const isSlashCommand = trimmed.startsWith("/");
+        let commandName = "";
+        let commandArgs = "";
+        let isValidCommand = false;
+        
+        if (isSlashCommand) {
+          const spaceIndex = trimmed.indexOf(" ");
+          commandName = spaceIndex > 0 ? trimmed.slice(1, spaceIndex) : trimmed.slice(1);
+          commandArgs = spaceIndex > 0 ? trimmed.slice(spaceIndex + 1) : "";
+          isValidCommand = commands.some(c => c.name === commandName);
+        }
+        
         try {
-          await opencode.sendMessageAsync(sessionId, text, {
-            model: selectedModel || undefined,
-            agent: selectedAgent || undefined,
-            attachments,
-          });
+          if (isSlashCommand && isValidCommand) {
+            await opencode.sendCommand(sessionId, commandName, commandArgs, {
+              model: selectedModel || undefined,
+              agent: selectedAgent || undefined,
+            });
+          } else {
+            await opencode.sendMessageAsync(sessionId, text, {
+              model: selectedModel || undefined,
+              agent: selectedAgent || undefined,
+              attachments,
+            });
+          }
           sendingSessions.delete(sessionId);
           if (get().sendingSessionId === sessionId) {
             set({ sendingSessionId: null });
