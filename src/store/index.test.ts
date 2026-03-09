@@ -188,16 +188,17 @@ describe('useAppStore', () => {
     })
   })
 
-  describe('createSession', () => {
-    it('creates session and selects it', async () => {
-      mockOpencode.createSession.mockResolvedValue({ id: 'new-session', title: 'Test' })
-      mockOpencode.getSessions.mockResolvedValue([{ id: 'new-session', title: 'Test' }])
-      mockOpencode.getSessionMessages.mockResolvedValue({ messages: [], hasMore: false, total: 0 })
+  describe('startDraftSession', () => {
+    it('enters draft mode without creating session', () => {
+      useAppStore.setState({ currentSessionId: 'existing-session', isDraftMode: false })
 
-      await useAppStore.getState().createSession('Test')
+      useAppStore.getState().startDraftSession()
 
-      expect(mockOpencode.createSession).toHaveBeenCalledWith('Test')
-      expect(useAppStore.getState().currentSessionId).toBe('new-session')
+      expect(useAppStore.getState().isDraftMode).toBe(true)
+      expect(useAppStore.getState().currentSessionId).toBe(null)
+      expect(useAppStore.getState().messages).toEqual([])
+      // Should NOT call API - draft mode is synchronous
+      expect(mockOpencode.createSession).not.toHaveBeenCalled()
     })
   })
 
