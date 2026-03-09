@@ -69,7 +69,8 @@ describe('opencode client', () => {
     })
 
     it('returns error when response has error field', async () => {
-      mockFetch.mockResolvedValueOnce({
+      // Mock all 3 retries with the same error response
+      mockFetch.mockResolvedValue({
         json: () => Promise.resolve({ error: 'Server error' }),
       })
 
@@ -82,7 +83,7 @@ describe('opencode client', () => {
     })
 
     it('returns error when fetch throws', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'))
+      mockFetch.mockRejectedValue(new Error('Network error'))
 
       const status = await checkConnection()
 
