@@ -376,6 +376,51 @@ export async function sendMessageAsync(
   return true;
 }
 
+export async function sendCommand(
+  sessionId: string,
+  command: string,
+  args: string,
+  options?: {
+    model?: ModelSelection;
+    agent?: string;
+  }
+): Promise<boolean> {
+  const body: Record<string, unknown> = {
+    command,
+    arguments: args,
+  };
+  
+  if (options?.model) {
+    body.model = `${options.model.providerID}/${options.model.modelID}`;
+  }
+  
+  if (options?.agent) {
+    body.agent = options.agent;
+  }
+
+  const url = isNative()
+    ? `${getBaseUrl()}/session/${sessionId}/command`
+    : `/api/opencode/sessions/${sessionId}/command`;
+  
+  console.log('[sendCommand] Sending to:', url, 'body:', JSON.stringify(body));
+  
+  const response = await http(url, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(body),
+  });
+  
+  console.log('[sendCommand] Response:', response.ok, response.status);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('[sendCommand] Error data:', errorData);
+    throw new Error(errorData?.error || `Failed to execute command: ${response.status}`);
+  }
+  
+  return true;
+}
+
 export async function respondToPermission(
   sessionId: string,
   permissionId: string,
