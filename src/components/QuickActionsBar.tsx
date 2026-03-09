@@ -4,8 +4,7 @@ import React, { useRef, useState } from "react";
 
 interface QuickActionsBarProps {
   onCompact: () => void;
-  onSkills: () => void;
-  onMore: () => void;
+  onSlashCommands: () => void;
   disabled?: boolean;
   isCompacting?: boolean;
 }
@@ -28,7 +27,7 @@ function CompactIcon() {
   );
 }
 
-function SkillsIcon() {
+function SlashIcon() {
   return (
     <svg
       className="w-5 h-5"
@@ -40,25 +39,7 @@ function SkillsIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
-        d="M13 10V3L4 14h7v7l9-11h-7z"
-      />
-    </svg>
-  );
-}
-
-function MoreIcon() {
-  return (
-    <svg
-      className="w-5 h-5"
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"
+        d="M7 20l10-16"
       />
     </svg>
   );
@@ -96,7 +77,7 @@ interface QuickAction {
   disabled?: boolean;
 }
 
-export function QuickActionsBar({ onCompact, onSkills, onMore, disabled, isCompacting }: QuickActionsBarProps) {
+export function QuickActionsBar({ onCompact, onSlashCommands, disabled, isCompacting }: QuickActionsBarProps) {
   const lastTapRef = useRef<number>(0);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -110,8 +91,7 @@ export function QuickActionsBar({ onCompact, onSkills, onMore, disabled, isCompa
 
   const actions: QuickAction[] = [
     { id: "compact", label: "Compact", icon: isCompacting ? SpinnerIcon : CompactIcon, onClick: onCompact, disabled: isCompacting },
-    { id: "skills", label: "Skills", icon: SkillsIcon, onClick: onSkills },
-    { id: "more", label: "More", icon: MoreIcon, onClick: onMore },
+    { id: "slash", label: "Commands", icon: SlashIcon, onClick: onSlashCommands },
   ];
 
   return (

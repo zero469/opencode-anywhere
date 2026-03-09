@@ -4,8 +4,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useAppStore } from "@/store";
 import { ModelAgentSelector } from "./ModelAgentSelector";
 import { QuickActionsBar } from "./QuickActionsBar";
-import { SkillsModal } from "./SkillsModal";
-import { CommandsModal } from "./CommandsModal";
+import { SlashCommandModal } from "./SlashCommandModal";
 import { ContextUsageDisplay } from "./ContextUsageDisplay";
 import type { Attachment } from "@/lib/opencode";
 import { compressImage } from "@/lib/imageUtils";
@@ -63,8 +62,7 @@ export function MessageInput() {
   const [text, setText] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [showSkillsModal, setShowSkillsModal] = useState(false);
-  const [showCommandsModal, setShowCommandsModal] = useState(false);
+  const [showSlashModal, setShowSlashModal] = useState(false);
   const [isLoadingCommands, setIsLoadingCommands] = useState(false);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -133,35 +131,21 @@ export function MessageInput() {
     summarizeCurrentSession();
   }, [summarizeCurrentSession]);
 
-  const handleSkills = useCallback(async () => {
-    await fetchSkills();
-    setShowSkillsModal(true);
-  }, [fetchSkills]);
-
-  const handleMore = useCallback(() => {
-    setShowCommandsModal(true);
-    if (commands.length === 0) {
+  const handleSlashCommands = useCallback(async () => {
+    setShowSlashModal(true);
+    if (commands.length === 0 || skills.length === 0) {
       setIsLoadingCommands(true);
-      fetchCommands().finally(() => setIsLoadingCommands(false));
+      await Promise.all([
+        commands.length === 0 ? fetchCommands() : Promise.resolve(),
+        skills.length === 0 ? fetchSkills() : Promise.resolve(),
+      ]);
+      setIsLoadingCommands(false);
     }
-  }, [commands.length, fetchCommands]);
+  }, [commands.length, skills.length, fetchCommands, fetchSkills]);
 
-  const handleSelectSkill = useCallback((skillName: string) => {
-    setShowSkillsModal(false);
-    setText(`/${skillName} `);
-    requestAnimationFrame(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.selectionStart = textareaRef.current.value.length;
-        textareaRef.current.selectionEnd = textareaRef.current.value.length;
-        adjustHeight();
-      }
-    });
-  }, [adjustHeight]);
-
-  const handleSelectCommand = useCallback((commandName: string) => {
-    setShowCommandsModal(false);
-    setText(`/${commandName} `);
+  const handleSelectSlashCommand = useCallback((name: string) => {
+    setShowSlashModal(false);
+    setText(`/${name} `);
     requestAnimationFrame(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -273,8 +257,7 @@ export function MessageInput() {
         <div className="flex-shrink-0">
           <QuickActionsBar 
             onCompact={handleCompact}
-            onSkills={handleSkills}
-            onMore={handleMore}
+            onSlashCommands={handleSlashCommands}
             disabled={isSessionBusy}
             isCompacting={isCompacting}
           />
@@ -387,17 +370,12 @@ export function MessageInput() {
           )}
         </div>
       </form>
-      <SkillsModal
-        isOpen={showSkillsModal}
-        onClose={() => setShowSkillsModal(false)}
-        skills={skills}
-        onSelectSkill={handleSelectSkill}
-      />
-      <CommandsModal
-        isOpen={showCommandsModal}
-        onClose={() => setShowCommandsModal(false)}
+      <SlashCommandModal
+        isOpen={showSlashModal}
+        onClose={() => setShowSlashModal(false)}
         commands={commands}
-        onSelectCommand={handleSelectCommand}
+        skills={skills}
+        onSelect={handleSelectSlashCommand}
         loading={isLoadingCommands}
       />
     </div>
