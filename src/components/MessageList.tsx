@@ -686,14 +686,14 @@ function ToolInvocation({ part }: { part: MessagePart }) {
           style={{ borderColor: 'var(--border)' }}
         >
           {isEditTool && hasValidDiff ? (
-            <div className="edit-diff-viewer rounded-lg overflow-hidden text-[13px]">
+            <div className="edit-diff-viewer rounded-lg overflow-x-auto text-[12px]">
               <ReactDiffViewer
                 oldValue={editInfo!.oldString!}
                 newValue={editInfo!.newString!}
                 splitView={false}
                 useDarkTheme={isDark}
                 compareMethod={DiffMethod.CHARS}
-                hideLineNumbers={false}
+                hideLineNumbers={true}
                 styles={{
                   variables: {
                     dark: {
@@ -731,17 +731,22 @@ function ToolInvocation({ part }: { part: MessagePart }) {
                       emptyLineBackground: 'var(--background-panel)',
                     },
                   },
+                  diffContainer: {
+                    display: 'block',
+                    width: 'max-content',
+                    minWidth: '100%',
+                  },
                   contentText: {
                     fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-                    fontSize: '13px',
-                    lineHeight: '1.5',
-                  },
-                  gutter: {
-                    minWidth: '40px',
-                    padding: '0 8px',
+                    fontSize: '12px',
+                    lineHeight: '1.4',
+                    whiteSpace: 'pre',
                   },
                   line: {
-                    padding: '0 8px',
+                    padding: '1px 8px',
+                  },
+                  wordDiff: {
+                    padding: '1px 0',
                   },
                 }}
               />
