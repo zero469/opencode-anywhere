@@ -373,3 +373,16 @@ body.scanner-active .scanner-visible {
   -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Code block styling - override shiki inline styles */
+.code-block-wrapper > pre {
+  background-color: var(--code-bg) !important;
+  padding: 1rem !important;
+  padding-top: 2rem !important;
+  margin: 0 !important;
+  border-radius: 0.5rem !important;
+}
+
+.code-block-wrapper code {
+  background-color: transparent !important;
+}

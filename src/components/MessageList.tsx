@@ -276,7 +276,7 @@ const CodeBlock = memo(function CodeBlock({
       <CopyButton text={code} />
       {highlightedHtml ? (
         <div 
-          className="rounded-lg overflow-x-auto text-[13px] [&>pre]:!p-4 [&>pre]:!pt-8 [&>pre]:!m-0 [&>pre]:!rounded-lg [&_code]:!bg-transparent [&>pre]:!bg-[var(--code-bg)]"
+          className="code-block-wrapper rounded-lg overflow-x-auto text-[13px]"
           dangerouslySetInnerHTML={{ __html: highlightedHtml }}
         />
       ) : (
