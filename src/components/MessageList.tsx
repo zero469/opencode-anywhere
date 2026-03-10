@@ -682,8 +682,7 @@ function ToolInvocation({ part }: { part: MessagePart }) {
 
       {expanded && hasContent && (
         <div 
-          className={isEditTool && hasValidDiff ? "mt-1" : "mt-1 ml-2 pl-3 border-l-2 space-y-2"}
-          style={isEditTool && hasValidDiff ? undefined : { borderColor: 'var(--border)' }}
+          className={isEditTool && hasValidDiff ? "mt-1" : "mt-1 space-y-2"}
         >
           {isEditTool && hasValidDiff ? (
             <div className="edit-diff-viewer rounded-lg overflow-x-auto text-[12px]" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--foreground-muted) transparent' }}>
