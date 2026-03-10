@@ -13,6 +13,7 @@ import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import { createHighlighter, type Highlighter, type BundledLanguage } from "shiki";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useTheme } from "@/contexts/ThemeContext";
+import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 
 // Shiki highlighter singleton
 let highlighterPromise: Promise<Highlighter> | null = null;
@@ -468,7 +469,7 @@ const markdownComponents: Components = {
 
 function ToolInvocation({ part }: { part: MessagePart }) {
   const agents = useAppStore((state) => state.agents);
-  const [expanded, setExpanded] = useState(false);
+  const isDark = useIsDarkMode();
   const [copied, setCopied] = useState(false);
   
   const status = part.state?.status || "pending";
@@ -480,8 +481,18 @@ function ToolInvocation({ part }: { part: MessagePart }) {
   const timeStart = part.state?.time?.start;
   const timeEnd = part.state?.time?.end;
 
-  const isSubagentTask = toolName.toLowerCase() === "task";
+  const isEditTool = toolName.toLowerCase() === "edit";
   const inputObj = input as Record<string, unknown> | null;
+  const editInfo = isEditTool && inputObj ? {
+    filePath: (inputObj.filePath || inputObj.path || inputObj.file) as string | undefined,
+    oldString: inputObj.oldString as string | undefined,
+    newString: inputObj.newString as string | undefined,
+  } : null;
+  const hasValidDiff = editInfo?.oldString != null && editInfo?.newString != null;
+  
+  const [expanded, setExpanded] = useState(isEditTool && hasValidDiff);
+
+  const isSubagentTask = toolName.toLowerCase() === "task";
   const subagentInfo = isSubagentTask ? {
     category: inputObj?.category as string | undefined,
     subagentType: inputObj?.subagent_type as string | undefined,
@@ -674,60 +685,125 @@ function ToolInvocation({ part }: { part: MessagePart }) {
           className="mt-1 ml-2 pl-3 border-l-2 space-y-2"
           style={{ borderColor: 'var(--border)' }}
         >
-          {input != null && (
-            <details className="text-xs">
-              <summary className="cursor-pointer select-none" style={{ color: 'var(--foreground-muted)' }}>
-                Input
-              </summary>
-              <pre 
-                className="mt-1 text-xs rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
-                style={{ color: 'var(--foreground-muted)', backgroundColor: 'var(--background-panel)' }}
-              >
-                {typeof input === "string" ? input : JSON.stringify(input, null, 2)}
-              </pre>
-            </details>
-          )}
-          
-          {output != null && (
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs" style={{ color: 'var(--foreground-muted)' }}>
-                  Output
-                  {timeStart && timeEnd && (
-                    <span className="ml-1 opacity-60">({formatDuration(timeStart, timeEnd)})</span>
-                  )}
-                </span>
-                <button
-                  onClick={handleCopy}
-                  className="text-[10px] px-1 py-0.5 rounded transition-colors"
-                  style={{ color: copied ? 'var(--oc-green)' : 'var(--foreground-muted)' }}
-                >
-                  {copied ? "✓" : "Copy"}
-                </button>
-              </div>
-              {outputStr.split('\n').length > VIRTUALIZED_LINE_THRESHOLD ? (
-                <VirtualizedOutput content={outputStr} />
-              ) : (
-                <pre 
-                  className="text-xs rounded p-2 overflow-x-auto max-h-[50vh] overflow-y-auto"
-                  style={{ color: 'var(--foreground-muted)', backgroundColor: 'var(--background-panel)' }}
-                >
-                  {outputStr}
-                </pre>
+          {isEditTool && hasValidDiff ? (
+            <div className="edit-diff-viewer rounded-lg overflow-hidden text-[13px]">
+              <ReactDiffViewer
+                oldValue={editInfo!.oldString!}
+                newValue={editInfo!.newString!}
+                splitView={false}
+                useDarkTheme={isDark}
+                compareMethod={DiffMethod.CHARS}
+                hideLineNumbers={false}
+                styles={{
+                  variables: {
+                    dark: {
+                      diffViewerBackground: 'var(--background-panel)',
+                      diffViewerColor: 'var(--foreground)',
+                      addedBackground: 'rgba(46, 160, 67, 0.15)',
+                      addedColor: '#7ee787',
+                      removedBackground: 'rgba(248, 81, 73, 0.15)',
+                      removedColor: '#ffa198',
+                      wordAddedBackground: 'rgba(46, 160, 67, 0.4)',
+                      wordRemovedBackground: 'rgba(248, 81, 73, 0.4)',
+                      addedGutterBackground: 'rgba(46, 160, 67, 0.2)',
+                      removedGutterBackground: 'rgba(248, 81, 73, 0.2)',
+                      gutterBackground: 'var(--background-element)',
+                      gutterBackgroundDark: 'var(--background-element)',
+                      codeFoldGutterBackground: 'var(--background-element)',
+                      codeFoldBackground: 'var(--background-element)',
+                      emptyLineBackground: 'var(--background-panel)',
+                    },
+                    light: {
+                      diffViewerBackground: 'var(--background-panel)',
+                      diffViewerColor: 'var(--foreground)',
+                      addedBackground: 'rgba(46, 160, 67, 0.15)',
+                      addedColor: '#1a7f37',
+                      removedBackground: 'rgba(248, 81, 73, 0.15)',
+                      removedColor: '#cf222e',
+                      wordAddedBackground: 'rgba(46, 160, 67, 0.4)',
+                      wordRemovedBackground: 'rgba(248, 81, 73, 0.4)',
+                      addedGutterBackground: 'rgba(46, 160, 67, 0.2)',
+                      removedGutterBackground: 'rgba(248, 81, 73, 0.2)',
+                      gutterBackground: 'var(--background-element)',
+                      gutterBackgroundDark: 'var(--background-element)',
+                      codeFoldGutterBackground: 'var(--background-element)',
+                      codeFoldBackground: 'var(--background-element)',
+                      emptyLineBackground: 'var(--background-panel)',
+                    },
+                  },
+                  contentText: {
+                    fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+                    fontSize: '13px',
+                    lineHeight: '1.5',
+                  },
+                  gutter: {
+                    minWidth: '40px',
+                    padding: '0 8px',
+                  },
+                  line: {
+                    padding: '0 8px',
+                  },
+                }}
+              />
+            </div>
+          ) : (
+            <>
+              {input != null && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer select-none" style={{ color: 'var(--foreground-muted)' }}>
+                    Input
+                  </summary>
+                  <pre 
+                    className="mt-1 text-xs rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
+                    style={{ color: 'var(--foreground-muted)', backgroundColor: 'var(--background-panel)' }}
+                  >
+                    {typeof input === "string" ? input : JSON.stringify(input, null, 2)}
+                  </pre>
+                </details>
               )}
-            </div>
-          )}
-          
-          {error != null && (
-            <div>
-              <div className="text-xs text-red-500 mb-1">Error</div>
-              <pre 
-                className="text-xs text-red-400 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
-                style={{ backgroundColor: 'var(--background-panel)' }}
-              >
-                {error}
-              </pre>
-            </div>
+              
+              {output != null && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs" style={{ color: 'var(--foreground-muted)' }}>
+                      Output
+                      {timeStart && timeEnd && (
+                        <span className="ml-1 opacity-60">({formatDuration(timeStart, timeEnd)})</span>
+                      )}
+                    </span>
+                    <button
+                      onClick={handleCopy}
+                      className="text-[10px] px-1 py-0.5 rounded transition-colors"
+                      style={{ color: copied ? 'var(--oc-green)' : 'var(--foreground-muted)' }}
+                    >
+                      {copied ? "✓" : "Copy"}
+                    </button>
+                  </div>
+                  {outputStr.split('\n').length > VIRTUALIZED_LINE_THRESHOLD ? (
+                    <VirtualizedOutput content={outputStr} />
+                  ) : (
+                    <pre 
+                      className="text-xs rounded p-2 overflow-x-auto max-h-[50vh] overflow-y-auto"
+                      style={{ color: 'var(--foreground-muted)', backgroundColor: 'var(--background-panel)' }}
+                    >
+                      {outputStr}
+                    </pre>
+                  )}
+                </div>
+              )}
+              
+              {error != null && (
+                <div>
+                  <div className="text-xs text-red-500 mb-1">Error</div>
+                  <pre 
+                    className="text-xs text-red-400 rounded p-2 overflow-x-auto max-h-40 overflow-y-auto"
+                    style={{ backgroundColor: 'var(--background-panel)' }}
+                  >
+                    {error}
+                  </pre>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
