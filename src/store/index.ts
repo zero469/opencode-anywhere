@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { useState, useEffect } from "react";
 import { capacitorStorage } from "@/lib/storage";
 import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
 import type { SkillInfo, CommandInfo, Attachment, McpStatusMap } from "@/lib/opencode";
@@ -1584,3 +1585,23 @@ export const useAppStore = create<AppState>()(
 );
 
 export { startFallbackCheck, stopFallbackCheck };
+
+export const useHydration = () => {
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    const unsubFinish = useAppStore.persist.onFinishHydration(() => {
+      setHydrated(true);
+    });
+
+    if (useAppStore.persist.hasHydrated()) {
+      setHydrated(true);
+    }
+
+    return () => {
+      unsubFinish();
+    };
+  }, []);
+
+  return hydrated;
+};

@@ -1,7 +1,7 @@
 "use client";
 
-import { useSyncExternalStore, useEffect } from "react";
-import { useAppStore } from "@/store";
+import { useEffect } from "react";
+import { useAppStore, useHydration } from "@/store";
 import { useSSE } from "@/hooks/useSSE";
 import { useKeyboard, preWarmKeyboard } from "@/hooks/useKeyboard";
 import { AuthForm } from "@/components/AuthForm";
@@ -127,10 +127,6 @@ function ChatView() {
 }
 
 
-const emptySubscribe = () => () => {};
-const getServerSnapshot = () => false;
-const getClientSnapshot = () => true;
-
 const CONNECTION_STEP_LABELS: Record<string, string> = {
   idle: "Idle",
   connecting: "Connecting to server...",
@@ -251,7 +247,7 @@ export default function Home() {
   const devices = useAppStore((state) => state.devices);
   const devicesFetched = useAppStore((state) => state.devicesFetched);
 
-  const hydrated = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
+  const hydrated = useHydration();
 
   useEffect(() => {
     if (hydrated) {
@@ -259,18 +255,13 @@ export default function Home() {
     }
   }, [hydrated]);
 
-  // Re-connect when we have a selected device but no config (after app restart)
-  // Wait for devices to be fetched first to check if persisted device is online
   useEffect(() => {
     if (hydrated && relayToken && selectedDevice && !config && devicesFetched) {
-      // Check if persisted device is online in freshly fetched devices
       const freshDevice = devices.find(d => d.id === selectedDevice.id);
       
       if (freshDevice?.online) {
-        // Device is online, connect with fresh device data
         selectDevice(freshDevice);
       } else {
-        // Device is offline or not found, go to device list
         deselectDevice();
       }
     }
