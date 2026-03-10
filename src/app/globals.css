@@ -113,14 +113,14 @@
   --oc-yellow: #b0851f;
   
   /* Light mode glass overrides */
-  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-bg: rgba(245, 245, 247, 0.72);
   --glass-bg-elevated: rgba(255, 255, 255, 0.8);
   --glass-bg-pressed: rgba(255, 255, 255, 0.5);
   --glass-bg-prominent: rgba(255, 255, 255, 0.85);
   --glass-bg-solid: #ffffff;
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --glass-border-prominent: rgba(0, 0, 0, 0.12);
-  --glass-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.05) inset;
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-border-prominent: rgba(0, 0, 0, 0.1);
+  --glass-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 0.5px 0 rgba(255, 255, 255, 0.8) inset;
   --glass-shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.12), 0 0 1px rgba(0, 0, 0, 0.08) inset;
   --glass-accent: rgba(59, 125, 216, 0.2);
   --glass-accent-solid: #3b7dd8;

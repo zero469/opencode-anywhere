@@ -151,14 +151,9 @@ function SessionItem({
 
   return (
     <div 
-      className={`
-        relative
-        ${isFirst ? 'rounded-t-2xl' : ''}
-        ${isLast ? 'rounded-b-2xl' : ''}
-      `}
+      className="relative rounded-2xl"
       style={{ 
-        overflow: 'hidden',
-        background: 'var(--glass-bg-solid)'
+        overflow: 'hidden'
       }}
     >
       <div 
@@ -194,19 +189,13 @@ function SessionItem({
         ref={containerRef}
         className="no-select relative px-4 py-3"
         style={{
-          background: isActive ? 'var(--glass-accent-solid)' : 'var(--glass-bg-solid)',
+          background: isActive ? 'var(--glass-accent-solid)' : 'transparent',
           willChange: 'transform',
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {!isLast && (
-          <div 
-            className="absolute bottom-0 left-4 right-0 h-[0.5px]" 
-            style={{ background: 'var(--glass-border)' }} 
-          />
-        )}
         
         <div className="flex items-center gap-3">
           {(hasPermission || isRunning) && (
@@ -224,7 +213,7 @@ function SessionItem({
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <span 
-                className="text-[15px] font-medium truncate"
+                className="text-[14px] font-medium truncate"
                 style={{ color: 'var(--foreground)' }}
               >
                 {session.title || "Untitled Session"}
@@ -400,7 +389,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
     setRevealedSessionId(null);
   };
 
-  const renderSessionGroup = (sessionList: Session[], label?: string) => (
+  const renderSessionGroup = (sessionList: Session[], label?: string, isPinnedGroup?: boolean) => (
     <div className="mb-5">
       {label && (
         <div 
@@ -410,33 +399,36 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
           {label}
         </div>
       )}
-      <div 
-        className="rounded-2xl overflow-hidden"
-        style={{ 
-          background: 'var(--glass-bg-prominent)',
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-          border: '1px solid var(--glass-border)',
-          boxShadow: 'var(--glass-shadow)'
-        }}
-      >
-        {sessionList.map((session, index) => (
-          <SessionItem
+      <div className="space-y-1.5">
+        {sessionList.map((session) => (
+          <div
             key={session.id}
-            session={session}
-            isActive={session.id === currentSessionId}
-            isPinned={pinnedSessionIds.includes(session.id)}
-            hasPermission={sessionsWithPermissions.has(session.id)}
-            isRunning={runningSessions.includes(session.id)}
-            isFirst={index === 0}
-            isLast={index === sessionList.length - 1}
-            isRevealed={revealedSessionId === session.id}
-            onClick={() => handleSelect(session.id)}
-            onReveal={() => setRevealedSessionId(session.id)}
-            onClose={() => setRevealedSessionId(null)}
-            onRename={() => handleRenameSession(session)}
-            onTogglePin={() => handleTogglePin(session.id)}
-          />
+            className="rounded-2xl overflow-hidden"
+            style={{ 
+              background: 'var(--glass-bg)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              border: '1px solid var(--glass-border)',
+              borderLeft: isPinnedGroup ? '3px solid var(--glass-blue-solid)' : '1px solid var(--glass-border)',
+              boxShadow: 'var(--glass-shadow)'
+            }}
+          >
+            <SessionItem
+              session={session}
+              isActive={session.id === currentSessionId}
+              isPinned={pinnedSessionIds.includes(session.id)}
+              hasPermission={sessionsWithPermissions.has(session.id)}
+              isRunning={runningSessions.includes(session.id)}
+              isFirst={true}
+              isLast={true}
+              isRevealed={revealedSessionId === session.id}
+              onClick={() => handleSelect(session.id)}
+              onReveal={() => setRevealedSessionId(session.id)}
+              onClose={() => setRevealedSessionId(null)}
+              onRename={() => handleRenameSession(session)}
+              onTogglePin={() => handleTogglePin(session.id)}
+            />
+          </div>
         ))}
       </div>
     </div>
@@ -444,7 +436,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
 
   return (
     <div 
-      className="flex flex-col h-full" 
+      className="relative flex flex-col h-full" 
       style={{ 
         background: 'var(--glass-bg-solid)'
       }}
@@ -456,7 +448,8 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(20px) saturate(180%)',
             WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid var(--glass-border)'
+            border: '1px solid var(--glass-border)',
+            boxShadow: 'var(--glass-shadow)'
           }}
         >
           <input
@@ -492,11 +485,11 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
           className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center active:opacity-70 transition-opacity"
           style={{ 
             background: 'var(--glass-bg)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid var(--glass-border)'
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid var(--glass-border)',
+            boxShadow: 'var(--glass-shadow)'
           }}
-          title="Refresh"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--foreground)' }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -507,11 +500,11 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
           className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center active:opacity-70 transition-opacity"
           style={{ 
             background: 'var(--glass-bg)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid var(--glass-border)'
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid var(--glass-border)',
+            boxShadow: 'var(--glass-shadow)'
           }}
-          title="New Session"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--foreground)' }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
@@ -519,7 +512,10 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 pb-8">
+      <div 
+        className="flex-1 overflow-y-auto px-5"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
+      >
         {isOffline && (
           <button
             onClick={handleReconnect}
@@ -568,32 +564,31 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
           </p>
         ) : (
           <>
-            {pinnedSessions.length > 0 && renderSessionGroup(pinnedSessions, 'Pinned')}
-            {unpinnedSessions.length > 0 && renderSessionGroup(unpinnedSessions, pinnedSessions.length > 0 ? 'Recent' : undefined)}
+            {pinnedSessions.length > 0 && renderSessionGroup(pinnedSessions, 'Pinned', true)}
+            {unpinnedSessions.length > 0 && renderSessionGroup(unpinnedSessions, pinnedSessions.length > 0 ? 'Recent' : undefined, false)}
           </>
         )}
+        {isInstallable && (
+          <div className="mt-4">
+            <button
+              onClick={install}
+              className="w-full py-3 rounded-2xl font-medium flex items-center justify-center gap-2 active:opacity-70 transition-opacity"
+              style={{ 
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid var(--glass-border)',
+                color: 'var(--glass-blue-solid)'
+              }}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Install App
+            </button>
+          </div>
+        )}
       </div>
-
-      {isInstallable && (
-        <div className="p-4">
-          <button
-            onClick={install}
-            className="w-full py-3 rounded-2xl font-medium flex items-center justify-center gap-2 active:opacity-70 transition-opacity"
-            style={{ 
-              background: 'var(--glass-bg)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid var(--glass-border)',
-              color: 'var(--glass-blue-solid)'
-            }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Install App
-          </button>
-        </div>
-      )}
 
       {sessionToRename && (
         <RenameModal

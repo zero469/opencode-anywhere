@@ -724,7 +724,7 @@ function DeviceItem({
 
         <div className="flex-1 min-w-0">
           <p 
-            className="font-medium truncate text-[15px]"
+            className="font-medium truncate text-[14px]"
             style={{ color: 'var(--foreground)' }}
           >
             {device.name}
@@ -815,12 +815,9 @@ export function DeviceList() {
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
       <div className="fixed top-0 left-0 right-0 z-50" style={{ height: 'var(--safe-area-top)', backgroundColor: 'var(--background)' }} />
       <header className="no-select flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="w-9" />
-          <div className="min-w-0">
-            <h1 className="text-[17px] font-semibold truncate" style={{ color: 'var(--foreground)' }}>Devices</h1>
-            <span className="text-[12px]" style={{ color: 'var(--foreground-muted)' }}>Select a device</span>
-          </div>
+        <div className="min-w-0">
+          <h1 className="text-[17px] font-semibold truncate" style={{ color: 'var(--foreground)' }}>Devices</h1>
+          <span className="text-[12px]" style={{ color: 'var(--foreground-muted)' }}>Select a device</span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="w-2 h-2 rounded-full bg-green-500" />
