@@ -29,7 +29,7 @@ function getHighlighter(): Promise<Highlighter> {
   if (highlighterPromise) return highlighterPromise;
   
   highlighterPromise = createHighlighter({
-    themes: ["github-dark"],
+    themes: ["github-dark", "github-light"],
     langs: SUPPORTED_LANGUAGES,
   }).then(h => {
     highlighterInstance = h;
@@ -37,6 +37,21 @@ function getHighlighter(): Promise<Highlighter> {
   });
   
   return highlighterPromise;
+}
+
+function useIsDarkMode(): boolean {
+  const [isDark, setIsDark] = useState(true);
+  
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    setIsDark(mediaQuery.matches);
+    
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
+  
+  return isDark;
 }
 
 // Module-level cache for lazy images (survives re-renders)
@@ -230,6 +245,7 @@ const CodeBlock = memo(function CodeBlock({
   const language = match ? match[1] : "";
   const code = String(children).replace(/\n$/, "");
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
+  const isDark = useIsDarkMode();
 
   useEffect(() => {
     if (!language) return;
@@ -244,14 +260,14 @@ const CodeBlock = memo(function CodeBlock({
       try {
         const html = highlighter.codeToHtml(code, {
           lang: langKey,
-          theme: "github-dark",
+          theme: isDark ? "github-dark" : "github-light",
         });
         setHighlightedHtml(html);
       } catch {}
     });
     
     return () => { cancelled = true; };
-  }, [code, language]);
+  }, [code, language, isDark]);
 
   return (
     <div className="group relative my-3">
