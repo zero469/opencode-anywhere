@@ -380,9 +380,7 @@ export const useAppStore = create<AppState>()(
           connectionStep: "connecting",
         };
         
-        if (previousDeviceId !== device.id) {
-          newState.pinnedSessionIds = cached?.pinnedIds || [];
-        }
+
         
         set(newState);
         
