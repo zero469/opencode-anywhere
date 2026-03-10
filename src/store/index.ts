@@ -1270,9 +1270,13 @@ export const useAppStore = create<AppState>()(
           case "session.updated": {
             const sessionData = event.properties.info as Session | undefined;
             if (sessionData?.id) {
-              const newSessions = sessions.map((s) =>
-                s.id === sessionData.id ? { ...s, ...sessionData } : s
-              );
+              const newSessions = sessions
+                .map((s) => s.id === sessionData.id ? { ...s, ...sessionData } : s)
+                .sort((a, b) => {
+                  const timeA = a.time?.updated || a.time?.created || 0;
+                  const timeB = b.time?.updated || b.time?.created || 0;
+                  return timeB - timeA;
+                });
               set({ sessions: newSessions });
               
               const sessionId = sessionData.id;

@@ -384,6 +384,8 @@ body.scanner-active .scanner-visible {
   padding-top: 2rem !important;
   margin: 0 !important;
   border-radius: 0.5rem !important;
+  min-width: 100%;
+  width: fit-content;
 }
 
 .code-block-wrapper code {
