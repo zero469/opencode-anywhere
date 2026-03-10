@@ -277,13 +277,13 @@ const CodeBlock = memo(function CodeBlock({
       {highlightedHtml ? (
         <div 
           className="rounded-lg overflow-x-auto text-[13px] [&>pre]:!p-4 [&>pre]:!pt-8 [&>pre]:!m-0 [&>pre]:!rounded-lg [&_code]:!bg-transparent"
-          style={{ backgroundColor: 'var(--glass-bg-solid)' }}
+          style={{ backgroundColor: 'var(--code-bg)' }}
           dangerouslySetInnerHTML={{ __html: highlightedHtml }}
         />
       ) : (
         <pre 
           className="rounded-lg p-4 pt-8 overflow-x-auto text-[13px]"
-          style={{ backgroundColor: 'var(--glass-bg-solid)' }}
+          style={{ backgroundColor: 'var(--code-bg)' }}
         >
           <code 
             className={className || ""}

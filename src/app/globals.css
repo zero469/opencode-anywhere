@@ -88,6 +88,7 @@
   --glass-blue: rgba(92, 156, 245, 0.3);
   --glass-blue-solid: #5c9cf5;
   --glass-bg-solid: #1a1a1a;
+  --code-bg: #1a1a1a;
 }
 
 .light {
@@ -125,6 +126,7 @@
   --glass-accent-solid: #3b7dd8;
   --glass-blue: rgba(59, 125, 216, 0.2);
   --glass-blue-solid: #3b7dd8;
+  --code-bg: #f6f8fa;
 }
 
 @theme inline {
