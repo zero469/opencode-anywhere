@@ -541,76 +541,108 @@ function DeviceItem({
   onClose: () => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSwiping, setIsSwiping] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const startXRef = useRef(0);
-  const currentXRef = useRef(0);
-  const isDraggingRef = useRef(false);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const currentTranslate = useRef(0);
+  const isDragging = useRef(false);
+  const isScrolling = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    if (isRevealed) {
+      currentTranslate.current = -ACTION_WIDTH;
+    } else {
+      currentTranslate.current = 0;
+    }
+    if (containerRef.current) {
+      containerRef.current.style.transform = `translateX(${currentTranslate.current}px)`;
+    }
+  }, [isRevealed]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    startXRef.current = e.touches[0].clientX;
-    currentXRef.current = e.touches[0].clientX;
-    isDraggingRef.current = false;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isDragging.current = true;
+    isScrolling.current = null;
+    
+    if (containerRef.current) {
+      containerRef.current.style.transition = 'none';
+    }
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    currentXRef.current = e.touches[0].clientX;
-    const diff = startXRef.current - currentXRef.current;
+    if (!isDragging.current) return;
     
-    if (Math.abs(diff) > 10) {
-      isDraggingRef.current = true;
+    const touchX = e.touches[0].clientX;
+    const touchY = e.touches[0].clientY;
+    const diffX = touchX - touchStartX.current;
+    const diffY = touchY - touchStartY.current;
+    
+    if (isScrolling.current === null) {
+      if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 5) {
+        isScrolling.current = true;
+        isDragging.current = false;
+        return;
+      } else if (Math.abs(diffX) > 5) {
+        isScrolling.current = false;
+        setIsSwiping(true);
+      }
     }
     
+    if (isScrolling.current) return;
+    
+    const baseTranslate = isRevealed ? -ACTION_WIDTH : 0;
+    let newTranslate = baseTranslate + diffX;
+    
+    newTranslate = Math.max(-ACTION_WIDTH, Math.min(0, newTranslate));
+    
+    currentTranslate.current = newTranslate;
+    
     if (containerRef.current) {
-      let translateX = 0;
-      if (isRevealed) {
-        translateX = Math.min(0, Math.max(-ACTION_WIDTH, -ACTION_WIDTH + (-diff)));
-      } else {
-        translateX = Math.min(0, Math.max(-ACTION_WIDTH, -diff));
-      }
-      containerRef.current.style.transform = `translateX(${translateX}px)`;
-      containerRef.current.style.transition = 'none';
+      containerRef.current.style.transform = `translateX(${newTranslate}px)`;
     }
   }, [isRevealed]);
 
   const handleTouchEnd = useCallback(() => {
-    const diff = startXRef.current - currentXRef.current;
+    if (!isDragging.current && isScrolling.current !== false) {
+      isDragging.current = false;
+      return;
+    }
+    
+    isDragging.current = false;
     
     if (containerRef.current) {
-      containerRef.current.style.transition = 'transform 0.2s ease-out';
-      
-      if (isRevealed) {
-        if (diff < -SWIPE_THRESHOLD) {
-          containerRef.current.style.transform = 'translateX(0)';
-          onClose();
-        } else {
+      containerRef.current.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+    }
+    
+    const diffFromStart = currentTranslate.current - (isRevealed ? -ACTION_WIDTH : 0);
+    
+    if (isRevealed) {
+      if (diffFromStart > SWIPE_THRESHOLD) {
+        onClose();
+      } else {
+        currentTranslate.current = -ACTION_WIDTH;
+        if (containerRef.current) {
           containerRef.current.style.transform = `translateX(-${ACTION_WIDTH}px)`;
         }
+      }
+    } else {
+      if (diffFromStart < -SWIPE_THRESHOLD) {
+        onReveal();
+      } else if (Math.abs(diffFromStart) < 5 && isScrolling.current === null) {
+        onSelect();
       } else {
-        if (diff > SWIPE_THRESHOLD) {
-          containerRef.current.style.transform = `translateX(-${ACTION_WIDTH}px)`;
-          onReveal();
-        } else {
+        currentTranslate.current = 0;
+        if (containerRef.current) {
           containerRef.current.style.transform = 'translateX(0)';
         }
       }
     }
-  }, [isRevealed, onReveal, onClose]);
-
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.style.transition = 'transform 0.2s ease-out';
-      containerRef.current.style.transform = isRevealed ? `translateX(-${ACTION_WIDTH}px)` : 'translateX(0)';
-    }
-  }, [isRevealed]);
-
-  const handleClick = useCallback(() => {
-    if (isDraggingRef.current) return;
-    if (isRevealed) {
-      onClose();
-    } else {
-      onSelect();
-    }
-  }, [isRevealed, onClose, onSelect]);
+    
+    isScrolling.current = null;
+    setIsSwiping(false);
+  }, [isRevealed, onSelect, onReveal, onClose]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -643,7 +675,12 @@ function DeviceItem({
     >
       <div 
         className="absolute right-0 top-0 bottom-0 flex items-stretch"
-        style={{ width: ACTION_WIDTH }}
+        style={{ 
+          width: ACTION_WIDTH,
+          pointerEvents: (isRevealed || isSwiping) ? 'auto' : 'none',
+          opacity: (isRevealed || isSwiping) ? 1 : 0,
+          transition: 'opacity 0.15s ease'
+        }}
       >
         <button
           onClick={handleDelete}
@@ -666,11 +703,11 @@ function DeviceItem({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onClick={handleClick}
-        className="no-select relative flex items-center px-4 py-3 cursor-pointer active:opacity-80 transition-opacity"
+        className="no-select relative flex items-center px-4 py-3"
         style={{ 
           background: 'var(--glass-bg-solid)',
-          borderRadius
+          borderRadius,
+          willChange: 'transform'
         }}
       >
         <div className="mr-3 relative">
@@ -777,11 +814,21 @@ export function DeviceList() {
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
       <div className="fixed top-0 left-0 right-0 z-50" style={{ height: 'var(--safe-area-top)', backgroundColor: 'var(--background)' }} />
-      <header className="no-select flex items-center justify-center p-4 shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
-        <h1 className="text-[17px] font-semibold" style={{ color: 'var(--foreground)' }}>Devices</h1>
+      <header className="no-select flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-9" />
+          <div className="min-w-0">
+            <h1 className="text-[17px] font-semibold truncate" style={{ color: 'var(--foreground)' }}>Devices</h1>
+            <span className="text-[12px]" style={{ color: 'var(--foreground-muted)' }}>Select a device</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="w-2 h-2 rounded-full bg-green-500" />
+          <span className="text-[12px]" style={{ color: 'var(--foreground-muted)' }}>v{APP_VERSION}</span>
+        </div>
       </header>
 
-      <main className="flex-grow overflow-y-auto p-4 flex flex-col">
+      <main className="flex-grow overflow-y-auto p-5 flex flex-col">
         {showInitialLoading ? (
           <div className="flex-grow flex items-center justify-center">
             <div className="flex items-center gap-3" style={{ color: 'var(--foreground-muted)' }}>

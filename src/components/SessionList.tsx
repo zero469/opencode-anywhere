@@ -449,50 +449,9 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
         background: 'var(--glass-bg-solid)'
       }}
     >
-      <div className="flex items-center justify-between px-4 py-3">
-        <h2 
-          className="text-xl font-semibold"
-          style={{ color: 'var(--foreground)' }}
-        >
-          Sessions
-        </h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => refreshSessions()}
-            className="w-10 h-10 rounded-full flex items-center justify-center active:opacity-70 transition-opacity"
-            style={{ 
-              background: 'var(--glass-bg)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid var(--glass-border)'
-            }}
-            title="Refresh"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--foreground)' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-          <button
-            onClick={handleNewSession}
-            className="w-10 h-10 rounded-full flex items-center justify-center active:opacity-70 transition-opacity"
-            style={{ 
-              background: 'var(--glass-bg)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid var(--glass-border)'
-            }}
-            title="New Session"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--foreground)' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <div className="px-4 pb-3">
+      <div className="flex items-center gap-2 px-5 py-3">
         <div 
-          className="relative rounded-2xl overflow-hidden"
+          className="relative flex-1 rounded-2xl overflow-hidden"
           style={{ 
             background: 'var(--glass-bg)',
             backdropFilter: 'blur(20px) saturate(180%)',
@@ -528,9 +487,39 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
             </button>
           )}
         </div>
+        <button
+          onClick={() => refreshSessions()}
+          className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center active:opacity-70 transition-opacity"
+          style={{ 
+            background: 'var(--glass-bg)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid var(--glass-border)'
+          }}
+          title="Refresh"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--foreground)' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+        <button
+          onClick={handleNewSession}
+          className="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center active:opacity-70 transition-opacity"
+          style={{ 
+            background: 'var(--glass-bg)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid var(--glass-border)'
+          }}
+          title="New Session"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--foreground)' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-8">
+      <div className="flex-1 overflow-y-auto px-5 pb-8">
         {isOffline && (
           <button
             onClick={handleReconnect}

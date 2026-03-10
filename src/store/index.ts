@@ -1532,6 +1532,13 @@ export const useAppStore = create<AppState>()(
             break;
           }
 
+          case "server.connected": {
+            // Refresh skills and commands on SSE connection
+            get().fetchSkills();
+            get().fetchCommands();
+            break;
+          }
+
           default:
             break;
         }
