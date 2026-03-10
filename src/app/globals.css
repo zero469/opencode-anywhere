@@ -374,9 +374,12 @@ body.scanner-active .scanner-visible {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Code block styling - override shiki inline styles */
+/* Code block styling - override shiki inline styles in light mode only */
+.light .code-block-wrapper > pre {
+  background-color: #f6f8fa !important;
+}
+
 .code-block-wrapper > pre {
-  background-color: var(--code-bg) !important;
   padding: 1rem !important;
   padding-top: 2rem !important;
   margin: 0 !important;
