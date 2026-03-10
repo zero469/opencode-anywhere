@@ -140,99 +140,66 @@ function ConnectingView() {
   const deselectDevice = useAppStore((state) => state.deselectDevice);
   const connectionStep = useAppStore((state) => state.connectionStep);
   const sessions = useAppStore((state) => state.sessions);
-  const selectSession = useAppStore((state) => state.selectSession);
-  const checkDeviceAndReconnect = useAppStore((state) => state.checkDeviceAndReconnect);
   
   const isOffline = connectionStep === "idle" && selectedDevice !== null;
-  const isConnecting = connectionStep !== "idle" && connectionStep !== "ready";
-  const stepLabel = isOffline ? "Device offline" : (CONNECTION_STEP_LABELS[connectionStep] || "Connecting...");
   const hasCachedSessions = sessions.length > 0;
+  const stepLabel = isOffline ? "Device offline" : (CONNECTION_STEP_LABELS[connectionStep] || "Connecting...");
   
-  const handleReconnect = () => {
-    checkDeviceAndReconnect();
-  };
-  
-  return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
-      <div className="fixed top-0 left-0 right-0 z-50" style={{ height: 'var(--safe-area-top)', background: 'var(--glass-bg)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)' }} />
-      
-      <header className="no-select flex items-center justify-between p-4 border-b shrink-0" style={{ background: 'var(--glass-bg)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', borderColor: 'var(--glass-border)' }}>
-        <div className="flex items-center gap-3">
-          <button onClick={deselectDevice} className="no-select p-2 hover:opacity-80" style={{ color: 'var(--foreground-muted)' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="m15 18-6-6 6-6"/></svg>
-          </button>
-          <div>
-            <h1 className="text-[17px] font-semibold">{selectedDevice?.name}</h1>
-            <div className="flex items-center gap-2">
-              {isOffline ? (
-                <span className={`w-2 h-2 rounded-full bg-red-500`} />
-              ) : (
-                <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-blue-500" />
-              )}
-              <span className={`text-[12px] ${isOffline ? "text-red-400" : ""}`} style={isOffline ? undefined : { color: 'var(--foreground-muted)' }}>{stepLabel}</span>
+  if (hasCachedSessions) {
+    return (
+      <div 
+        className="flex flex-col h-screen" 
+        style={{ 
+          backgroundColor: 'var(--background)',
+          paddingTop: 'var(--safe-area-top)', 
+          paddingBottom: 'var(--safe-area-bottom)'
+        }}
+      >
+        <div className="fixed top-0 left-0 right-0 z-50" style={{ height: 'var(--safe-area-top)', background: 'var(--glass-bg)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)' }} />
+        
+        <header className="no-select flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ background: 'var(--glass-bg)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', borderColor: 'var(--glass-border)' }}>
+          <div className="flex items-center gap-3">
+            <button onClick={deselectDevice} className="no-select p-2 hover:opacity-80" style={{ color: 'var(--foreground-muted)' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="m15 18-6-6 6-6"/></svg>
+            </button>
+            <div>
+              <h1 className="text-[17px] font-semibold">{selectedDevice?.name}</h1>
+              <span className="text-[12px]" style={{ color: 'var(--foreground-muted)' }}>Sessions</span>
             </div>
           </div>
-        </div>
-        {isOffline && (
-          <button
-            onClick={handleReconnect}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
-          >
-            Reconnect
-          </button>
-        )}
-      </header>
-      
-      <main className="flex-grow overflow-y-auto p-4">
-        {hasCachedSessions ? (
-          <div className="space-y-2">
-            <p className="text-[12px] mb-3" style={{ color: 'var(--foreground-muted)' }}>
-              {isOffline ? "Cached sessions (device offline)" : "Recent sessions (cached)"}
-            </p>
-            {sessions.slice(0, 10).map((session) => (
-              <button
-                key={session.id}
-                onClick={() => selectSession(session.id)}
-                disabled={isOffline}
-                className={`w-full text-left p-3 rounded-xl border ${isOffline ? "opacity-50 cursor-not-allowed" : "hover:opacity-80"}`}
-                style={{ background: 'var(--glass-bg)', backdropFilter: 'blur(20px) saturate(180%)', WebkitBackdropFilter: 'blur(20px) saturate(180%)', borderColor: 'var(--glass-border)' }}
-              >
-                <span className="text-[15px] font-medium truncate block">
-                  {session.title || "Untitled Session"}
-                </span>
-                {session.directory && (
-                  <span className="text-[12px] truncate block mt-1" style={{ color: 'var(--foreground-muted)' }}>
-                    {session.directory.split('/').pop()}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full">
+          <div className="flex items-center gap-2">
             {isOffline ? (
-              <>
-                <svg className="w-12 h-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 5.636a9 9 0 010 12.728m-3.536-3.536a4 4 0 010-5.656m-8.486 9.192a9 9 0 010-12.728m3.536 3.536a4 4 0 010 5.656" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6" />
-                </svg>
-                <p style={{ color: 'var(--foreground-muted)' }} className="mb-4 text-[15px]">Device is offline</p>
-                <button
-                  onClick={handleReconnect}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
-                >
-                  Tap to reconnect
-                </button>
-              </>
+              <span className="w-2 h-2 rounded-full bg-red-500" />
             ) : (
-              <>
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4" />
-                <p style={{ color: 'var(--foreground-muted)' }} className="text-[15px]">{stepLabel}</p>
-              </>
+              <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-blue-500" />
             )}
+            <span className="text-[12px]" style={{ color: isOffline ? 'var(--oc-red)' : 'var(--foreground-muted)' }}>{stepLabel}</span>
           </div>
-        )}
-      </main>
+        </header>
+        
+        <div className="flex-1 min-h-0">
+          <SessionList />
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+      {isOffline ? (
+        <>
+          <svg className="w-12 h-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 5.636a9 9 0 010 12.728m-3.536-3.536a4 4 0 010-5.656m-8.486 9.192a9 9 0 010-12.728m3.536 3.536a4 4 0 010 5.656" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6" />
+          </svg>
+          <p style={{ color: 'var(--foreground-muted)' }} className="text-[15px]">Device is offline</p>
+        </>
+      ) : (
+        <>
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-4" />
+          <p style={{ color: 'var(--foreground-muted)' }} className="text-[15px]">{stepLabel}</p>
+        </>
+      )}
     </div>
   );
 }
