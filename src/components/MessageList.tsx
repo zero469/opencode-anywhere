@@ -12,6 +12,7 @@ import { getAgentColor, capitalizeAgentName } from "@/lib/agentColors";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import { createHighlighter, type Highlighter, type BundledLanguage } from "shiki";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { useTheme } from "@/contexts/ThemeContext";
 
 // Shiki highlighter singleton
 let highlighterPromise: Promise<Highlighter> | null = null;
@@ -40,18 +41,8 @@ function getHighlighter(): Promise<Highlighter> {
 }
 
 function useIsDarkMode(): boolean {
-  const [isDark, setIsDark] = useState(true);
-  
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    setIsDark(mediaQuery.matches);
-    
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mediaQuery.addEventListener("change", handler);
-    return () => mediaQuery.removeEventListener("change", handler);
-  }, []);
-  
-  return isDark;
+  const { resolvedTheme } = useTheme();
+  return resolvedTheme === "dark";
 }
 
 // Module-level cache for lazy images (survives re-renders)
