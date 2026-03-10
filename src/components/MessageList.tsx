@@ -1071,6 +1071,10 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
   const isLoadingMore = useAppStore((state) => state.isLoadingMore);
   const loadMoreMessages = useAppStore((state) => state.loadMoreMessages);
   const currentSessionId = useAppStore((state) => state.currentSessionId);
+  const pendingQuestions = useAppStore((state) => state.pendingQuestions);
+  const pendingPermissions = useAppStore((state) => state.pendingPermissions);
+  const hasPendingDialogs = pendingQuestions.some(q => q.sessionID === currentSessionId) 
+    || pendingPermissions.some(p => p.sessionID === currentSessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
   const prevSessionIdRef = useRef<string | null>(null);
@@ -1115,6 +1119,7 @@ export function MessageList({ keyboardHeight = 0 }: { keyboardHeight?: number })
         loadMoreMessages={loadMoreMessages}
         currentSessionId={currentSessionId}
         keyboardHeight={keyboardHeight}
+        hasPendingDialogs={hasPendingDialogs}
         bottomRef={bottomRef}
         topSentinelRef={topSentinelRef}
         prevSessionIdRef={prevSessionIdRef}
@@ -1133,6 +1138,7 @@ interface MessageListContentProps {
   loadMoreMessages: () => void;
   currentSessionId: string | null;
   keyboardHeight: number;
+  hasPendingDialogs: boolean;
   bottomRef: React.RefObject<HTMLDivElement | null>;
   topSentinelRef: React.RefObject<HTMLDivElement | null>;
   prevSessionIdRef: React.RefObject<string | null>;
@@ -1147,6 +1153,7 @@ function MessageListContent({
   loadMoreMessages,
   currentSessionId,
   keyboardHeight,
+  hasPendingDialogs,
   bottomRef,
   topSentinelRef,
   prevSessionIdRef,
@@ -1210,7 +1217,7 @@ function MessageListContent({
   }, [hasMoreMessages, isLoadingMore, loadMoreMessages, scrollRef, topSentinelRef, prevScrollHeightRef]);
 
   return (
-    <StickToBottom.Content className="flex flex-col p-4">
+    <StickToBottom.Content className="flex flex-col p-4" style={hasPendingDialogs ? { paddingBottom: '140px' } : undefined}>
       <div ref={topSentinelRef} className="h-1" />
 
       {isLoadingMore && (
