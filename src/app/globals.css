@@ -391,3 +391,23 @@ body.scanner-active .scanner-visible {
 .code-block-wrapper code {
   background-color: transparent !important;
 }
+
+/* Edit diff viewer scrollbar */
+.edit-diff-viewer {
+  scrollbar-width: thin;
+  scrollbar-color: var(--foreground-muted) transparent;
+}
+
+.edit-diff-viewer::-webkit-scrollbar {
+  height: 6px;
+}
+
+.edit-diff-viewer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.edit-diff-viewer::-webkit-scrollbar-thumb {
+  background-color: var(--foreground-muted);
+  border-radius: 3px;
+  opacity: 0.5;
+}
