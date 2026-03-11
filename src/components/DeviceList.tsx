@@ -900,6 +900,9 @@ export function DeviceList() {
         for (let i = 0; i < steps; i++) {
           reorderDevice(draggingDeviceId, direction);
         }
+        if (navigator.vibrate) {
+          navigator.vibrate(5);
+        }
       }
     }
     
