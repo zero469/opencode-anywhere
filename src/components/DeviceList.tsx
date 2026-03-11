@@ -7,6 +7,7 @@ import { Device } from "@/lib/relay";
 import { QRScanner } from "./QRScanner";
 import { getAgentColor, capitalizeAgentName } from "@/lib/agentColors";
 import { APP_VERSION } from "@/lib/version";
+import { Haptics, ImpactStyle } from "@capacitor/haptics";
 
 const SETUP_COMMAND_UNIX = "curl -sSL https://opencode-relay.azurewebsites.net/install.sh | bash";
 const SETUP_COMMAND_WINDOWS = "irm https://opencode-relay.azurewebsites.net/install.ps1 | iex";
@@ -849,9 +850,7 @@ export function DeviceList() {
       });
     }
     
-    if (navigator.vibrate) {
-      navigator.vibrate(10);
-    }
+    Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
   }, []);
 
   const handleDragMove = useCallback((e: React.TouchEvent) => {
@@ -900,9 +899,7 @@ export function DeviceList() {
         for (let i = 0; i < steps; i++) {
           reorderDevice(draggingDeviceId, direction);
         }
-        if (navigator.vibrate) {
-          navigator.vibrate(5);
-        }
+        Haptics.impact({ style: ImpactStyle.Light }).catch(() => {});
       }
     }
     
