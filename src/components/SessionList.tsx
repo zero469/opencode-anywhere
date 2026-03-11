@@ -445,7 +445,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
     >
       <div 
         className="flex-1 overflow-y-auto px-5 pt-3"
-        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+        style={{ paddingBottom: 'calc(70px + env(safe-area-inset-bottom, 0px))' }}
       >
         {isOffline && (
           <button
@@ -522,12 +522,19 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div 
-        className="absolute left-0 right-0 flex justify-center gap-3 pointer-events-none"
-        style={{ bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
+        className="absolute left-0 right-0 flex justify-center gap-2.5 pointer-events-none"
+        style={{ bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
       >
         {isSearchExpanded ? (
           <div 
-            className="liquid-glass-fab pointer-events-auto flex items-center gap-3 px-4 py-2.5"
+            className="pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-full"
+            style={{
+              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04))',
+              backdropFilter: 'blur(18px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+              border: '0.5px solid rgba(255, 255, 255, 0.18)',
+              boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.25), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.3)'
+            }}
           >
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--foreground-muted)' }}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -553,14 +560,21 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => {
                 setIsSearchExpanded(true);
                 setTimeout(() => searchInputRef.current?.focus(), 100);
               }}
-              className="liquid-glass-fab pointer-events-auto w-11 h-11 flex items-center justify-center"
-              style={{ color: 'var(--foreground)' }}
+              className="pointer-events-auto w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-transform"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04))',
+                backdropFilter: 'blur(18px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+                border: '0.5px solid rgba(255, 255, 255, 0.18)',
+                boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.25), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.3)',
+                color: 'var(--foreground)'
+              }}
             >
               <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -568,8 +582,15 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
             </button>
             <button
               onClick={() => refreshSessions()}
-              className="liquid-glass-fab pointer-events-auto w-11 h-11 flex items-center justify-center"
-              style={{ color: 'var(--foreground)' }}
+              className="pointer-events-auto w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-transform"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04))',
+                backdropFilter: 'blur(18px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+                border: '0.5px solid rgba(255, 255, 255, 0.18)',
+                boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.25), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.3)',
+                color: 'var(--foreground)'
+              }}
             >
               <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -577,11 +598,10 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
             </button>
             <button
               onClick={handleNewSession}
-              className="liquid-glass-fab pointer-events-auto w-11 h-11 flex items-center justify-center"
+              className="pointer-events-auto w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-transform"
               style={{ 
                 background: 'var(--accent)',
-                border: 'none',
-                boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.3)',
+                boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.35)',
                 color: 'white'
               }}
             >
