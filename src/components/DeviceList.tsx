@@ -522,27 +522,23 @@ function DeviceItem({
   onSelect, 
   onDelete, 
   onRename,
-  onMoveUp,
-  onMoveDown,
   needsRepair,
-  isFirst,
-  isLast,
   isRevealed,
   onReveal,
-  onClose
+  onClose,
+  isDragging,
+  onDragStart,
 }: { 
   device: Device; 
   onSelect: () => void; 
   onDelete: () => void;
   onRename: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
   needsRepair: boolean;
-  isFirst: boolean;
-  isLast: boolean;
   isRevealed: boolean;
   onReveal: () => void;
   onClose: () => void;
+  isDragging: boolean;
+  onDragStart: () => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
@@ -550,8 +546,9 @@ function DeviceItem({
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const currentTranslate = useRef(0);
-  const isDragging = useRef(false);
+  const isDraggingRef = useRef(false);
   const isScrolling = useRef<boolean | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (isRevealed) {
@@ -564,33 +561,50 @@ function DeviceItem({
     }
   }, [isRevealed]);
 
+  const clearLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
-    isDragging.current = true;
+    isDraggingRef.current = true;
     isScrolling.current = null;
     
     if (containerRef.current) {
       containerRef.current.style.transition = 'none';
     }
-  }, []);
+
+    longPressTimer.current = setTimeout(() => {
+      onDragStart();
+    }, 500);
+  }, [onDragStart]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging.current) return;
+    if (!isDraggingRef.current) return;
     
     const touchX = e.touches[0].clientX;
     const touchY = e.touches[0].clientY;
     const diffX = touchX - touchStartX.current;
     const diffY = touchY - touchStartY.current;
+
+    if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
+      clearLongPress();
+    }
     
     if (isScrolling.current === null) {
       if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 5) {
         isScrolling.current = true;
-        isDragging.current = false;
+        isDraggingRef.current = false;
+        clearLongPress();
         return;
       } else if (Math.abs(diffX) > 5) {
         isScrolling.current = false;
         setIsSwiping(true);
+        clearLongPress();
       }
     }
     
@@ -606,15 +620,17 @@ function DeviceItem({
     if (containerRef.current) {
       containerRef.current.style.transform = `translateX(${newTranslate}px)`;
     }
-  }, [isRevealed]);
+  }, [isRevealed, clearLongPress]);
 
   const handleTouchEnd = useCallback(() => {
-    if (!isDragging.current && isScrolling.current !== false) {
-      isDragging.current = false;
+    clearLongPress();
+
+    if (!isDraggingRef.current && isScrolling.current !== false) {
+      isDraggingRef.current = false;
       return;
     }
     
-    isDragging.current = false;
+    isDraggingRef.current = false;
     
     if (containerRef.current) {
       containerRef.current.style.transition = 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
@@ -646,7 +662,7 @@ function DeviceItem({
     
     isScrolling.current = null;
     setIsSwiping(false);
-  }, [isRevealed, onSelect, onReveal, onClose]);
+  }, [isRevealed, onSelect, onReveal, onClose, clearLongPress]);
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -664,7 +680,9 @@ function DeviceItem({
     <div 
       className="relative rounded-2xl"
       style={{ 
-        overflow: 'hidden'
+        overflow: 'hidden',
+        opacity: isDragging ? 0.5 : 1,
+        transition: 'opacity 0.15s ease'
       }}
     >
       <div 
@@ -736,39 +754,13 @@ function DeviceItem({
           )}
         </div>
 
-        <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveUp();
-            }}
-            disabled={isFirst}
-            className="p-1.5 rounded-full transition-opacity active:opacity-60 disabled:opacity-30"
-            style={{ color: 'var(--foreground-muted)' }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveDown();
-            }}
-            disabled={isLast}
-            className="p-1.5 rounded-full transition-opacity active:opacity-60 disabled:opacity-30"
-            style={{ color: 'var(--foreground-muted)' }}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onRename();
             }}
-            className="p-1.5 rounded-full transition-opacity active:opacity-60"
+            className="p-2 rounded-full transition-opacity active:opacity-60"
             style={{ color: 'var(--foreground-muted)' }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -776,7 +768,7 @@ function DeviceItem({
             </svg>
           </button>
           <svg 
-            className="w-4 h-4 ml-1" 
+            className="w-4 h-4" 
             style={{ color: 'var(--foreground-muted)' }} 
             fill="none" 
             stroke="currentColor" 
@@ -806,8 +798,12 @@ export function DeviceList() {
   } = useAppStore();
   const [showSettings, setShowSettings] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [renameDevice, setRenameDevice] = useState<Device | null>(null);
+  const [renameDeviceState, setRenameDeviceState] = useState<Device | null>(null);
   const [revealedDeviceId, setRevealedDeviceId] = useState<number | null>(null);
+  const [draggingDeviceId, setDraggingDeviceId] = useState<number | null>(null);
+  const [dragOverDeviceId, setDragOverDeviceId] = useState<number | null>(null);
+  const dragStartY = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchDevices();
@@ -830,17 +826,61 @@ export function DeviceList() {
       })
     : devices;
 
+  const handleDragStart = useCallback((deviceId: number, e?: React.TouchEvent) => {
+    setDraggingDeviceId(deviceId);
+    setRevealedDeviceId(null);
+    if (e) {
+      dragStartY.current = e.touches[0].clientY;
+    }
+  }, []);
+
+  const handleDragMove = useCallback((e: React.TouchEvent) => {
+    if (draggingDeviceId === null || !containerRef.current) return;
+
+    const touchY = e.touches[0].clientY;
+    const cards = containerRef.current.querySelectorAll('[data-device-id]');
+    
+    let targetDeviceId: number | null = null;
+    cards.forEach((card) => {
+      const rect = card.getBoundingClientRect();
+      const cardCenter = rect.top + rect.height / 2;
+      if (touchY > rect.top && touchY < rect.bottom) {
+        const id = parseInt(card.getAttribute('data-device-id') || '0', 10);
+        if (id !== draggingDeviceId) {
+          targetDeviceId = id;
+        }
+      }
+    });
+
+    setDragOverDeviceId(targetDeviceId);
+  }, [draggingDeviceId]);
+
+  const handleDragEnd = useCallback(() => {
+    if (draggingDeviceId !== null && dragOverDeviceId !== null) {
+      const dragIndex = sortedDevices.findIndex(d => d.id === draggingDeviceId);
+      const dropIndex = sortedDevices.findIndex(d => d.id === dragOverDeviceId);
+      
+      if (dragIndex !== -1 && dropIndex !== -1 && dragIndex !== dropIndex) {
+        const direction = dropIndex < dragIndex ? 'up' : 'down';
+        const steps = Math.abs(dropIndex - dragIndex);
+        for (let i = 0; i < steps; i++) {
+          reorderDevice(draggingDeviceId, direction);
+        }
+      }
+    }
+    
+    setDraggingDeviceId(null);
+    setDragOverDeviceId(null);
+  }, [draggingDeviceId, dragOverDeviceId, sortedDevices, reorderDevice]);
+
   const showInitialLoading = !devicesFetched && isLoading;
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
       <div className="fixed top-0 left-0 right-0 z-50" style={{ height: 'var(--safe-area-top)', backgroundColor: 'var(--background)' }} />
-      <header className="no-select flex items-center justify-between px-5 py-3 shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
-        <div className="min-w-0">
-          <h1 className="text-[17px] font-semibold truncate" style={{ color: 'var(--foreground)' }}>Devices</h1>
-          <span className="text-[12px]" style={{ color: 'var(--foreground-muted)' }}>Select a device</span>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+      <header className="no-select flex items-center justify-center px-5 py-3 shrink-0 relative" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+        <h1 className="text-[17px] font-semibold" style={{ color: 'var(--foreground)' }}>Devices</h1>
+        <div className="absolute right-5 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-green-500" />
           <span className="text-[12px]" style={{ color: 'var(--foreground-muted)' }}>v{APP_VERSION}</span>
         </div>
@@ -878,32 +918,40 @@ export function DeviceList() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              {sortedDevices.map((device, index) => (
+            <div 
+              ref={containerRef}
+              className="space-y-1.5"
+              onTouchMove={draggingDeviceId !== null ? handleDragMove : undefined}
+              onTouchEnd={draggingDeviceId !== null ? handleDragEnd : undefined}
+            >
+              {sortedDevices.map((device) => (
                 <div
                   key={device.id}
+                  data-device-id={device.id}
                   className="rounded-2xl overflow-hidden"
                   style={{ 
                     background: 'var(--glass-bg)',
                     backdropFilter: 'blur(20px) saturate(180%)',
                     WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                    border: '1px solid var(--glass-border)',
-                    boxShadow: 'var(--glass-shadow)'
+                    border: dragOverDeviceId === device.id 
+                      ? '2px solid var(--glass-blue-solid)' 
+                      : '1px solid var(--glass-border)',
+                    boxShadow: 'var(--glass-shadow)',
+                    transform: dragOverDeviceId === device.id ? 'scale(1.02)' : undefined,
+                    transition: 'transform 0.15s ease, border 0.15s ease'
                   }}
                 >
                   <DeviceItem
                     device={device}
                     onSelect={() => selectDevice(device)}
                     onDelete={() => deleteDevice(device.id)}
-                    onRename={() => setRenameDevice(device)}
-                    onMoveUp={() => reorderDevice(device.id, 'up')}
-                    onMoveDown={() => reorderDevice(device.id, 'down')}
+                    onRename={() => setRenameDeviceState(device)}
                     needsRepair={!getDeviceEncryptionKey(device.id)}
-                    isFirst={index === 0}
-                    isLast={index === sortedDevices.length - 1}
                     isRevealed={revealedDeviceId === device.id}
                     onReveal={() => setRevealedDeviceId(device.id)}
                     onClose={() => setRevealedDeviceId(null)}
+                    isDragging={draggingDeviceId === device.id}
+                    onDragStart={() => handleDragStart(device.id)}
                   />
                 </div>
               ))}
@@ -958,12 +1006,12 @@ export function DeviceList() {
         onSuccess={() => setShowScanner(false)}
       />
       <RenameDeviceModal
-        isOpen={!!renameDevice}
-        device={renameDevice}
-        onClose={() => setRenameDevice(null)}
+        isOpen={!!renameDeviceState}
+        device={renameDeviceState}
+        onClose={() => setRenameDeviceState(null)}
         onSave={async (name) => {
-          if (renameDevice) {
-            await updateDevice(renameDevice.id, name);
+          if (renameDeviceState) {
+            await updateDevice(renameDeviceState.id, name);
           }
         }}
       />
