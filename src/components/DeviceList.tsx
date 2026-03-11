@@ -847,11 +847,22 @@ export function DeviceList() {
     if (draggingDeviceId === null || !containerRef.current) return;
 
     const touchY = e.touches[0].clientY;
-    const offset = touchY - dragStartY.current;
-    setDragOffset(offset);
-
     const draggedIndex = sortedDevices.findIndex(d => d.id === draggingDeviceId);
     const cards = Array.from(containerRef.current.querySelectorAll('[data-device-id]'));
+    
+    const draggedCard = cardRefs.current.get(draggingDeviceId);
+    if (!draggedCard || cards.length === 0) return;
+
+    const firstCard = cards[0] as HTMLElement;
+    const lastCard = cards[cards.length - 1] as HTMLElement;
+    const draggedRect = draggedCard.getBoundingClientRect();
+    
+    const minOffset = firstCard.getBoundingClientRect().top - draggedRect.top;
+    const maxOffset = lastCard.getBoundingClientRect().bottom - draggedRect.bottom;
+    
+    const rawOffset = touchY - dragStartY.current;
+    const clampedOffset = Math.max(minOffset, Math.min(maxOffset, rawOffset));
+    setDragOffset(clampedOffset);
     
     let newTargetIndex = draggedIndex;
     cards.forEach((card, index) => {
