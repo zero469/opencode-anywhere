@@ -5,6 +5,9 @@
   "server": {
     "hostname": "opencode-relay.azurewebsites.net"
   },
+  "ios": {
+    "contentInset": "never"
+  },
   "plugins": {
     "CapacitorHttp": {
       "enabled": true

@@ -233,6 +233,67 @@ body.scanner-active .scanner-visible {
   transform: scale(0.97);
 }
 
+/* iOS 26 Liquid Glass Floating Button */
+.liquid-glass-fab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  
+  /* Base Material */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  
+  /* iOS 26 signature 0.5px border */
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  
+  /* Layered shadows: outer depth + inner rim light */
+  box-shadow: 
+    0 10px 30px -10px rgba(0, 0, 0, 0.25),
+    inset 0 0.5px 0.5px rgba(255, 255, 255, 0.3);
+  
+  overflow: hidden;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Specular highlight overlay */
+.liquid-glass-fab::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(
+    circle at 30% -10%, 
+    rgba(255, 255, 255, 0.15), 
+    transparent 60%
+  );
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.liquid-glass-fab:active {
+  transform: scale(0.96);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Light mode adjustments */
+.light .liquid-glass-fab {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.5));
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 
+    0 10px 30px -10px rgba(0, 0, 0, 0.15),
+    inset 0 0.5px 0.5px rgba(255, 255, 255, 0.8);
+}
+
+.light .liquid-glass-fab::before {
+  background: radial-gradient(
+    circle at 30% -10%, 
+    rgba(255, 255, 255, 0.5), 
+    transparent 60%
+  );
+}
+
 .glass-input {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
