@@ -445,7 +445,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
     >
       <div 
         className="flex-1 overflow-y-auto px-5 pt-3"
-        style={{ paddingBottom: '80px' }}
+        style={{ paddingBottom: '70px' }}
       >
         {isOffline && (
           <button
@@ -522,89 +522,93 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div 
-        className="absolute bottom-0 left-0 right-0 px-5 pb-1 pt-2"
-        style={{ 
-          background: 'var(--glass-bg-solid)',
-          borderTop: '1px solid var(--glass-border)'
-        }}
+        className="absolute bottom-0 left-0 right-0 flex justify-center gap-3 px-5 py-3 pointer-events-none"
       >
         {isSearchExpanded ? (
-          <div className="flex items-center gap-2">
-            <div 
-              className="relative flex-1 rounded-2xl overflow-hidden"
-              style={{ 
-                background: 'var(--glass-bg)',
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                border: '1px solid var(--glass-border)',
-                boxShadow: 'var(--glass-shadow)'
-              }}
-            >
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search sessions..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-10 pr-9 py-2.5 text-[15px] bg-transparent outline-none"
-                style={{ color: 'var(--foreground)' }}
-              />
-              <div 
-                className="absolute left-3.5 top-1/2 -translate-y-1/2"
-                style={{ color: 'var(--foreground-muted)' }}
-              >
-                <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-            </div>
+          <div 
+            className="flex-1 flex items-center gap-2 pointer-events-auto rounded-2xl px-3 py-2"
+            style={{ 
+              background: 'var(--glass-bg)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              border: '1px solid var(--glass-border)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+            }}
+          >
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--foreground-muted)' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search sessions..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="flex-1 text-[15px] bg-transparent outline-none"
+              style={{ color: 'var(--foreground)' }}
+            />
             <button
               onClick={() => {
                 setIsSearchExpanded(false);
                 setSearchInput('');
               }}
-              className="px-3 py-2 text-[15px] active:opacity-70 transition-opacity"
-              style={{ color: 'var(--foreground-muted)' }}
+              className="text-[15px] active:opacity-70 transition-opacity"
+              style={{ color: 'var(--accent)' }}
             >
               Cancel
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-around">
+          <>
             <button
               onClick={() => {
                 setIsSearchExpanded(true);
                 setTimeout(() => searchInputRef.current?.focus(), 100);
               }}
-              className="flex flex-col items-center gap-1 py-2 px-6 active:opacity-70 transition-opacity"
-              style={{ color: 'var(--foreground-muted)' }}
+              className="pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition-transform"
+              style={{ 
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                border: '1px solid var(--glass-border)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                color: 'var(--foreground)'
+              }}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <span className="text-[11px]">Search</span>
             </button>
             <button
               onClick={() => refreshSessions()}
-              className="flex flex-col items-center gap-1 py-2 px-6 active:opacity-70 transition-opacity"
-              style={{ color: 'var(--foreground-muted)' }}
+              className="pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition-transform"
+              style={{ 
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                border: '1px solid var(--glass-border)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                color: 'var(--foreground)'
+              }}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
-              <span className="text-[11px]">Refresh</span>
             </button>
             <button
               onClick={handleNewSession}
-              className="flex flex-col items-center gap-1 py-2 px-6 active:opacity-70 transition-opacity"
-              style={{ color: 'var(--accent)' }}
+              className="pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition-transform"
+              style={{ 
+                background: 'var(--accent)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                color: 'white'
+              }}
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <span className="text-[11px]">New</span>
             </button>
-          </div>
+          </>
         )}
       </div>
 
