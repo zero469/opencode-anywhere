@@ -445,7 +445,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
     >
       <div 
         className="flex-1 overflow-y-auto px-5 pt-3"
-        style={{ paddingBottom: 'calc(70px + env(safe-area-inset-bottom, 0px))' }}
+        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
       >
         {isOffline && (
           <button
@@ -529,11 +529,11 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
           <div 
             className="pointer-events-auto flex items-center gap-3 px-4 py-2.5 rounded-full"
             style={{
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04))',
-              backdropFilter: 'blur(18px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(18px) saturate(180%)',
-              border: '0.5px solid rgba(255, 255, 255, 0.18)',
-              boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.25), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.3)'
+              background: 'var(--glass-bg)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              border: '0.5px solid var(--glass-border-prominent)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), inset 0 0.5px 0 rgba(255, 255, 255, 0.5)'
             }}
           >
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: 'var(--foreground-muted)' }}>
@@ -568,11 +568,11 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
               }}
               className="pointer-events-auto w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-transform"
               style={{ 
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04))',
-                backdropFilter: 'blur(18px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(18px) saturate(180%)',
-                border: '0.5px solid rgba(255, 255, 255, 0.18)',
-                boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.25), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.3)',
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                border: '0.5px solid var(--glass-border-prominent)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), inset 0 0.5px 0 rgba(255, 255, 255, 0.5)',
                 color: 'var(--foreground)'
               }}
             >
@@ -584,11 +584,11 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
               onClick={() => refreshSessions()}
               className="pointer-events-auto w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-transform"
               style={{ 
-                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04))',
-                backdropFilter: 'blur(18px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(18px) saturate(180%)',
-                border: '0.5px solid rgba(255, 255, 255, 0.18)',
-                boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.25), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.3)',
+                background: 'var(--glass-bg)',
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                border: '0.5px solid var(--glass-border-prominent)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12), inset 0 0.5px 0 rgba(255, 255, 255, 0.5)',
                 color: 'var(--foreground)'
               }}
             >
@@ -601,7 +601,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
               className="pointer-events-auto w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-transform"
               style={{ 
                 background: 'var(--accent)',
-                boxShadow: '0 10px 30px -10px rgba(0, 0, 0, 0.35)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
                 color: 'white'
               }}
             >

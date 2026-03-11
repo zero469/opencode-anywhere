@@ -45,13 +45,13 @@
   --safe-area-right: env(safe-area-inset-right, 0px);
   
   /* ========== iOS 26 Liquid Glass Tokens ========== */
-  /* Dark mode: More solid, less transparent for better readability */
+  /* Dark mode: Semi-transparent for glass effect visibility */
   
-  /* Glass material backgrounds - solid dark with subtle transparency */
-  --glass-bg: rgba(30, 30, 30, 0.95);
-  --glass-bg-elevated: rgba(40, 40, 40, 0.95);
-  --glass-bg-pressed: rgba(20, 20, 20, 0.95);
-  --glass-bg-prominent: rgba(45, 45, 45, 0.95);
+  /* Glass material backgrounds - more transparent for true glass effect */
+  --glass-bg: rgba(30, 30, 30, 0.6);
+  --glass-bg-elevated: rgba(40, 40, 40, 0.7);
+  --glass-bg-pressed: rgba(20, 20, 20, 0.7);
+  --glass-bg-prominent: rgba(45, 45, 45, 0.75);
   
   /* Glass blur values - reduced for dark mode */
   --glass-blur: 12px;
@@ -113,10 +113,10 @@
   --oc-yellow: #b0851f;
   
   /* Light mode glass overrides */
-  --glass-bg: rgba(245, 245, 247, 0.72);
-  --glass-bg-elevated: rgba(255, 255, 255, 0.8);
-  --glass-bg-pressed: rgba(255, 255, 255, 0.5);
-  --glass-bg-prominent: rgba(255, 255, 255, 0.85);
+  --glass-bg: rgba(255, 255, 255, 0.5);
+  --glass-bg-elevated: rgba(255, 255, 255, 0.6);
+  --glass-bg-pressed: rgba(245, 245, 245, 0.5);
+  --glass-bg-prominent: rgba(255, 255, 255, 0.65);
   --glass-bg-solid: #ffffff;
   --glass-border: rgba(0, 0, 0, 0.06);
   --glass-border-prominent: rgba(0, 0, 0, 0.1);
