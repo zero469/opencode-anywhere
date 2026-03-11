@@ -806,6 +806,7 @@ export function DeviceList() {
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const dragStartY = useRef(0);
   const draggedItemInitialY = useRef(0);
+  const initialCardPositions = useRef<{ top: number; bottom: number; height: number }[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
@@ -834,10 +835,20 @@ export function DeviceList() {
     setDraggingDeviceId(deviceId);
     setRevealedDeviceId(null);
     dragStartY.current = touchY;
+    
     const card = cardRefs.current.get(deviceId);
     if (card) {
       draggedItemInitialY.current = card.getBoundingClientRect().top;
     }
+    
+    if (containerRef.current) {
+      const cards = Array.from(containerRef.current.querySelectorAll('[data-device-id]'));
+      initialCardPositions.current = cards.map(c => {
+        const rect = c.getBoundingClientRect();
+        return { top: rect.top, bottom: rect.bottom, height: rect.height };
+      });
+    }
+    
     if (navigator.vibrate) {
       navigator.vibrate(10);
     }
@@ -845,30 +856,29 @@ export function DeviceList() {
 
   const handleDragMove = useCallback((e: React.TouchEvent) => {
     if (draggingDeviceId === null || !containerRef.current) return;
+    if (initialCardPositions.current.length === 0) return;
 
     const touchY = e.touches[0].clientY;
     const draggedIndex = sortedDevices.findIndex(d => d.id === draggingDeviceId);
-    const cards = Array.from(containerRef.current.querySelectorAll('[data-device-id]'));
+    const positions = initialCardPositions.current;
     
-    const draggedCard = cardRefs.current.get(draggingDeviceId);
-    if (!draggedCard || cards.length === 0) return;
+    const draggedPos = positions[draggedIndex];
+    if (!draggedPos) return;
 
-    const firstCard = cards[0] as HTMLElement;
-    const lastCard = cards[cards.length - 1] as HTMLElement;
-    const draggedRect = draggedCard.getBoundingClientRect();
+    const firstPos = positions[0];
+    const lastPos = positions[positions.length - 1];
     
-    const minOffset = firstCard.getBoundingClientRect().top - draggedRect.top;
-    const maxOffset = lastCard.getBoundingClientRect().bottom - draggedRect.bottom;
+    const minOffset = firstPos.top - draggedPos.top;
+    const maxOffset = lastPos.bottom - draggedPos.bottom;
     
     const rawOffset = touchY - dragStartY.current;
     const clampedOffset = Math.max(minOffset, Math.min(maxOffset, rawOffset));
     setDragOffset(clampedOffset);
     
     let newTargetIndex = draggedIndex;
-    cards.forEach((card, index) => {
+    positions.forEach((pos, index) => {
       if (index === draggedIndex) return;
-      const rect = card.getBoundingClientRect();
-      const cardCenter = rect.top + rect.height / 2;
+      const cardCenter = pos.top + pos.height / 2;
       
       if (index < draggedIndex && touchY < cardCenter) {
         newTargetIndex = Math.min(newTargetIndex, index);
