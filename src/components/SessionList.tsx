@@ -520,11 +520,10 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
       </div>
 
       <div 
-        className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-5 py-2"
+        className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-5 pb-1 pt-2"
         style={{ 
           background: 'var(--glass-bg-solid)',
-          borderTop: '1px solid var(--glass-border)',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+          borderTop: '1px solid var(--glass-border)'
         }}
       >
         <div 
