@@ -150,6 +150,7 @@ interface AppState {
   cachedSessionsByDevice: Record<number, { sessions: Session[]; pinnedIds: string[] }>;
   devicesFetched: boolean;
   deviceEncryptionKeys: Record<number, string>;
+  deviceOrder: number[];
 
   setConfig: (config: ConnectionConfig) => Promise<void>;
   disconnect: () => void;
@@ -199,6 +200,7 @@ interface AppState {
   clearAuthError: () => void;
   checkDeviceAndReconnect: () => Promise<void>;
   setRelayToken: (token: string) => void;
+  reorderDevice: (deviceId: number, direction: 'up' | 'down') => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -244,6 +246,7 @@ export const useAppStore = create<AppState>()(
       cachedSessionsByDevice: {},
       devicesFetched: false,
       deviceEncryptionKeys: {},
+      deviceOrder: [],
 
       setConfig: async (config) => {
         set({ isLoading: true, connectionStep: "connecting" });
@@ -483,6 +486,25 @@ export const useAppStore = create<AppState>()(
       clearAuthError: () => set({ authError: null }),
 
       setRelayToken: (token) => set({ relayToken: token }),
+
+      reorderDevice: (deviceId, direction) => {
+        const { deviceOrder, devices } = get();
+        
+        let currentOrder = deviceOrder.length > 0 
+          ? deviceOrder 
+          : devices.map(d => d.id);
+        
+        const currentIndex = currentOrder.indexOf(deviceId);
+        if (currentIndex === -1) return;
+        
+        const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (newIndex < 0 || newIndex >= currentOrder.length) return;
+        
+        const newOrder = [...currentOrder];
+        [newOrder[currentIndex], newOrder[newIndex]] = [newOrder[newIndex], newOrder[currentIndex]];
+        
+        set({ deviceOrder: newOrder });
+      },
 
       checkDeviceAndReconnect: async () => {
         const { relayToken, selectedDevice, pinnedSessionIds, getDeviceEncryptionKey } = get();
@@ -1577,6 +1599,7 @@ export const useAppStore = create<AppState>()(
         cachedSessionsByDevice: state.cachedSessionsByDevice,
         pinnedSessionIds: state.pinnedSessionIds,
         deviceEncryptionKeys: state.deviceEncryptionKeys,
+        deviceOrder: state.deviceOrder,
         providers: state.providers,
         agents: state.agents,
       }),

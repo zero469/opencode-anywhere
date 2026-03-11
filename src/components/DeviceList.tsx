@@ -521,7 +521,9 @@ function DeviceItem({
   device, 
   onSelect, 
   onDelete, 
-  onRename, 
+  onRename,
+  onMoveUp,
+  onMoveDown,
   needsRepair,
   isFirst,
   isLast,
@@ -533,6 +535,8 @@ function DeviceItem({
   onSelect: () => void; 
   onDelete: () => void;
   onRename: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   needsRepair: boolean;
   isFirst: boolean;
   isLast: boolean;
@@ -656,21 +660,11 @@ function DeviceItem({
     }
   };
 
-  const borderRadius = isFirst && isLast 
-    ? '16px' 
-    : isFirst 
-      ? '16px 16px 0 0' 
-      : isLast 
-        ? '0 0 16px 16px' 
-        : '0';
-
   return (
     <div 
-      className="relative"
+      className="relative rounded-2xl"
       style={{ 
-        overflow: 'hidden',
-        borderRadius,
-        background: 'var(--glass-bg-solid)'
+        overflow: 'hidden'
       }}
     >
       <div 
@@ -705,8 +699,7 @@ function DeviceItem({
         onTouchEnd={handleTouchEnd}
         className="no-select relative flex items-center px-4 py-3"
         style={{ 
-          background: 'var(--glass-bg-solid)',
-          borderRadius,
+          background: 'transparent',
           willChange: 'transform'
         }}
       >
@@ -743,13 +736,39 @@ function DeviceItem({
           )}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveUp();
+            }}
+            disabled={isFirst}
+            className="p-1.5 rounded-full transition-opacity active:opacity-60 disabled:opacity-30"
+            style={{ color: 'var(--foreground-muted)' }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMoveDown();
+            }}
+            disabled={isLast}
+            className="p-1.5 rounded-full transition-opacity active:opacity-60 disabled:opacity-30"
+            style={{ color: 'var(--foreground-muted)' }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onRename();
             }}
-            className="p-2 rounded-full transition-opacity active:opacity-60"
+            className="p-1.5 rounded-full transition-opacity active:opacity-60"
             style={{ color: 'var(--foreground-muted)' }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -757,7 +776,7 @@ function DeviceItem({
             </svg>
           </button>
           <svg 
-            className="w-4 h-4" 
+            className="w-4 h-4 ml-1" 
             style={{ color: 'var(--foreground-muted)' }} 
             fill="none" 
             stroke="currentColor" 
@@ -767,17 +786,6 @@ function DeviceItem({
           </svg>
         </div>
       </div>
-
-      {!isLast && (
-        <div 
-          className="absolute bottom-0 right-0"
-          style={{ 
-            left: '52px',
-            height: '1px',
-            background: 'var(--glass-border)'
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -793,6 +801,8 @@ export function DeviceList() {
     isLoading,
     devicesFetched,
     getDeviceEncryptionKey,
+    deviceOrder,
+    reorderDevice,
   } = useAppStore();
   const [showSettings, setShowSettings] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -809,12 +819,23 @@ export function DeviceList() {
     return () => clearInterval(interval);
   }, [fetchDevices]);
 
+  const sortedDevices = deviceOrder.length > 0
+    ? [...devices].sort((a, b) => {
+        const aIndex = deviceOrder.indexOf(a.id);
+        const bIndex = deviceOrder.indexOf(b.id);
+        if (aIndex === -1 && bIndex === -1) return 0;
+        if (aIndex === -1) return 1;
+        if (bIndex === -1) return -1;
+        return aIndex - bIndex;
+      })
+    : devices;
+
   const showInitialLoading = !devicesFetched && isLoading;
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', paddingTop: 'var(--safe-area-top)', paddingBottom: 'var(--safe-area-bottom)' }}>
       <div className="fixed top-0 left-0 right-0 z-50" style={{ height: 'var(--safe-area-top)', backgroundColor: 'var(--background)' }} />
-      <header className="no-select flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+      <header className="no-select flex items-center justify-between px-5 py-3 shrink-0" style={{ borderBottom: '1px solid var(--glass-border)' }}>
         <div className="min-w-0">
           <h1 className="text-[17px] font-semibold truncate" style={{ color: 'var(--foreground)' }}>Devices</h1>
           <span className="text-[12px]" style={{ color: 'var(--foreground-muted)' }}>Select a device</span>
@@ -857,30 +878,34 @@ export function DeviceList() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div 
-              className="rounded-2xl overflow-hidden"
-              style={{ 
-                background: 'var(--glass-bg)',
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                border: '1px solid var(--glass-border)',
-                boxShadow: 'var(--glass-shadow)'
-              }}
-            >
-              {devices.map((device, index) => (
-                <DeviceItem
+            <div className="space-y-1.5">
+              {sortedDevices.map((device, index) => (
+                <div
                   key={device.id}
-                  device={device}
-                  onSelect={() => selectDevice(device)}
-                  onDelete={() => deleteDevice(device.id)}
-                  onRename={() => setRenameDevice(device)}
-                  needsRepair={!getDeviceEncryptionKey(device.id)}
-                  isFirst={index === 0}
-                  isLast={index === devices.length - 1}
-                  isRevealed={revealedDeviceId === device.id}
-                  onReveal={() => setRevealedDeviceId(device.id)}
-                  onClose={() => setRevealedDeviceId(null)}
-                />
+                  className="rounded-2xl overflow-hidden"
+                  style={{ 
+                    background: 'var(--glass-bg)',
+                    backdropFilter: 'blur(20px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                    border: '1px solid var(--glass-border)',
+                    boxShadow: 'var(--glass-shadow)'
+                  }}
+                >
+                  <DeviceItem
+                    device={device}
+                    onSelect={() => selectDevice(device)}
+                    onDelete={() => deleteDevice(device.id)}
+                    onRename={() => setRenameDevice(device)}
+                    onMoveUp={() => reorderDevice(device.id, 'up')}
+                    onMoveDown={() => reorderDevice(device.id, 'down')}
+                    needsRepair={!getDeviceEncryptionKey(device.id)}
+                    isFirst={index === 0}
+                    isLast={index === sortedDevices.length - 1}
+                    isRevealed={revealedDeviceId === device.id}
+                    onReveal={() => setRevealedDeviceId(device.id)}
+                    onClose={() => setRevealedDeviceId(null)}
+                  />
+                </div>
               ))}
             </div>
 
