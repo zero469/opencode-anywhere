@@ -538,7 +538,7 @@ function DeviceItem({
   onReveal: () => void;
   onClose: () => void;
   isDragging: boolean;
-  onDragStart: () => void;
+  onDragStart: (touchY: number) => void;
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
@@ -578,8 +578,9 @@ function DeviceItem({
       containerRef.current.style.transition = 'none';
     }
 
+    const startY = e.touches[0].clientY;
     longPressTimer.current = setTimeout(() => {
-      onDragStart();
+      onDragStart(startY);
     }, 500);
   }, [onDragStart]);
 
@@ -801,9 +802,12 @@ export function DeviceList() {
   const [renameDeviceState, setRenameDeviceState] = useState<Device | null>(null);
   const [revealedDeviceId, setRevealedDeviceId] = useState<number | null>(null);
   const [draggingDeviceId, setDraggingDeviceId] = useState<number | null>(null);
-  const [dragOverDeviceId, setDragOverDeviceId] = useState<number | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const dragStartY = useRef(0);
+  const draggedItemInitialY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     fetchDevices();
@@ -826,11 +830,16 @@ export function DeviceList() {
       })
     : devices;
 
-  const handleDragStart = useCallback((deviceId: number, e?: React.TouchEvent) => {
+  const handleDragStart = useCallback((deviceId: number, touchY: number) => {
     setDraggingDeviceId(deviceId);
     setRevealedDeviceId(null);
-    if (e) {
-      dragStartY.current = e.touches[0].clientY;
+    dragStartY.current = touchY;
+    const card = cardRefs.current.get(deviceId);
+    if (card) {
+      draggedItemInitialY.current = card.getBoundingClientRect().top;
+    }
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
     }
   }, []);
 
@@ -838,31 +847,35 @@ export function DeviceList() {
     if (draggingDeviceId === null || !containerRef.current) return;
 
     const touchY = e.touches[0].clientY;
-    const cards = containerRef.current.querySelectorAll('[data-device-id]');
+    const offset = touchY - dragStartY.current;
+    setDragOffset(offset);
+
+    const draggedIndex = sortedDevices.findIndex(d => d.id === draggingDeviceId);
+    const cards = Array.from(containerRef.current.querySelectorAll('[data-device-id]'));
     
-    let targetDeviceId: number | null = null;
-    cards.forEach((card) => {
+    let newTargetIndex = draggedIndex;
+    cards.forEach((card, index) => {
+      if (index === draggedIndex) return;
       const rect = card.getBoundingClientRect();
       const cardCenter = rect.top + rect.height / 2;
-      if (touchY > rect.top && touchY < rect.bottom) {
-        const id = parseInt(card.getAttribute('data-device-id') || '0', 10);
-        if (id !== draggingDeviceId) {
-          targetDeviceId = id;
-        }
+      
+      if (index < draggedIndex && touchY < cardCenter) {
+        newTargetIndex = Math.min(newTargetIndex, index);
+      } else if (index > draggedIndex && touchY > cardCenter) {
+        newTargetIndex = Math.max(newTargetIndex, index);
       }
     });
 
-    setDragOverDeviceId(targetDeviceId);
-  }, [draggingDeviceId]);
+    setDropTargetIndex(newTargetIndex !== draggedIndex ? newTargetIndex : null);
+  }, [draggingDeviceId, sortedDevices]);
 
   const handleDragEnd = useCallback(() => {
-    if (draggingDeviceId !== null && dragOverDeviceId !== null) {
+    if (draggingDeviceId !== null && dropTargetIndex !== null) {
       const dragIndex = sortedDevices.findIndex(d => d.id === draggingDeviceId);
-      const dropIndex = sortedDevices.findIndex(d => d.id === dragOverDeviceId);
       
-      if (dragIndex !== -1 && dropIndex !== -1 && dragIndex !== dropIndex) {
-        const direction = dropIndex < dragIndex ? 'up' : 'down';
-        const steps = Math.abs(dropIndex - dragIndex);
+      if (dragIndex !== -1 && dragIndex !== dropTargetIndex) {
+        const direction = dropTargetIndex < dragIndex ? 'up' : 'down';
+        const steps = Math.abs(dropTargetIndex - dragIndex);
         for (let i = 0; i < steps; i++) {
           reorderDevice(draggingDeviceId, direction);
         }
@@ -870,8 +883,9 @@ export function DeviceList() {
     }
     
     setDraggingDeviceId(null);
-    setDragOverDeviceId(null);
-  }, [draggingDeviceId, dragOverDeviceId, sortedDevices, reorderDevice]);
+    setDragOffset(0);
+    setDropTargetIndex(null);
+  }, [draggingDeviceId, dropTargetIndex, sortedDevices, reorderDevice]);
 
   const showInitialLoading = !devicesFetched && isLoading;
 
@@ -920,41 +934,66 @@ export function DeviceList() {
           <div className="space-y-4">
             <div 
               ref={containerRef}
-              className="space-y-1.5"
+              className="space-y-1.5 relative"
               onTouchMove={draggingDeviceId !== null ? handleDragMove : undefined}
               onTouchEnd={draggingDeviceId !== null ? handleDragEnd : undefined}
             >
-              {sortedDevices.map((device) => (
-                <div
-                  key={device.id}
-                  data-device-id={device.id}
-                  className="rounded-2xl overflow-hidden"
-                  style={{ 
-                    background: 'var(--glass-bg)',
-                    backdropFilter: 'blur(20px) saturate(180%)',
-                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                    border: dragOverDeviceId === device.id 
-                      ? '2px solid var(--glass-blue-solid)' 
-                      : '1px solid var(--glass-border)',
-                    boxShadow: 'var(--glass-shadow)',
-                    transform: dragOverDeviceId === device.id ? 'scale(1.02)' : undefined,
-                    transition: 'transform 0.15s ease, border 0.15s ease'
-                  }}
-                >
-                  <DeviceItem
-                    device={device}
-                    onSelect={() => selectDevice(device)}
-                    onDelete={() => deleteDevice(device.id)}
-                    onRename={() => setRenameDeviceState(device)}
-                    needsRepair={!getDeviceEncryptionKey(device.id)}
-                    isRevealed={revealedDeviceId === device.id}
-                    onReveal={() => setRevealedDeviceId(device.id)}
-                    onClose={() => setRevealedDeviceId(null)}
-                    isDragging={draggingDeviceId === device.id}
-                    onDragStart={() => handleDragStart(device.id)}
-                  />
-                </div>
-              ))}
+              {sortedDevices.map((device, index) => {
+                const isDragged = draggingDeviceId === device.id;
+                const draggedIndex = sortedDevices.findIndex(d => d.id === draggingDeviceId);
+                
+                let shiftY = 0;
+                if (draggingDeviceId !== null && dropTargetIndex !== null && !isDragged) {
+                  if (draggedIndex < dropTargetIndex && index > draggedIndex && index <= dropTargetIndex) {
+                    shiftY = -70;
+                  } else if (draggedIndex > dropTargetIndex && index < draggedIndex && index >= dropTargetIndex) {
+                    shiftY = 70;
+                  }
+                }
+
+                return (
+                  <div
+                    key={device.id}
+                    ref={(el) => {
+                      if (el) cardRefs.current.set(device.id, el);
+                      else cardRefs.current.delete(device.id);
+                    }}
+                    data-device-id={device.id}
+                    className="rounded-2xl overflow-hidden"
+                    style={{ 
+                      background: 'var(--glass-bg)',
+                      backdropFilter: 'blur(20px) saturate(180%)',
+                      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                      border: '1px solid var(--glass-border)',
+                      boxShadow: isDragged 
+                        ? '0 20px 40px rgba(0,0,0,0.3)' 
+                        : 'var(--glass-shadow)',
+                      transform: isDragged 
+                        ? `translateY(${dragOffset}px) scale(1.03)` 
+                        : `translateY(${shiftY}px)`,
+                      transition: isDragged 
+                        ? 'box-shadow 0.2s ease, scale 0.2s ease' 
+                        : 'transform 0.25s ease, box-shadow 0.2s ease',
+                      zIndex: isDragged ? 100 : 1,
+                      position: 'relative',
+                      opacity: isDragged ? 0.95 : 1,
+                    }}
+                  >
+                    <DeviceItem
+                      device={device}
+                      onSelect={() => selectDevice(device)}
+                      onDelete={() => deleteDevice(device.id)}
+                      onRename={() => setRenameDeviceState(device)}
+                      needsRepair={!getDeviceEncryptionKey(device.id)}
+                      isRevealed={revealedDeviceId === device.id}
+                      onReveal={() => setRevealedDeviceId(device.id)}
+                      onClose={() => setRevealedDeviceId(null)}
+                      isDragging={isDragged}
+                      onDragStart={(touchY) => handleDragStart(device.id, touchY)}
+                    />
+                  </div>
+                );
+              })}
             </div>
 
             <div className="pt-2">
