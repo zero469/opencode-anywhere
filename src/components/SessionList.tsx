@@ -445,7 +445,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
     >
       <div 
         className="flex-1 overflow-y-auto px-5 pt-3"
-        style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}
+        style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom, 0px))' }}
       >
         {isOffline && (
           <button
