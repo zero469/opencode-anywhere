@@ -1332,15 +1332,17 @@ export const useAppStore = create<AppState>()(
         const deviceId = currentDeviceId;
         try {
           const projects = await opencode.getProjects();
-          set({ projects });
-          if (deviceId) {
-            const { cachedDeviceData } = get();
-            set({
-              cachedDeviceData: {
-                ...cachedDeviceData,
-                [deviceId]: { ...cachedDeviceData[deviceId], projects }
-              }
-            });
+          if (projects.length > 0) {
+            set({ projects });
+            if (deviceId) {
+              const { cachedDeviceData } = get();
+              set({
+                cachedDeviceData: {
+                  ...cachedDeviceData,
+                  [deviceId]: { ...cachedDeviceData[deviceId], projects }
+                }
+              });
+            }
           }
         } catch (error) {
           console.error("Failed to fetch projects:", error);
