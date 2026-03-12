@@ -148,6 +148,7 @@ interface AppState {
   authError: string | null;
   pinnedSessionIds: string[];
   cachedSessionsByDevice: Record<number, { sessions: Session[]; pinnedIds: string[] }>;
+  cachedDeviceData: Record<number, { skills: SkillInfo[]; commands: CommandInfo[]; mcpStatus: McpStatusMap }>;
   devicesFetched: boolean;
   deviceEncryptionKeys: Record<number, string>;
   deviceOrder: number[];
@@ -244,6 +245,7 @@ export const useAppStore = create<AppState>()(
       authError: null,
       pinnedSessionIds: [],
       cachedSessionsByDevice: {},
+      cachedDeviceData: {},
       devicesFetched: false,
       deviceEncryptionKeys: {},
       deviceOrder: [],
@@ -262,7 +264,7 @@ export const useAppStore = create<AppState>()(
           await get().fetchProvidersAndAgents();  // Critical - wait for this
           set({ connectionStep: "ready", isLoading: false });  // UI ready now
           
-          // Fire and forget - non-blocking background fetches
+          // Fire and forget - non-blocking background fetches (always refresh to get latest)
           get().fetchSkills().catch(err => console.error('Failed to fetch skills:', err));
           get().fetchCommands().catch(err => console.error('Failed to fetch commands:', err));
           get().fetchMcpStatus().catch(err => console.error('Failed to fetch MCP status:', err));
@@ -359,7 +361,7 @@ export const useAppStore = create<AppState>()(
       },
 
       selectDevice: async (device) => {
-        const { relayToken, selectedDevice: currentDevice, cachedSessionsByDevice, getDeviceEncryptionKey, config } = get();
+        const { relayToken, selectedDevice: currentDevice, cachedSessionsByDevice, cachedDeviceData, getDeviceEncryptionKey, config } = get();
         if (!relayToken) return;
         
         if (currentDevice?.id === device.id && config) {
@@ -372,24 +374,22 @@ export const useAppStore = create<AppState>()(
         opencode.initClient({ baseUrl: '', username: '', password: '' });
         opencode.setEncryptionKey(getDeviceEncryptionKey(device.id));
         
-        const cached = cachedSessionsByDevice[device.id];
-        const cachedSessions = cached?.sessions || [];
+        const cachedSessions = cachedSessionsByDevice[device.id];
+        const cachedData = cachedDeviceData[device.id];
         
         const newState: Partial<AppState> = { 
           selectedDevice: device, 
           isLoading: true,
-          sessions: cachedSessions,
+          sessions: cachedSessions?.sessions || [],
           currentSessionId: null,
           isDraftMode: false,
           messages: [],
           todos: [],
-          skills: [],
-          commands: [],
-          mcpStatus: {},
+          skills: cachedData?.skills || [],
+          commands: cachedData?.commands || [],
+          mcpStatus: cachedData?.mcpStatus || {},
           connectionStep: "connecting",
         };
-        
-
         
         set(newState);
         
@@ -1178,18 +1178,38 @@ export const useAppStore = create<AppState>()(
       },
 
       fetchSkills: async () => {
+        const deviceId = currentDeviceId;
         try {
           const skills = await opencode.getSkills();
           set({ skills });
+          if (deviceId) {
+            const { cachedDeviceData } = get();
+            set({
+              cachedDeviceData: {
+                ...cachedDeviceData,
+                [deviceId]: { ...cachedDeviceData[deviceId], skills }
+              }
+            });
+          }
         } catch (error) {
           console.error("Failed to fetch skills:", error);
         }
       },
 
       fetchCommands: async () => {
+        const deviceId = currentDeviceId;
         try {
           const commands = await opencode.getCommands();
           set({ commands });
+          if (deviceId) {
+            const { cachedDeviceData } = get();
+            set({
+              cachedDeviceData: {
+                ...cachedDeviceData,
+                [deviceId]: { ...cachedDeviceData[deviceId], commands }
+              }
+            });
+          }
         } catch (error) {
           console.error("Failed to fetch commands:", error);
         }
@@ -1266,9 +1286,19 @@ export const useAppStore = create<AppState>()(
       },
 
       fetchMcpStatus: async () => {
+        const deviceId = currentDeviceId;
         try {
           const mcpStatus = await opencode.getMcpStatus();
           set({ mcpStatus });
+          if (deviceId) {
+            const { cachedDeviceData } = get();
+            set({
+              cachedDeviceData: {
+                ...cachedDeviceData,
+                [deviceId]: { ...cachedDeviceData[deviceId], mcpStatus }
+              }
+            });
+          }
         } catch (error) {
           console.error("Failed to fetch MCP status:", error);
         }
