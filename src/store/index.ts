@@ -263,7 +263,9 @@ export const useAppStore = create<AppState>()(
           set({ connectionStep: "ready", isLoading: false });  // UI ready now
           
           // Fire and forget - non-blocking background fetches
+          get().fetchSkills().catch(err => console.error('Failed to fetch skills:', err));
           get().fetchCommands().catch(err => console.error('Failed to fetch commands:', err));
+          get().fetchMcpStatus().catch(err => console.error('Failed to fetch MCP status:', err));
           get().fetchPendingRequests().catch(err => console.error('Failed to fetch pending requests:', err));
         } else {
           set({ connectionStep: "idle", isLoading: false });
@@ -381,6 +383,9 @@ export const useAppStore = create<AppState>()(
           isDraftMode: false,
           messages: [],
           todos: [],
+          skills: [],
+          commands: [],
+          mcpStatus: {},
           connectionStep: "connecting",
         };
         
