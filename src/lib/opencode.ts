@@ -255,12 +255,16 @@ export async function getCachedAgents(): Promise<Agent[]> {
 export async function getProjects(): Promise<Project[]> {
   try {
     const url = isNative() ? `${getBaseUrl()}/project` : "/api/opencode/projects";
+    console.log("[getProjects] Fetching from:", url);
     const response = await http(url, { headers: getHeaders() });
+    console.log("[getProjects] Response ok:", response.ok, "status:", response.status);
     if (!response.ok) return [];
     const data = await response.json();
+    console.log("[getProjects] Data:", data);
     if (data.error || !Array.isArray(data)) return [];
     return data;
-  } catch {
+  } catch (error) {
+    console.error("[getProjects] Error:", error);
     return [];
   }
 }

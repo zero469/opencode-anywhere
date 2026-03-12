@@ -1328,7 +1328,9 @@ export const useAppStore = create<AppState>()(
 
       fetchProjects: async () => {
         try {
+          console.log("[fetchProjects] Fetching projects...");
           const projects = await opencode.getProjects();
+          console.log("[fetchProjects] Got projects:", projects);
           set({ projects });
         } catch (error) {
           console.error("Failed to fetch projects:", error);
