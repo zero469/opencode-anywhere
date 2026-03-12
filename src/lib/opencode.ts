@@ -265,9 +265,13 @@ export async function getProjects(): Promise<Project[]> {
   }
 }
 
-export async function getSessions(): Promise<Session[]> {
+export async function getSessions(directory?: string): Promise<Session[]> {
   const baseUrl = isNative() ? `${getBaseUrl()}/session` : "/api/opencode/sessions";
-  const url = `${baseUrl}?roots=true`;
+  const params = new URLSearchParams({ roots: 'true' });
+  if (directory) {
+    params.set('directory', directory);
+  }
+  const url = `${baseUrl}?${params.toString()}`;
   const response = await http(url, { headers: getHeaders() });
   const data = await response.json();
   

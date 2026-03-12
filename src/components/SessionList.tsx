@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { usePWA } from "@/hooks/usePWA";
-import type { Session, Project } from "@/types";
+import type { Session } from "@/types";
 
 function formatTime(timestamp: number) {
   const date = new Date(timestamp);
@@ -350,12 +350,7 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
     return title.includes(query) || id.includes(query);
   };
 
-  const matchesProject = (session: Session) => {
-    if (!selectedProjectId) return true;
-    return session.projectID === selectedProjectId;
-  };
-
-  const filteredSessions = sessions.filter(s => matchesSearch(s) && matchesProject(s));
+  const filteredSessions = sessions.filter(s => matchesSearch(s));
   const pinnedSessions = filteredSessions.filter(s => pinnedSessionIds.includes(s.id));
   const unpinnedSessions = filteredSessions.filter(s => !pinnedSessionIds.includes(s.id));
 

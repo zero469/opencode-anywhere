@@ -189,7 +189,7 @@ interface AppState {
    fetchMcpStatus: () => Promise<void>;
    toggleMcp: (name: string, enable: boolean) => Promise<void>;
    fetchProjects: () => Promise<void>;
-   selectProject: (projectId: string | null) => void;
+   selectProject: (projectId: string | null) => Promise<void>;
 
    sendVerification: (email: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -575,8 +575,12 @@ export const useAppStore = create<AppState>()(
           return;
         }
         
+        const { selectedProjectId, projects } = get();
+        const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
+        const directory = selectedProject?.worktree;
+        
          try {
-           const sessions = await opencode.getSessions();
+           const sessions = await opencode.getSessions(directory);
            
            if (currentDeviceId !== deviceIdAtStart) {
              return;
@@ -1349,8 +1353,9 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      selectProject: (projectId) => {
+      selectProject: async (projectId) => {
         set({ selectedProjectId: projectId, currentSessionId: null, isDraftMode: false, messages: [], todos: [] });
+        await get().refreshSessions();
       },
 
       handleSSEEvent: (event) => {
