@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { useState, useEffect } from "react";
 import { capacitorStorage } from "@/lib/storage";
-import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
+import type { ConnectionConfig, ConnectionStatus, SessionMessage, PermissionRequest, SSEEvent, Session, MessageInfo, MessagePart, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest, Project } from "@/types";
 import type { SkillInfo, CommandInfo, Attachment, McpStatusMap } from "@/lib/opencode";
 import * as opencode from "@/lib/opencode";
 import { relay, Device, User, FrpcConfig } from "@/lib/relay";
@@ -140,6 +140,8 @@ interface AppState {
    commands: CommandInfo[];
    compactingSessions: string[];
    mcpStatus: McpStatusMap;
+   projects: Project[];
+   selectedProjectId: string | null;
 
    relayToken: string | null;
   user: User | null;
@@ -186,6 +188,8 @@ interface AppState {
    onAppResume: () => Promise<void>;
    fetchMcpStatus: () => Promise<void>;
    toggleMcp: (name: string, enable: boolean) => Promise<void>;
+   fetchProjects: () => Promise<void>;
+   selectProject: (projectId: string | null) => void;
 
    sendVerification: (email: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
@@ -237,6 +241,8 @@ export const useAppStore = create<AppState>()(
        commands: [],
        compactingSessions: [],
        mcpStatus: {},
+       projects: [],
+       selectedProjectId: null,
 
        relayToken: null,
       user: null,
@@ -261,8 +267,9 @@ export const useAppStore = create<AppState>()(
         if (status.connected) {
           set({ connectionStep: "loading_sessions" });
           await get().refreshSessions();
-          await get().fetchProvidersAndAgents();  // Critical - wait for this
-          set({ connectionStep: "ready", isLoading: false });  // UI ready now
+          await get().fetchProvidersAndAgents();
+          await get().fetchProjects();
+          set({ connectionStep: "ready", isLoading: false });
           
           // Fire and forget - non-blocking background fetches (always refresh to get latest)
           get().fetchSkills().catch(err => console.error('Failed to fetch skills:', err));
@@ -1317,6 +1324,19 @@ export const useAppStore = create<AppState>()(
           console.error(`Failed to ${enable ? 'connect' : 'disconnect'} MCP ${name}:`, error);
           throw error;
         }
+      },
+
+      fetchProjects: async () => {
+        try {
+          const projects = await opencode.getProjects();
+          set({ projects });
+        } catch (error) {
+          console.error("Failed to fetch projects:", error);
+        }
+      },
+
+      selectProject: (projectId) => {
+        set({ selectedProjectId: projectId, currentSessionId: null, isDraftMode: false, messages: [], todos: [] });
       },
 
       handleSSEEvent: (event) => {

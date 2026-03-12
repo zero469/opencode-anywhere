@@ -16,11 +16,18 @@ export interface Session {
   title?: string;
   directory?: string;
   parentID?: string;
+  projectID?: string;
   time?: {
     created: number;
     updated?: number;
   };
   share?: { url: string };
+}
+
+export interface Project {
+  id: string;
+  worktree: string;
+  vcs?: string;
 }
 
 export interface TokenUsage {

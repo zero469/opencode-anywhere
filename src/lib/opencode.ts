@@ -1,4 +1,4 @@
-import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest } from "@/types";
+import type { ConnectionConfig, ConnectionStatus, SessionMessage, SSEEvent, ProvidersResponse, Agent, ModelSelection, TodoItem, QuestionRequest, Project } from "@/types";
 import type { Session } from "@/types";
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { Preferences } from "@capacitor/preferences";
@@ -250,6 +250,19 @@ export async function getAgents(): Promise<Agent[]> {
 
 export async function getCachedAgents(): Promise<Agent[]> {
   return (await getCachedData<Agent[]>(CACHE_KEY_AGENTS)) || [];
+}
+
+export async function getProjects(): Promise<Project[]> {
+  try {
+    const url = isNative() ? `${getBaseUrl()}/project` : "/api/opencode/projects";
+    const response = await http(url, { headers: getHeaders() });
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (data.error || !Array.isArray(data)) return [];
+    return data;
+  } catch {
+    return [];
+  }
 }
 
 export async function getSessions(): Promise<Session[]> {

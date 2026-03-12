@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useAppStore } from "@/store";
 import { usePWA } from "@/hooks/usePWA";
-import type { Session } from "@/types";
+import type { Session, Project } from "@/types";
 
 function formatTime(timestamp: number) {
   const date = new Date(timestamp);
@@ -328,7 +328,7 @@ function RenameModal({ session, onClose, onRename }: RenameModalProps) {
 }
 
 export function SessionList({ onClose }: { onClose?: () => void }) {
-  const { sessions, currentSessionId, selectSession, startDraftSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions, connectionStep, selectedDevice, checkDeviceAndReconnect, pendingPermissions, runningSessions } = useAppStore();
+  const { sessions, currentSessionId, selectSession, startDraftSession, renameSession, togglePinSession, pinnedSessionIds, refreshSessions, connectionStep, selectedDevice, checkDeviceAndReconnect, pendingPermissions, runningSessions, projects, selectedProjectId, selectProject } = useAppStore();
   const sessionsWithPermissions = new Set(pendingPermissions.map(p => p.sessionID));
   const [sessionToRename, setSessionToRename] = useState<Session | null>(null);
   const [revealedSessionId, setRevealedSessionId] = useState<string | null>(null);
@@ -350,7 +350,12 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
     return title.includes(query) || id.includes(query);
   };
 
-  const filteredSessions = sessions.filter(matchesSearch);
+  const matchesProject = (session: Session) => {
+    if (!selectedProjectId) return true;
+    return session.projectID === selectedProjectId;
+  };
+
+  const filteredSessions = sessions.filter(s => matchesSearch(s) && matchesProject(s));
   const pinnedSessions = filteredSessions.filter(s => pinnedSessionIds.includes(s.id));
   const unpinnedSessions = filteredSessions.filter(s => !pinnedSessionIds.includes(s.id));
 
@@ -481,6 +486,32 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
           </button>
         )}
         
+        {projects.length > 1 && (
+          <div className="mb-4">
+            <select
+              value={selectedProjectId || ""}
+              onChange={(e) => selectProject(e.target.value || null)}
+              className="w-full px-4 py-3 rounded-xl text-[14px] outline-none appearance-none cursor-pointer"
+              style={{ 
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                color: 'var(--foreground)',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23888'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 12px center',
+                backgroundSize: '16px'
+              }}
+            >
+              <option value="">All Projects</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.worktree === "/" ? "global" : project.worktree.split('/').pop()}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {hasStaleCache ? (
           <p className="text-center py-8" style={{ color: 'var(--foreground-muted)' }}>
             Failed to load sessions
