@@ -18,6 +18,7 @@ vi.mock('@/lib/opencode', () => ({
   getSessionTodos: vi.fn(),
   getCachedProviders: vi.fn(),
   getCachedAgents: vi.fn(),
+  getProjects: vi.fn(),
 }))
 
 const mockOpencode = opencode as {
@@ -35,6 +36,7 @@ const mockOpencode = opencode as {
   getSessionTodos: ReturnType<typeof vi.fn>
   getCachedProviders: ReturnType<typeof vi.fn>
   getCachedAgents: ReturnType<typeof vi.fn>
+  getProjects: ReturnType<typeof vi.fn>
 }
 
 describe('useAppStore', () => {
@@ -44,6 +46,7 @@ describe('useAppStore', () => {
     mockOpencode.getSessionTodos.mockResolvedValue([])
     mockOpencode.getCachedProviders.mockResolvedValue(null)
     mockOpencode.getCachedAgents.mockResolvedValue([])
+    mockOpencode.getProjects.mockResolvedValue([])
     useAppStore.setState({
       config: null,
       status: { connected: false },
@@ -78,14 +81,16 @@ describe('useAppStore', () => {
       expect(useAppStore.getState().status).toEqual({ connected: true, serverVersion: '1.0.0' })
     })
 
-    it('fetches sessions and providers when connected', async () => {
+    it('fetches projects, sessions and providers when connected', async () => {
       mockOpencode.checkConnection.mockResolvedValue({ connected: true })
+      mockOpencode.getProjects.mockResolvedValue([{ id: 'proj-1', worktree: '/' }])
       mockOpencode.getSessions.mockResolvedValue([{ id: 'session-1' }])
       mockOpencode.getProviders.mockResolvedValue(null)
       mockOpencode.getAgents.mockResolvedValue([])
 
       await useAppStore.getState().setConfig({ baseUrl: 'http://localhost:4096' })
 
+      expect(mockOpencode.getProjects).toHaveBeenCalled()
       expect(mockOpencode.getSessions).toHaveBeenCalled()
       expect(mockOpencode.getProviders).toHaveBeenCalled()
       expect(mockOpencode.getAgents).toHaveBeenCalled()

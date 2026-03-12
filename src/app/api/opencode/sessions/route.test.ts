@@ -40,7 +40,7 @@ describe('GET /api/opencode/sessions', () => {
     const data = await response.json()
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:4096/session',
+      'http://localhost:4096/session?roots=true',
       expect.objectContaining({
         headers: { 'Content-Type': 'application/json' },
       })
@@ -59,7 +59,7 @@ describe('GET /api/opencode/sessions', () => {
     await GET(req)
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://session-server:3000/session',
+      'http://session-server:3000/session?roots=true',
       expect.any(Object)
     )
   })
