@@ -20,8 +20,13 @@ function getBaseUrl(req: NextRequest): string {
 export async function GET(req: NextRequest) {
   const baseUrl = getBaseUrl(req);
   const headers = getAuthHeaders(req);
-  const searchParams = req.nextUrl.searchParams.toString();
-  const url = searchParams ? `${baseUrl}/session?${searchParams}` : `${baseUrl}/session`;
+  
+  const directory = req.headers.get("x-opencode-directory");
+  if (directory) {
+    headers["x-opencode-directory"] = directory;
+  }
+  
+  const url = `${baseUrl}/session?roots=true`;
   
   try {
     const response = await fetch(url, { headers });
@@ -40,8 +45,15 @@ export async function POST(req: NextRequest) {
   const headers = getAuthHeaders(req);
   const body = await req.json();
   
+  const directory = req.headers.get("x-opencode-directory");
+  if (directory) {
+    headers["x-opencode-directory"] = directory;
+  }
+  
+  const url = `${baseUrl}/session`;
+  
   try {
-    const response = await fetch(`${baseUrl}/session`, {
+    const response = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),

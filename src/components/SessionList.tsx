@@ -483,19 +483,11 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
         
         {projects.length > 1 && (
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <button
-              onClick={() => selectProject(null)}
-              className="flex-shrink-0 px-3 py-1.5 rounded-full text-[13px] font-medium transition-all"
-              style={{
-                background: !selectedProjectId ? 'var(--foreground)' : 'var(--glass-bg)',
-                color: !selectedProjectId ? 'var(--background)' : 'var(--foreground-muted)',
-                border: '1px solid',
-                borderColor: !selectedProjectId ? 'var(--foreground)' : 'var(--glass-border)',
-              }}
-            >
-              All
-            </button>
-            {projects.map((project) => {
+            {[...projects].sort((a, b) => {
+              if (a.worktree === "/") return -1;
+              if (b.worktree === "/") return 1;
+              return 0;
+            }).map((project) => {
               const isSelected = selectedProjectId === project.id;
               const label = project.worktree === "/" ? "global" : project.worktree.split('/').pop();
               return (

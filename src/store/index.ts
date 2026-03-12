@@ -142,6 +142,7 @@ interface AppState {
    mcpStatus: McpStatusMap;
    projects: Project[];
    selectedProjectId: string | null;
+   cachedSessionsByProject: Record<number, Record<string, Session[]>>;
 
    relayToken: string | null;
   user: User | null;
@@ -189,6 +190,7 @@ interface AppState {
    fetchMcpStatus: () => Promise<void>;
    toggleMcp: (name: string, enable: boolean) => Promise<void>;
    fetchProjects: () => Promise<void>;
+   preloadAllProjectSessions: () => Promise<void>;
    selectProject: (projectId: string | null) => Promise<void>;
 
    sendVerification: (email: string) => Promise<void>;
@@ -243,6 +245,7 @@ export const useAppStore = create<AppState>()(
        mcpStatus: {},
        projects: [],
        selectedProjectId: null,
+       cachedSessionsByProject: {},
 
        relayToken: null,
       user: null,
@@ -266,12 +269,27 @@ export const useAppStore = create<AppState>()(
 
         if (status.connected) {
           set({ connectionStep: "loading_sessions" });
-          await get().refreshSessions();
-          await get().fetchProvidersAndAgents();
           await get().fetchProjects();
+          
+          const { projects, selectedProjectId, selectedDevice } = get();
+          const globalProject = projects.find(p => p.worktree === "/");
+          const defaultProjectId = selectedProjectId || globalProject?.id || (projects.length > 0 ? projects[0].id : null);
+          if (defaultProjectId) {
+            set({ selectedProjectId: defaultProjectId });
+          }
+          
+          await get().preloadAllProjectSessions();
+          
+          const { cachedSessionsByProject } = get();
+          const deviceId = selectedDevice?.id ?? 0;
+          if (defaultProjectId) {
+            const cachedSessions = cachedSessionsByProject[deviceId]?.[defaultProjectId] || [];
+            set({ sessions: cachedSessions });
+          }
+          
+          await get().fetchProvidersAndAgents();
           set({ connectionStep: "ready", isLoading: false });
           
-          // Fire and forget - non-blocking background fetches (always refresh to get latest)
           get().fetchSkills().catch(err => console.error('Failed to fetch skills:', err));
           get().fetchCommands().catch(err => console.error('Failed to fetch commands:', err));
           get().fetchMcpStatus().catch(err => console.error('Failed to fetch MCP status:', err));
@@ -384,6 +402,10 @@ export const useAppStore = create<AppState>()(
         const cachedSessions = cachedSessionsByDevice[device.id];
         const cachedData = cachedDeviceData[device.id];
         
+        const cachedProjects = cachedData?.projects || [];
+        const globalProject = cachedProjects.find(p => p.worktree === "/");
+        const defaultProjectId = globalProject?.id || (cachedProjects.length > 0 ? cachedProjects[0].id : null);
+        
         const newState: Partial<AppState> = { 
           selectedDevice: device, 
           isLoading: true,
@@ -395,8 +417,8 @@ export const useAppStore = create<AppState>()(
           skills: cachedData?.skills || [],
           commands: cachedData?.commands || [],
           mcpStatus: cachedData?.mcpStatus || {},
-          projects: cachedData?.projects || [],
-          selectedProjectId: null,
+          projects: cachedProjects,
+          selectedProjectId: defaultProjectId,
           connectionStep: "connecting",
         };
         
@@ -575,16 +597,36 @@ export const useAppStore = create<AppState>()(
           return;
         }
         
-        const { selectedProjectId, projects } = get();
+        const { selectedProjectId, projects, cachedSessionsByProject, currentSessionId, sessions: existingSessions, selectedDevice } = get();
+        const deviceId = selectedDevice?.id ?? 0;
         const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
-        const directory = selectedProject?.worktree;
+        const isGlobalProject = selectedProject?.worktree === "/";
+        const cacheKey = selectedProjectId || "all";
         
          try {
-           const sessions = await opencode.getSessions(directory);
+           let sessions: Session[];
+           
+           if (isGlobalProject) {
+             const allSessions = await opencode.getSessions(undefined);
+             const otherWorktrees = projects
+               .filter(p => p.worktree && p.worktree !== "/")
+               .map(p => p.worktree);
+             sessions = allSessions.filter(s => 
+               !otherWorktrees.some(wt => s.directory?.startsWith(wt))
+             );
+           } else {
+             const directory = selectedProject?.worktree;
+             sessions = await opencode.getSessions(directory);
+           }
            
            if (currentDeviceId !== deviceIdAtStart) {
              return;
            }
+           
+          const currentSession = currentSessionId ? existingSessions.find(s => s.id === currentSessionId) : null;
+          if (currentSession && !sessions.find(s => s.id === currentSessionId)) {
+            sessions = [currentSession, ...sessions];
+          }
           
           const sortedSessions = [...sessions].sort((a, b) => {
             const timeA = a.time?.updated || a.time?.created || 0;
@@ -592,7 +634,17 @@ export const useAppStore = create<AppState>()(
             return timeB - timeA;
           });
           consecutiveFailures = 0;
-          set({ sessions: sortedSessions });
+          
+          set({ 
+            sessions: sortedSessions,
+            cachedSessionsByProject: {
+              ...cachedSessionsByProject,
+              [deviceId]: {
+                ...cachedSessionsByProject[deviceId],
+                [cacheKey]: sortedSessions,
+              }
+            }
+          });
           
           get().preloadRecentSessions(sortedSessions.slice(0, 2));
         } catch (error) {
@@ -835,13 +887,16 @@ export const useAppStore = create<AppState>()(
       },
 
       sendMessage: async (text, attachments) => {
-        const { currentSessionId, isDraftMode, selectedModel, sessionAgents, defaultAgent, messages, commands } = get();
+        const { currentSessionId, isDraftMode, selectedModel, sessionAgents, defaultAgent, messages, commands, selectedProjectId, projects } = get();
         if (!text.trim()) return;
         
         let sessionId = currentSessionId;
         if (isDraftMode || !sessionId) {
           try {
-            const session = await opencode.createSession();
+            const selectedProject = selectedProjectId ? projects.find(p => p.id === selectedProjectId) : null;
+            const directory = selectedProject?.worktree !== "/" ? selectedProject?.worktree : undefined;
+            
+            const session = await opencode.createSession(undefined, directory);
             if (!session) {
               console.error("Failed to create session");
               return;
@@ -854,13 +909,19 @@ export const useAppStore = create<AppState>()(
             sessionLoadedCount.set(cacheKey, 0);
             sessionLastUpdated.set(cacheKey, session.time?.updated || Date.now());
             
+            const currentSessions = get().sessions;
+            const sessionsWithNew = currentSessions.find(s => s.id === session.id) 
+              ? currentSessions 
+              : [session, ...currentSessions];
+            
             set({ 
               currentSessionId: session.id, 
               isDraftMode: false,
               messages: [], 
               isLoading: false, 
               hasMoreMessages: false,
-              sessionLoadingStep: "ready"
+              sessionLoadingStep: "ready",
+              sessions: sessionsWithNew,
             });
           } catch (error) {
             console.error("Failed to create session:", error);
@@ -1353,9 +1414,75 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      preloadAllProjectSessions: async () => {
+        const deviceIdAtStart = currentDeviceId;
+        const { projects, selectedDevice } = get();
+        const deviceId = selectedDevice?.id ?? 0;
+        if (projects.length === 0) return;
+
+        const otherWorktrees = projects
+          .filter(p => p.worktree && p.worktree !== "/")
+          .map(p => p.worktree);
+
+        const loadProjectSessions = async (project: Project) => {
+          if (currentDeviceId !== deviceIdAtStart) return;
+          
+          try {
+            let sessions: Session[];
+            if (project.worktree === "/") {
+              const allSessions = await opencode.getSessions(undefined);
+              sessions = allSessions.filter(s => 
+                !otherWorktrees.some(wt => s.directory?.startsWith(wt))
+              );
+            } else {
+              sessions = await opencode.getSessions(project.worktree);
+            }
+            
+            if (currentDeviceId !== deviceIdAtStart) return;
+            
+            const sorted = [...sessions].sort((a, b) => {
+              const timeA = a.time?.updated || a.time?.created || 0;
+              const timeB = b.time?.updated || b.time?.created || 0;
+              return timeB - timeA;
+            });
+            
+            const { cachedSessionsByProject } = get();
+            set({
+              cachedSessionsByProject: {
+                ...cachedSessionsByProject,
+                [deviceId]: {
+                  ...cachedSessionsByProject[deviceId],
+                  [project.id]: sorted,
+                }
+              }
+            });
+          } catch (error) {
+            console.error(`Failed to preload sessions for project ${project.id}:`, error);
+          }
+        };
+
+        await Promise.all(projects.map(loadProjectSessions));
+      },
+
       selectProject: async (projectId) => {
-        set({ selectedProjectId: projectId, currentSessionId: null, isDraftMode: false, messages: [], todos: [] });
-        await get().refreshSessions();
+        const { cachedSessionsByProject, selectedDevice } = get();
+        const deviceId = selectedDevice?.id ?? 0;
+        const cacheKey = projectId || "all";
+        const cachedSessions = cachedSessionsByProject[deviceId]?.[cacheKey];
+        
+        if (cachedSessions) {
+          set({ 
+            selectedProjectId: projectId, 
+            currentSessionId: null, 
+            isDraftMode: false, 
+            messages: [], 
+            todos: [],
+            sessions: cachedSessions,
+          });
+        } else {
+          set({ selectedProjectId: projectId, currentSessionId: null, isDraftMode: false, messages: [], todos: [] });
+          await get().refreshSessions();
+        }
       },
 
       handleSSEEvent: (event) => {
@@ -1503,9 +1630,39 @@ export const useAppStore = create<AppState>()(
 
           case "session.created": {
             const sessionData = event.properties.info as Session | undefined;
+            if (!sessionData?.id) break;
+            
             const currentSessions = get().sessions;
-            if (sessionData?.id && !currentSessions.find(s => s.id === sessionData.id)) {
+            if (currentSessions.find(s => s.id === sessionData.id)) break;
+            
+            const { selectedProjectId, projects, currentSessionId } = get();
+            
+            const isCurrentSession = sessionData.id === currentSessionId;
+            if (isCurrentSession) {
               set({ sessions: [sessionData, ...currentSessions] });
+              break;
+            }
+            
+            if (selectedProjectId === null) {
+              set({ sessions: [sessionData, ...currentSessions] });
+            } else {
+              const selectedProject = projects.find(p => p.id === selectedProjectId);
+              if (selectedProject) {
+                const isGlobalProject = selectedProject.worktree === "/";
+                if (isGlobalProject) {
+                  const otherWorktrees = projects
+                    .filter(p => p.worktree && p.worktree !== "/")
+                    .map(p => p.worktree);
+                  const belongsToOther = otherWorktrees.some(wt => sessionData.directory?.startsWith(wt));
+                  if (!belongsToOther) {
+                    set({ sessions: [sessionData, ...currentSessions] });
+                  }
+                } else {
+                  if (sessionData.directory?.startsWith(selectedProject.worktree)) {
+                    set({ sessions: [sessionData, ...currentSessions] });
+                  }
+                }
+              }
             }
             break;
           }
@@ -1662,21 +1819,29 @@ export const useAppStore = create<AppState>()(
           state.fetchDevices();
         }
       },
-      partialize: (state) => ({ 
-        relayToken: state.relayToken,
-        user: state.user,
-        devices: state.devices,
-        selectedDevice: state.selectedDevice,
-        selectedModel: state.selectedModel,
-        sessionAgents: state.sessionAgents,
-        defaultAgent: state.defaultAgent,
-        cachedSessionsByDevice: state.cachedSessionsByDevice,
-        pinnedSessionIds: state.pinnedSessionIds,
-        deviceEncryptionKeys: state.deviceEncryptionKeys,
-        deviceOrder: state.deviceOrder,
-        providers: state.providers,
-        agents: state.agents,
-      }),
+      partialize: (state) => {
+        const filteredProviders = state.providers ? {
+          ...state.providers,
+          all: state.providers.all.filter(p => state.providers!.connected.includes(p.id)),
+        } : null;
+        
+        return {
+          relayToken: state.relayToken,
+          user: state.user,
+          devices: state.devices,
+          selectedDevice: state.selectedDevice,
+          selectedModel: state.selectedModel,
+          sessionAgents: state.sessionAgents,
+          defaultAgent: state.defaultAgent,
+          cachedSessionsByDevice: state.cachedSessionsByDevice,
+          cachedDeviceData: state.cachedDeviceData,
+          pinnedSessionIds: state.pinnedSessionIds,
+          deviceEncryptionKeys: state.deviceEncryptionKeys,
+          deviceOrder: state.deviceOrder,
+          providers: filteredProviders,
+          agents: state.agents,
+        };
+      },
     }
   )
 );

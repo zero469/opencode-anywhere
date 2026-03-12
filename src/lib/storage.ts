@@ -30,6 +30,13 @@ export const capacitorStorage: StateStorage = {
     return typeof localStorage !== "undefined" ? localStorage.getItem(name) : null;
   },
   setItem: async (name: string, value: string): Promise<void> => {
+    const sizeKB = Math.round(value.length / 1024);
+    if (sizeKB > 100) {
+      console.warn(`[Storage] Saving ${name}: ${sizeKB}KB`);
+      if (sizeKB > 1000) {
+        console.warn(`[Storage] Data breakdown for ${name}:`, analyzeStorageData(value));
+      }
+    }
     if (Capacitor.isNativePlatform()) {
       await Preferences.set({ key: name, value });
     } else if (typeof localStorage !== "undefined") {
@@ -44,3 +51,18 @@ export const capacitorStorage: StateStorage = {
     }
   },
 };
+
+function analyzeStorageData(value: string): Record<string, string> {
+  try {
+    const data = JSON.parse(value);
+    const state = data.state || data;
+    const sizes: Record<string, string> = {};
+    for (const key of Object.keys(state)) {
+      const json = JSON.stringify(state[key]);
+      sizes[key] = `${Math.round(json.length / 1024)}KB`;
+    }
+    return sizes;
+  } catch {
+    return { error: "Failed to parse" };
+  }
+}

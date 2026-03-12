@@ -268,11 +268,14 @@ export async function getProjects(): Promise<Project[]> {
 export async function getSessions(directory?: string): Promise<Session[]> {
   const baseUrl = isNative() ? `${getBaseUrl()}/session` : "/api/opencode/sessions";
   const params = new URLSearchParams({ roots: 'true' });
-  if (directory) {
-    params.set('directory', directory);
-  }
   const url = `${baseUrl}?${params.toString()}`;
-  const response = await http(url, { headers: getHeaders() });
+  
+  const headers = getHeaders();
+  if (directory) {
+    headers["x-opencode-directory"] = directory;
+  }
+  
+  const response = await http(url, { headers });
   const data = await response.json();
   
   if (data.error) throw new Error(data.error);
@@ -467,11 +470,17 @@ export async function abortSession(sessionId: string): Promise<boolean> {
   return response.ok;
 }
 
-export async function createSession(title?: string): Promise<Session | null> {
+export async function createSession(title?: string, directory?: string): Promise<Session | null> {
   const url = isNative() ? `${getBaseUrl()}/session` : "/api/opencode/sessions";
+  
+  const headers = getHeaders();
+  if (directory) {
+    headers["x-opencode-directory"] = directory;
+  }
+  
   const response = await http(url, {
     method: "POST",
-    headers: getHeaders(),
+    headers,
     body: JSON.stringify({ title }),
   });
   
