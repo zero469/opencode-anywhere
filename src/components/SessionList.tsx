@@ -487,28 +487,38 @@ export function SessionList({ onClose }: { onClose?: () => void }) {
         )}
         
         {projects.length > 1 && (
-          <div className="mb-4">
-            <select
-              value={selectedProjectId || ""}
-              onChange={(e) => selectProject(e.target.value || null)}
-              className="w-full px-4 py-3 rounded-xl text-[14px] outline-none appearance-none cursor-pointer"
-              style={{ 
-                background: 'var(--glass-bg)',
-                border: '1px solid var(--glass-border)',
-                color: 'var(--foreground)',
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23888'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 12px center',
-                backgroundSize: '16px'
+          <div className="mb-4 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <button
+              onClick={() => selectProject(null)}
+              className="flex-shrink-0 px-3 py-1.5 rounded-full text-[13px] font-medium transition-all"
+              style={{
+                background: !selectedProjectId ? 'var(--foreground)' : 'var(--glass-bg)',
+                color: !selectedProjectId ? 'var(--background)' : 'var(--foreground-muted)',
+                border: '1px solid',
+                borderColor: !selectedProjectId ? 'var(--foreground)' : 'var(--glass-border)',
               }}
             >
-              <option value="">All Projects</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.worktree === "/" ? "global" : project.worktree.split('/').pop()}
-                </option>
-              ))}
-            </select>
+              All
+            </button>
+            {projects.map((project) => {
+              const isSelected = selectedProjectId === project.id;
+              const label = project.worktree === "/" ? "global" : project.worktree.split('/').pop();
+              return (
+                <button
+                  key={project.id}
+                  onClick={() => selectProject(project.id)}
+                  className="flex-shrink-0 px-3 py-1.5 rounded-full text-[13px] font-medium transition-all"
+                  style={{
+                    background: isSelected ? 'var(--foreground)' : 'var(--glass-bg)',
+                    color: isSelected ? 'var(--background)' : 'var(--foreground-muted)',
+                    border: '1px solid',
+                    borderColor: isSelected ? 'var(--foreground)' : 'var(--glass-border)',
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         )}
 
