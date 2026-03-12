@@ -150,7 +150,7 @@ interface AppState {
   authError: string | null;
   pinnedSessionIds: string[];
   cachedSessionsByDevice: Record<number, { sessions: Session[]; pinnedIds: string[] }>;
-  cachedDeviceData: Record<number, { skills: SkillInfo[]; commands: CommandInfo[]; mcpStatus: McpStatusMap }>;
+  cachedDeviceData: Record<number, { skills: SkillInfo[]; commands: CommandInfo[]; mcpStatus: McpStatusMap; projects: Project[] }>;
   devicesFetched: boolean;
   deviceEncryptionKeys: Record<number, string>;
   deviceOrder: number[];
@@ -395,6 +395,8 @@ export const useAppStore = create<AppState>()(
           skills: cachedData?.skills || [],
           commands: cachedData?.commands || [],
           mcpStatus: cachedData?.mcpStatus || {},
+          projects: cachedData?.projects || [],
+          selectedProjectId: null,
           connectionStep: "connecting",
         };
         
@@ -1327,11 +1329,19 @@ export const useAppStore = create<AppState>()(
       },
 
       fetchProjects: async () => {
+        const deviceId = currentDeviceId;
         try {
-          console.log("[fetchProjects] Fetching projects...");
           const projects = await opencode.getProjects();
-          console.log("[fetchProjects] Got projects:", projects);
           set({ projects });
+          if (deviceId) {
+            const { cachedDeviceData } = get();
+            set({
+              cachedDeviceData: {
+                ...cachedDeviceData,
+                [deviceId]: { ...cachedDeviceData[deviceId], projects }
+              }
+            });
+          }
         } catch (error) {
           console.error("Failed to fetch projects:", error);
         }
