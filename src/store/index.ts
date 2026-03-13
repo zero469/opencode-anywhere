@@ -150,7 +150,6 @@ interface AppState {
   selectedDevice: Device | null;
   authError: string | null;
   pinnedSessionIds: string[];
-  cachedSessionsByDevice: Record<number, { sessions: Session[]; pinnedIds: string[] }>;
   cachedDeviceData: Record<number, { skills: SkillInfo[]; commands: CommandInfo[]; mcpStatus: McpStatusMap; projects: Project[] }>;
   devicesFetched: boolean;
   deviceEncryptionKeys: Record<number, string>;
@@ -252,9 +251,8 @@ export const useAppStore = create<AppState>()(
       devices: [],
       selectedDevice: null,
       authError: null,
-      pinnedSessionIds: [],
-      cachedSessionsByDevice: {},
-      cachedDeviceData: {},
+       pinnedSessionIds: [],
+       cachedDeviceData: {},
       devicesFetched: false,
       deviceEncryptionKeys: {},
       deviceOrder: [],
@@ -453,16 +451,6 @@ export const useAppStore = create<AppState>()(
             password: frpcConfig.auth_password,
           };
           await get().setConfig(newConfig);
-          
-          const { sessions, pinnedSessionIds: currentPinnedIds, selectedDevice: currentSelectedDevice } = get();
-          if (currentSelectedDevice?.id === device.id && sessions.length > 0) {
-            set({ 
-              cachedSessionsByDevice: {
-                ...get().cachedSessionsByDevice,
-                [device.id]: { sessions, pinnedIds: currentPinnedIds }
-              }
-            });
-          }
         } catch (error) {
           console.error("Failed to get frpc config:", error);
           set({ isLoading: false, connectionStep: "idle" });
@@ -480,19 +468,21 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteDevice: async (deviceId) => {
-        const { relayToken, devices, selectedDevice, deviceEncryptionKeys, cachedSessionsByDevice } = get();
+        const { relayToken, devices, selectedDevice, deviceEncryptionKeys, cachedSessionsByProject, cachedDeviceData } = get();
         if (!relayToken) return;
         
         try {
           await relay.deleteDevice(relayToken, deviceId);
           
           const { [deviceId]: _removedKey, ...remainingKeys } = deviceEncryptionKeys;
-          const { [deviceId]: _removedCache, ...remainingCache } = cachedSessionsByDevice;
+          const { [deviceId]: _removedSessionCache, ...remainingSessionCache } = cachedSessionsByProject;
+          const { [deviceId]: _removedDeviceData, ...remainingDeviceData } = cachedDeviceData;
           
           set({ 
             devices: devices.filter(d => d.id !== deviceId),
             deviceEncryptionKeys: remainingKeys,
-            cachedSessionsByDevice: remainingCache,
+            cachedSessionsByProject: remainingSessionCache,
+            cachedDeviceData: remainingDeviceData,
           });
           
           if (selectedDevice?.id === deviceId) {
@@ -590,16 +580,6 @@ export const useAppStore = create<AppState>()(
               password: frpcConfig.auth_password,
             };
             await get().setConfig(newConfig);
-            
-            const { sessions, selectedDevice: currentSelectedDevice } = get();
-            if (currentSelectedDevice?.id === updatedDevice.id && sessions.length > 0) {
-              set({ 
-                cachedSessionsByDevice: {
-                  ...get().cachedSessionsByDevice,
-                  [updatedDevice.id]: { sessions, pinnedIds: pinnedSessionIds }
-                }
-              });
-            }
           } else {
             set({ connectionStep: "idle" });
           }
@@ -1119,22 +1099,13 @@ export const useAppStore = create<AppState>()(
       },
 
       togglePinSession: (sessionId) => {
-        const { pinnedSessionIds, selectedDevice, sessions, cachedSessionsByDevice } = get();
+        const { pinnedSessionIds } = get();
         const isPinned = pinnedSessionIds.includes(sessionId);
         const newPinnedIds = isPinned 
           ? pinnedSessionIds.filter(id => id !== sessionId)
           : [...pinnedSessionIds, sessionId];
         
         set({ pinnedSessionIds: newPinnedIds });
-        
-        if (selectedDevice && sessions.length > 0) {
-          set({
-            cachedSessionsByDevice: {
-              ...cachedSessionsByDevice,
-              [selectedDevice.id]: { sessions, pinnedIds: newPinnedIds }
-            }
-          });
-        }
       },
 
       respondPermission: async (permissionId, allow) => {
@@ -1853,7 +1824,6 @@ export const useAppStore = create<AppState>()(
           selectedModel: state.selectedModel,
           sessionAgents: state.sessionAgents,
           defaultAgent: state.defaultAgent,
-          cachedSessionsByDevice: state.cachedSessionsByDevice,
           cachedDeviceData: state.cachedDeviceData,
           pinnedSessionIds: state.pinnedSessionIds,
           deviceEncryptionKeys: state.deviceEncryptionKeys,
