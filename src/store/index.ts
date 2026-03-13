@@ -271,21 +271,39 @@ export const useAppStore = create<AppState>()(
           set({ connectionStep: "loading_sessions" });
           await get().fetchProjects();
           
-          const { projects, selectedProjectId, selectedDevice } = get();
+          const { projects, selectedProjectId, selectedDevice, cachedSessionsByProject } = get();
+          const deviceId = selectedDevice?.id ?? 0;
           const globalProject = projects.find(p => p.worktree === "/");
           const defaultProjectId = selectedProjectId || globalProject?.id || (projects.length > 0 ? projects[0].id : null);
+          
           if (defaultProjectId) {
             set({ selectedProjectId: defaultProjectId });
+            
+            const cachedSessions = cachedSessionsByProject[deviceId]?.[defaultProjectId];
+            if (cachedSessions) {
+              set({ sessions: cachedSessions });
+            } else {
+              const selectedProject = projects.find(p => p.id === defaultProjectId);
+              const sessions = await opencode.getSessions(selectedProject?.worktree === "/" ? undefined : selectedProject?.worktree);
+              const sorted = [...sessions].sort((a, b) => {
+                const timeA = a.time?.updated || a.time?.created || 0;
+                const timeB = b.time?.updated || b.time?.created || 0;
+                return timeB - timeA;
+              });
+              set({ 
+                sessions: sorted,
+                cachedSessionsByProject: {
+                  ...get().cachedSessionsByProject,
+                  [deviceId]: {
+                    ...get().cachedSessionsByProject[deviceId],
+                    [defaultProjectId]: sorted,
+                  }
+                }
+              });
+            }
           }
           
-          await get().preloadAllProjectSessions();
-          
-          const { cachedSessionsByProject } = get();
-          const deviceId = selectedDevice?.id ?? 0;
-          if (defaultProjectId) {
-            const cachedSessions = cachedSessionsByProject[deviceId]?.[defaultProjectId] || [];
-            set({ sessions: cachedSessions });
-          }
+          get().preloadAllProjectSessions();
           
           await get().fetchProvidersAndAgents();
           set({ connectionStep: "ready", isLoading: false });
@@ -386,7 +404,7 @@ export const useAppStore = create<AppState>()(
       },
 
       selectDevice: async (device) => {
-        const { relayToken, selectedDevice: currentDevice, cachedSessionsByDevice, cachedDeviceData, getDeviceEncryptionKey, config } = get();
+        const { relayToken, selectedDevice: currentDevice, cachedSessionsByProject, cachedDeviceData, getDeviceEncryptionKey, config } = get();
         if (!relayToken) return;
         
         if (currentDevice?.id === device.id && config) {
@@ -399,17 +417,19 @@ export const useAppStore = create<AppState>()(
         opencode.initClient({ baseUrl: '', username: '', password: '' });
         opencode.setEncryptionKey(getDeviceEncryptionKey(device.id));
         
-        const cachedSessions = cachedSessionsByDevice[device.id];
         const cachedData = cachedDeviceData[device.id];
         
         const cachedProjects = cachedData?.projects || [];
         const globalProject = cachedProjects.find(p => p.worktree === "/");
         const defaultProjectId = globalProject?.id || (cachedProjects.length > 0 ? cachedProjects[0].id : null);
         
+        const deviceSessionCache = cachedSessionsByProject[device.id] || {};
+        const cachedProjectSessions = defaultProjectId ? deviceSessionCache[defaultProjectId] || [] : [];
+        
         const newState: Partial<AppState> = { 
           selectedDevice: device, 
           isLoading: true,
-          sessions: cachedSessions?.sessions || [],
+          sessions: cachedProjectSessions,
           currentSessionId: null,
           isDraftMode: false,
           messages: [],
